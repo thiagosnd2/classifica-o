@@ -291,6 +291,42 @@ footer{padding:0 24px 24px;color:var(--muted);font-size:12px;max-width:110ch}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 let KB = null, sample = null, downloads = null;
+/* ===== Hospedagem própria (GitHub Pages + servidor no Cloudflare Workers) =====
+   Fora do claude.ai, a IA e as chaves Pro passam pelo servidor abaixo.
+   Depois de publicar o servidor, cole aqui o endereço dele (sem barra no fim). */
+const API_URL = '';
+let CHAVE_ATUAL = '';
+async function apiPost(rota, corpo, signal){
+  let r;
+  try{ r = await fetch(API_URL + rota, {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify(corpo), signal}); }
+  catch(e){ if(e && e.name==='AbortError') throw e; throw {code:'network'}; }
+  let j = null; try{ j = await r.json(); }catch{}
+  if(r.status===429) throw {code:'rate_limited'};
+  if(r.status===401 || r.status===403) throw {code:'not_granted', message: j&&j.erro};
+  if(!r.ok) throw {code:'server', message: j&&j.erro};
+  return j;
+}
+const baixarLocal = { save: async ({filename, data}) => {
+  const blob = data instanceof Blob ? data : new Blob([data]);
+  const url = URL.createObjectURL(blob);
+  const a = Object.assign(document.createElement('a'), {href:url, download:filename});
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 4000);
+}};
+function servidorProprio(){
+  if(!API_URL) return null;
+  return {
+    sample: { json: (prompt, opts={}) => {
+      const lote = /array JSON/.test(prompt);
+      return apiPost(lote ? '/lote' : '/classificar', {prompt, chave: lote ? CHAVE_ATUAL : undefined}, opts.signal).then(j => j && j.resultado);
+    }},
+    db: { doc: path => ({ get: async () => {
+      const hash = String(path).split('/').pop();
+      const j = await apiPost('/licenca', {hash});
+      return {exists: !!(j && j.existe), data: j && j.dados};
+    }})}
+  };
+}
 const $ = s => document.querySelector(s);
 const norm = s => (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
 const STOP = new Set('para com das dos que de da do e em os as no na ou por tais como uma um ao aos the tipo item itens marca modelo unidade und un cx pct kit'.split(' '));
@@ -933,7 +969,7 @@ function aplicarPlano(){
   $('#run').disabled = !on || busy;
 }
 async function validarChave(chave, silencioso){
-  if(!db){ if(!silencioso) $('#pro-status').textContent = 'Entre na sua conta Claude para ativar a chave'; return false; }
+  if(!db){ if(!silencioso) $('#pro-status').textContent = (window.claude ? 'Entre na sua conta Claude para ativar a chave' : 'Servidor não configurado'); return false; }
   try{
     const snap = await db.doc('licencas/' + await hashChave(chave)).get();
     const d = snap && (typeof snap.data === 'function' ? snap.data() : snap.data);
@@ -941,14 +977,14 @@ async function validarChave(chave, silencioso){
     if(!snap || snap.exists === false || !d){ if(!silencioso) $('#pro-status').textContent = 'Chave inválida'; return false; }
     if(d.ativa === false){ if(!silencioso) $('#pro-status').textContent = 'Chave cancelada'; return false; }
     if(d.validade && d.validade < hoje){ if(!silencioso) $('#pro-status').textContent = 'Chave vencida'; return false; }
-    PRO = {municipio: d.municipio||'', validade: d.validade||''};
+    PRO = {municipio: d.municipio||'', validade: d.validade||''}; CHAVE_ATUAL = normChave(chave);
     try{ if(consent()==='sim') localStorage.setItem('cnd_chave', normChave(chave)); }catch{}
     aplicarPlano(); return true;
   }catch(e){ if(!silencioso) $('#pro-status').textContent = 'Não foi possível verificar a chave agora'; return false; }
 }
 $('#pro-form').addEventListener('submit', async e=>{
   e.preventDefault();
-  if(PRO){ PRO = null; try{ localStorage.removeItem('cnd_chave'); }catch{} $('#chave').value=''; aplicarPlano(); return; }
+  if(PRO){ PRO = null; CHAVE_ATUAL = ''; try{ localStorage.removeItem('cnd_chave'); }catch{} $('#chave').value=''; aplicarPlano(); return; }
   const k = $('#chave').value.trim(); if(!k) return;
   $('#pro-status').textContent = 'Verificando…';
   const ok = await validarChave(k, false);
@@ -975,10 +1011,16 @@ $('#pro-form').addEventListener('submit', async e=>{
   showHist();
   gate();
   if(!consent()) $('#termo').hidden = false;
-  try{ sample = window.claude ? await window.claude.use('sample') : null; }catch{ sample=null; }
-  try{ downloads = window.claude ? await window.claude.use('downloads') : null; }catch{ downloads=null; }
+  const proprio = window.claude ? null : servidorProprio();
+  if(!window.claude) downloads = baixarLocal;
+  if(proprio){ sample = proprio.sample; }
+  else{
+    try{ sample = window.claude ? await window.claude.use('sample') : null; }catch{ sample=null; }
+    try{ downloads = window.claude ? await window.claude.use('downloads') : null; }catch{ downloads=null; }
+  }
   aplicarPlano();
-  try{ db = window.claude ? await window.claude.use('db') : null; }catch{ db=null; }
+  if(proprio) db = proprio.db;
+  else{ try{ db = window.claude ? await window.claude.use('db') : null; }catch{ db=null; } }
   try{ const k = consent()==='sim' ? localStorage.getItem('cnd_chave') : null; if(k) await validarChave(k, true); }catch{}
 })();
 

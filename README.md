@@ -31,6 +31,10 @@ Contas contábeis: PCASP 2027 (Portaria STN/MF nº 2.520, de 21/08/2026).
 - Com o termo de aceite, a chave fica salva no navegador e é revalidada a cada acesso.
 - **Limite:** a verificação é feita no navegador, então é uma trava leve. Nesta fase, o uso da IA conta no plano de quem usa. A trava definitiva exige validação no backend próprio (Fase 3), com login e licenças por município.
 
+## Publicação fora do Claude (GitHub Pages + Cloudflare Workers)
+
+A página pode rodar no GitHub Pages, sem depender do claude.ai. A IA e a validação das chaves Pro passam por um servidor próprio em `servidor/worker.js` (Cloudflare Workers), que guarda a chave da API da Anthropic e confere as chaves Pro no servidor. O passo a passo completo está em [`servidor/PUBLICAR.md`](servidor/PUBLICAR.md).
+
 ## Funcionalidades
 
 **Consulta individual**

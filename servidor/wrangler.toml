@@ -1,0 +1,22 @@
+# Usado só se for publicar pelo terminal (npx wrangler deploy).
+name = "classificador-api"
+main = "worker.js"
+compatibility_date = "2026-11-01"
+
+[vars]
+ALLOWED_ORIGIN = "https://thiagosnd2.github.io"
+MODEL = "claude-haiku-5-5"
+
+# Crie o KV com: npx wrangler kv namespace create LICENCAS
+# e cole o id gerado abaixo.
+[[kv_namespaces]]
+binding = "LICENCAS"
+id = "COLE_AQUI_O_ID_DO_KV"
+
+# Opcional: limite de consultas por IP (20 por minuto).
+# [[ratelimits]]
+# name = "RL"
+# namespace_id = "1001"
+#   [ratelimits.simple]
+#   limit = 20
+#   period = 60
