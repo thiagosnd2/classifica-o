@@ -45,6 +45,56 @@ A página foi construída como artefato do Claude. Duas funções dependem de re
 
 Fora do Claude, a página abre e faz a busca local por palavra-chave, mas não classifica com IA.
 
+## Custos, escala e métricas
+
+### Fase de testes (link do artefato)
+No artefato compartilhado, o uso da IA conta nos limites do plano de cada pessoa que usa, não no de quem criou ([Claude Help Center](https://support.claude.com/en/articles/17153992-what-are-artifacts-and-how-do-i-use-them)). O risco nessa fase é o testador atingir o limite do próprio plano (principalmente no Free); a página já trata esse caso com aviso e nova tentativa no importador.
+
+### Consumo por operação (estimado a partir do tamanho real dos prompts, ~3,5 caracteres por token)
+
+| Operação | Tokens de entrada | Tokens de saída |
+|---|---|---|
+| Consulta individual (ES) | ~11.300 | ~500 |
+| Consulta individual otimizada (catálogo restrito) | ~3.400 | ~500 |
+| Importação, por item (lote de 20) | ~220 | ~25 |
+
+A consulta individual ainda envia o catálogo inteiro (412 subelementos). Aplicar a restrição de catálogo do importador reduz o custo cerca de 3 vezes.
+
+### Custo em escala (backend próprio, API paga)
+Preços de referência ([Claude Platform – Pricing](https://platform.claude.com/docs/en/about-claude/pricing)): Haiku 5.5 a US$ 0,10/MTok de entrada e US$ 0,50/MTok de saída (prompts até 100 mil tokens); Sonnet 5.5 a US$ 2/MTok e US$ 10/MTok.
+
+Premissas: 78 municípios do ES, cada um com 1.000 consultas individuais e 3.000 itens importados por mês; na versão otimizada, 30% de perguntas repetidas atendidas pelo cache.
+
+| Cenário mensal (ES inteiro) | Haiku 5.5 | Sonnet 5.5 |
+|---|---|---|
+| Como está hoje | ~US$ 117 | ~US$ 2.300 |
+| Otimizado (catálogo restrito + cache de 30%) | ~US$ 39 | ~US$ 760 |
+| Por município, otimizado | ~US$ 0,50 | ~US$ 9,70 |
+
+Projeção para os 5.570 municípios do Brasil, versão otimizada: ~US$ 2.800/mês (Haiku) ou ~US$ 54 mil/mês (Sonnet). Com o Haiku, o custo de IA é de centavos por município e o maior custo passa a ser a infraestrutura. A escolha entre Haiku e Sonnet depende da taxa de acerto medida com itens reais.
+
+### Plano de proteção (conexão e orçamento)
+1. Haiku por padrão; Sonnet só para casos de confiança baixa.
+2. Cache compartilhado de respostas: pergunta repetida = zero token.
+3. Cache de prompt da API para a parte fixa (regras e catálogo).
+4. Cotas por usuário e por município (plano gratuito × Pro).
+5. Fila e limite de requisições por minuto no backend para importações grandes.
+
+### Métricas a acompanhar
+
+| Métrica | Para que serve |
+|---|---|
+| Consultas por dia, por município e por usuário | Volume e dimensionamento |
+| Tokens de entrada e saída por consulta | Custo real |
+| Taxa de acerto do cache | Economia gerada pelo cache |
+| Distribuição de confiança (alta/média/baixa) | Qualidade da classificação |
+| Uso do quiz e do "Nenhuma dessas" | Onde as regras precisam melhorar |
+| Correções feitas pelo usuário | Taxa de acerto real |
+| Erros e limites atingidos | Estabilidade |
+| Tempo de resposta | Experiência do usuário |
+
+Documento completo: [Classificador de Natureza de Despesa — Custos, Escala e Métricas](https://claude.ai/artifact/2tUgnxqJUxQMDVFpXXPQ3Y) (Claude Doc).
+
 ## Próximos passos
 
 1. **Backend próprio (Fase 3):** API que recebe o item, monta o prompt com as regras e o catálogo do Estado e chama a IA pela API da Anthropic com chave própria. Substituir `sample.json(...)` por `fetch` para essa API e o download por geração de arquivo no navegador.
