@@ -142,13 +142,24 @@ td.j{color:var(--muted);min-width:260px}
 :root[data-theme="dark"] .t-perm{background:#1b2a45;color:#8db4ff;border-color:#8db4ff}
 :root[data-theme="dark"] .t-serv{background:#2e2140;color:#c9a2f0;border-color:#c9a2f0}
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .t-perm{background:#1b2a45;color:#8db4ff;border-color:#8db4ff} :root:not([data-theme="light"]) .t-serv{background:#2e2140;color:#c9a2f0;border-color:#c9a2f0} }
+.pro-box{display:flex;align-items:center;gap:6px;margin-right:12px}
+.pro-box input{width:190px;padding:6px 10px;font-family:var(--mono);font-size:13px;text-transform:uppercase}
+.pill.pro-on{background:var(--accent);color:var(--surface);border-color:var(--accent)}
+.drop.locked{opacity:.45;pointer-events:none}
+#pro-msg{font-size:12px}
 footer{padding:0 24px 24px;color:var(--muted);font-size:12px;max-width:110ch}
 </style>
 </head>
 <body>
 <header>
   <h1>Classificador de Natureza de Despesa</h1>
-  <div class="ufbox"><label for="uf">Estado <span class="ubad" aria-hidden="true">*</span></label><select id="uf" required aria-required="true"><option value="">Selecionar</option></select></div>
+  <div class="ufbox">
+    <form id="pro-form" class="pro-box" autocomplete="off">
+      <span id="pro-status" class="pill">Plano gratuito</span>
+      <input id="chave" aria-label="Chave Pro" placeholder="Chave Pro" spellcheck="false">
+      <button class="ghost" type="submit" id="pro-btn" style="padding:6px 10px">Ativar</button>
+    </form>
+    <label for="uf">Estado <span class="ubad" aria-hidden="true">*</span></label><select id="uf" required aria-required="true"><option value="">Selecionar</option></select></div>
 </header>
 <nav class="tabs" aria-label="Modo">
   <a href="#consulta" id="t-consulta" aria-current="page">Consulta individual</a>
@@ -229,6 +240,7 @@ footer{padding:0 24px 24px;color:var(--muted);font-size:12px;max-width:110ch}
       <div class="step-n">Passo 2</div>
       <h3>Envie a planilha preenchida</h3>
       <p>Arquivo .xlsx ou .csv no padrão do modelo, até 500 linhas. A regra aplicada é a do estado escolhido no topo da página.</p>
+      <div id="pro-lock" class="warnbox" style="margin-bottom:10px">Recurso do plano Pro. Informe sua chave no topo da página para importar e exportar planilhas.</div>
       <label class="drop" id="drop" for="file">Arraste o arquivo aqui ou <u>clique para escolher</u>
         <input type="file" id="file" accept=".xlsx,.csv" hidden>
       </label>
@@ -533,7 +545,7 @@ function persist(){
   if(consent() !== 'sim') return;
   try{ localStorage.setItem('cnd_hist', JSON.stringify(HIST)); if(UF) localStorage.setItem('cnd_uf', UF); }catch{}
 }
-function apagarDadosSalvos(){ try{ localStorage.removeItem('cnd_hist'); localStorage.removeItem('cnd_uf'); }catch{} }
+function apagarDadosSalvos(){ try{ localStorage.removeItem('cnd_hist'); localStorage.removeItem('cnd_uf'); localStorage.removeItem('cnd_chave'); }catch{} }
 function saveHist(q, code){
   HIST = HIST.filter(x=>x.q!==q); HIST.unshift({q,code,un:$('#un').value}); HIST = HIST.slice(0,8);
   persist(); showHist();
@@ -698,6 +710,7 @@ function corrigirUnidade(l, codigo){
 function stat(n, label, cls=''){ return `<div class="stat ${cls}"><b>${n}</b><span>${label}</span></div>`; }
 
 async function loadFile(file){
+  if(!PRO){ $('#file-msg').innerHTML = '<div class="warnbox">Recurso do plano Pro. Informe sua chave no topo da página.</div>'; return; }
   const msg = $('#file-msg'); msg.innerHTML = ''; $('#run-panel').hidden = true; $('#res-panel').hidden = true;
   if(!UF){ msg.innerHTML = '<div class="warnbox">Selecione o Estado no topo da página antes de enviar a planilha.</div>'; return; }
   if(!/\.(xlsx|csv)$/i.test(file.name)){ msg.innerHTML = '<div class="warnbox">Formato não aceito. Envie .xlsx ou .csv no padrão do modelo.</div>'; return; }
@@ -859,7 +872,7 @@ document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click'
 }));
 
 $('#run').addEventListener('click', async () => {
-  if(!IMP || !sample || busy) return;
+  if(!IMP || !sample || busy || !PRO) return;
   if(!UF){ $('#prog').hidden=false; $('#prog-txt').textContent = 'Selecione o Estado no topo da página.'; return; }
   if(IMP.uf !== UF){ $('#prog').hidden=false; $('#prog-txt').textContent = `O estado foi alterado para ${UFS[UF]}. Envie o arquivo de novo para aplicar a regra desse estado.`; return; }
   busy = true; abortCtl = new AbortController();
@@ -887,7 +900,7 @@ $('#run').addEventListener('click', async () => {
 $('#stop').addEventListener('click', () => abortCtl && abortCtl.abort());
 
 $('#dl-res').addEventListener('click', async () => {
-  if(!IMP) return;
+  if(!IMP || !PRO) return;
   const out = [['TITULO','DESCRIÇÃO','UNIDADE DE MEDIDA','CLASSE (ELEMENTO)','SUB ELEMENTO (SUGESTÃO)','CONTA CONTÁBIL']];
   for(const l of IMP.linhas){ const s = saida(l); out.push([l.tit, l.des, l.un, s.classe, s.sub, s.conta]); }
   const ws = XLSX.utils.aoa_to_sheet(out);
@@ -900,6 +913,47 @@ $('#dl-res').addEventListener('click', async () => {
 $('#termo-ok').addEventListener('click', ()=>{ try{ localStorage.setItem('cnd_consent','sim'); }catch{} persist(); $('#termo').hidden = true; });
 $('#termo-no').addEventListener('click', ()=>{ try{ localStorage.setItem('cnd_consent','nao'); }catch{} apagarDadosSalvos(); $('#termo').hidden = true; });
 $('#prefs').addEventListener('click', ()=>{ $('#termo').hidden = false; $('#termo-ok').focus(); });
+
+/* ===================== PLANO PRO (chave de licença) ===================== */
+let PRO = null, db = null;
+const normChave = k => String(k||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+async function hashChave(k){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('qw-classificador:' + normChave(k)));
+  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function aplicarPlano(){
+  const on = !!PRO;
+  $('#pro-status').textContent = on ? `Plano Pro · ${PRO.municipio||''}${PRO.validade?' · até '+PRO.validade.split('-').reverse().join('/'):''}` : 'Plano gratuito';
+  $('#pro-status').classList.toggle('pro-on', on);
+  $('#chave').hidden = on; $('#pro-btn').textContent = on ? 'Sair' : 'Ativar';
+  $('#pro-lock').hidden = on;
+  $('#drop').classList.toggle('locked', !on);
+  $('#file').disabled = !on;
+  $('#dl-res').disabled = !on;
+  $('#run').disabled = !on || busy;
+}
+async function validarChave(chave, silencioso){
+  if(!db){ if(!silencioso) $('#pro-status').textContent = 'Entre na sua conta Claude para ativar a chave'; return false; }
+  try{
+    const snap = await db.doc('licencas/' + await hashChave(chave)).get();
+    const d = snap && (typeof snap.data === 'function' ? snap.data() : snap.data);
+    const hoje = new Date().toISOString().slice(0,10);
+    if(!snap || snap.exists === false || !d){ if(!silencioso) $('#pro-status').textContent = 'Chave inválida'; return false; }
+    if(d.ativa === false){ if(!silencioso) $('#pro-status').textContent = 'Chave cancelada'; return false; }
+    if(d.validade && d.validade < hoje){ if(!silencioso) $('#pro-status').textContent = 'Chave vencida'; return false; }
+    PRO = {municipio: d.municipio||'', validade: d.validade||''};
+    try{ if(consent()==='sim') localStorage.setItem('cnd_chave', normChave(chave)); }catch{}
+    aplicarPlano(); return true;
+  }catch(e){ if(!silencioso) $('#pro-status').textContent = 'Não foi possível verificar a chave agora'; return false; }
+}
+$('#pro-form').addEventListener('submit', async e=>{
+  e.preventDefault();
+  if(PRO){ PRO = null; try{ localStorage.removeItem('cnd_chave'); }catch{} $('#chave').value=''; aplicarPlano(); return; }
+  const k = $('#chave').value.trim(); if(!k) return;
+  $('#pro-status').textContent = 'Verificando…';
+  const ok = await validarChave(k, false);
+  if(!ok){ $('#pro-status').classList.remove('pro-on'); }
+});
 
 /* ===================== INÍCIO ===================== */
 (async()=>{
@@ -923,6 +977,9 @@ $('#prefs').addEventListener('click', ()=>{ $('#termo').hidden = false; $('#term
   if(!consent()) $('#termo').hidden = false;
   try{ sample = window.claude ? await window.claude.use('sample') : null; }catch{ sample=null; }
   try{ downloads = window.claude ? await window.claude.use('downloads') : null; }catch{ downloads=null; }
+  aplicarPlano();
+  try{ db = window.claude ? await window.claude.use('db') : null; }catch{ db=null; }
+  try{ const k = consent()==='sim' ? localStorage.getItem('cnd_chave') : null; if(k) await validarChave(k, true); }catch{}
 })();
 
 </script>

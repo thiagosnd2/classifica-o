@@ -24,6 +24,13 @@ Contas contábeis: PCASP 2027 (Portaria STN/MF nº 2.520, de 21/08/2026).
 | `dados/` | Dados intermediários extraídos dos documentos oficiais (Portaria 448, PCASP 2027, MCASP e tabela TCE-ES) |
 | `scripts/` | Scripts Python que montaram a base. Usar para reprocessar quando sair uma nova versão da tabela do TCE-ES ou do PCASP |
 
+## Plano Pro (chave de licença)
+
+- No topo da página, o campo **Chave Pro** ativa o plano Pro. Sem chave válida, a Consulta individual funciona normalmente, mas **importar** e **exportar** planilhas ficam desativados.
+- As chaves têm o formato `QW-ES-XXXX-XXXX-XXXX`. O banco de dados da página guarda só o hash SHA-256 de cada chave (coleção `licencas/<hash>`), com município, UF, validade e situação (`ativa`). Só o dono do artefato grava nessa coleção.
+- Com o termo de aceite, a chave fica salva no navegador e é revalidada a cada acesso.
+- **Limite:** a verificação é feita no navegador, então é uma trava leve. Nesta fase, o uso da IA conta no plano de quem usa. A trava definitiva exige validação no backend próprio (Fase 3), com login e licenças por município.
+
 ## Funcionalidades
 
 **Consulta individual**
