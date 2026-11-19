@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Classificador de Natureza de Despesa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@600&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Layout: coluna de consulta à esquerda, resultado à direita; empilha no celular */
+  --bg:#f4f5f2; --surface:#ffffff; --ink:#1d2a2a; --muted:#5d6b69; --line:#d9dedb;
+  --accent:#0f5e57; --accent-soft:#e2efec; --code:#0b3f3a;
+  --yellow:#8a6a00; --ok:#2f7d32; --warn:#a86a00; --bad:#b3261e; --ok-soft:#e5f2e5; --warn-soft:#fbf0dc; --bad-soft:#fbe5e3;
+  --display:"IBM Plex Serif", Georgia, serif; --body:"IBM Plex Sans", system-ui, sans-serif; --mono:"IBM Plex Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#121817; --surface:#1a2221; --ink:#e3ebe9; --muted:#9aaba8; --line:#2c3836;
+  --accent:#5cc2b5; --accent-soft:#1d3532; --code:#a9e4dc;
+  --yellow:#f2c94c; --ok:#7cc77f; --warn:#e5b25a; --bad:#f08b83; --ok-soft:#1d2e1e; --warn-soft:#33291a; --bad-soft:#3a1f1d; color-scheme:dark; } }
+:root[data-theme="dark"]{
+  --bg:#121817; --surface:#1a2221; --ink:#e3ebe9; --muted:#9aaba8; --line:#2c3836;
+  --accent:#5cc2b5; --accent-soft:#1d3532; --code:#a9e4dc;
+  --yellow:#f2c94c; --ok:#7cc77f; --warn:#e5b25a; --bad:#f08b83; --ok-soft:#1d2e1e; --warn-soft:#33291a; --bad-soft:#3a1f1d; color-scheme:dark; }
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--body)}
+header{position:sticky;top:0;z-index:10;background:var(--bg);padding:14px 24px;border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;justify-content:space-between}
+h1{font:900 22px/1.2 "Arial Black", "Arial Bold", Arial, sans-serif;margin:0;text-wrap:balance}
+.src{color:var(--muted);font-size:12.5px;max-width:70ch}
+main{display:grid;grid-template-columns:minmax(300px,400px) 1fr;gap:20px;padding:20px 24px;align-items:start}
+@media (max-width:820px){main{grid-template-columns:1fr;padding:16px}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px}
+label{display:block;font-weight:600;font-size:13px;margin:0 0 6px}
+.hint{font-weight:400;color:var(--muted)}
+input,textarea,select{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:9px 11px}
+textarea{resize:vertical;min-height:64px}
+input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.field{display:grid;gap:0;margin-bottom:14px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+button{font:600 14px var(--body);cursor:pointer;border-radius:7px;border:1px solid var(--accent);padding:10px 14px}
+.primary{background:var(--accent);color:var(--surface);width:100%}
+.primary:disabled{background:var(--line);border-color:var(--line);color:var(--muted);cursor:not-allowed;pointer-events:none}
+#go-wrap{cursor:not-allowed}
+#go-hint.alerta{background:var(--bad-soft);color:var(--bad);border-radius:7px;padding:8px 10px;font-weight:600}
+#uf.uf-alerta{border:2px solid var(--bad);color:var(--bad);box-shadow:0 0 0 3px var(--bad-soft)}
+.ghost{background:transparent;color:var(--accent);padding:6px 10px;font-size:13px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+.chip{background:var(--accent-soft);color:var(--ink);border:1px solid transparent;border-radius:999px;padding:4px 10px;font:500 12.5px var(--body)}
+.chip:hover{border-color:var(--accent)}
+h2{font:600 13px var(--body);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 10px}
+.result{display:grid;gap:16px}
+.verdict{display:grid;gap:6px}
+.code{font:600 28px/1.1 var(--mono);color:var(--code);font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.title{font-weight:600;font-size:17px}
+.meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.pill{font:600 12px var(--body);border-radius:999px;padding:3px 10px;border:1px solid var(--line);color:var(--muted)}
+.c-alta{background:var(--ok-soft);color:var(--ok);border-color:transparent}
+.c-média,.c-media{background:var(--warn-soft);color:var(--warn);border-color:transparent}
+.c-baixa{background:var(--bad-soft);color:var(--bad);border-color:transparent}
+.just{max-width:70ch;margin:0}
+ul.rules{margin:0;padding-left:18px;display:grid;gap:4px}
+.tests{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px}
+.test{border:1px solid var(--line);border-radius:7px;padding:7px 9px;font-size:13px;display:flex;justify-content:space-between;gap:8px}
+.test b{font-weight:600}
+.y{color:var(--ok)} .n{color:var(--muted)}
+.alt{border-left:3px solid var(--line);padding:6px 0 6px 12px;display:grid;gap:2px}
+.alt .cd{font:600 14px var(--mono);color:var(--code)}
+.ask{background:var(--warn-soft);border-radius:8px;padding:12px;display:grid;gap:8px}
+.ask p{margin:0;font-weight:500}
+.ask .row{display:flex;gap:8px}
+.ask input{background:var(--surface)}
+.cand{display:grid;gap:8px}
+.cand-item{display:grid;grid-template-columns:118px 1fr;gap:10px;font-size:13.5px;padding:6px 0;border-top:1px solid var(--line)}
+.cand-item:first-child{border-top:0}
+.cand-item .cd{font:600 13px var(--mono);color:var(--code)}
+.cand-item small{color:var(--muted);display:block}
+.empty{color:var(--muted);max-width:60ch}
+.warnbox{background:var(--bad-soft);color:var(--bad);border-radius:8px;padding:10px 12px;font-size:13.5px}
+.hist{display:grid;gap:4px;margin-top:6px}
+.hist button{text-align:left;background:transparent;border:0;border-top:1px solid var(--line);border-radius:0;padding:7px 0;color:var(--ink);font:400 13px var(--body);display:flex;justify-content:space-between;gap:8px}
+.hist button span:last-child{font-family:var(--mono);color:var(--code)}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:s .8s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes s{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}}
+nav.tabs{display:flex;gap:4px;padding:0 24px;border-bottom:1px solid var(--line);background:var(--bg)}
+nav.tabs a{padding:10px 14px;color:var(--muted);text-decoration:none;font-weight:600;font-size:14px;border-bottom:2px solid transparent;margin-bottom:-1px}
+nav.tabs a[aria-current="page"]{color:var(--accent);border-bottom-color:var(--accent)}
+.pro{font:600 10.5px var(--body);background:var(--accent);color:var(--surface);border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:1px;letter-spacing:.04em}
+.imp{padding:20px 24px;display:grid;gap:16px}
+@media (max-width:820px){.imp{padding:16px}}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.step-n{font:600 12px var(--mono);color:var(--accent)}
+.panel h3{font:600 16px var(--body);margin:2px 0 6px}
+.panel p{margin:0 0 12px;color:var(--muted);max-width:60ch}
+.drop{border:2px dashed var(--line);border-radius:10px;padding:18px;text-align:center;color:var(--muted)}
+.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.stats{display:flex;flex-wrap:wrap;gap:8px}
+.stat{border:1px solid var(--line);border-radius:8px;padding:8px 12px;min-width:120px}
+.stat b{display:block;font:600 20px var(--mono);font-variant-numeric:tabular-nums}
+.stat span{font-size:12px;color:var(--muted)}
+.bar{height:8px;background:var(--line);border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);background:var(--bg);position:sticky;top:0}
+td.cd{font:600 13px var(--mono);color:var(--code);white-space:nowrap}
+td.j{color:var(--muted);min-width:260px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.seg button{border:0;border-radius:0;background:transparent;color:var(--muted);padding:6px 12px;font-size:13px}
+.seg button[aria-pressed="true"]{background:var(--accent-soft);color:var(--ink)}
+.errlist{margin:6px 0 0;padding-left:18px;font-size:13px}
+.ufbox{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ufbox label{margin:0}
+.ufbox select{width:auto;padding:6px 10px}
+.ubad{color:var(--bad)}
+.stat.bad b{color:var(--bad)}
+.upd-list{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.upd-list li{display:grid;grid-template-columns:150px 1fr;gap:10px;font-size:13.5px;border-top:1px solid var(--line);padding-top:8px}
+.upd-list li:first-child{border-top:0;padding-top:0}
+.upd-list b{color:var(--muted);font-weight:600}
+@media (max-width:500px){.upd-list li{grid-template-columns:1fr;gap:2px}}
+.quiz-ops{display:flex;flex-wrap:wrap;gap:6px}
+.quiz .chip{background:var(--surface);border-color:var(--line);font-size:13px;padding:6px 12px}
+.quiz .chip:hover{border-color:var(--accent)}
+.quiz .chip:disabled{opacity:.45;cursor:not-allowed;border-color:var(--line)}
+.termo{position:fixed;inset:auto 0 0 0;z-index:50;padding:16px;display:flex;justify-content:center}
+.termo-box{background:var(--surface);border:1px solid var(--accent);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.35);padding:18px 20px;max-width:720px;display:grid;gap:8px}
+.termo-box h3{margin:0;font:600 16px var(--body)}
+.termo-box p,.termo-box ul{margin:0;font-size:13.5px}
+.termo-box ul{padding-left:18px;display:grid;gap:3px}
+.tipo-badge{display:inline-flex;align-items:center;gap:6px;font:700 13px var(--body);letter-spacing:.06em;text-transform:uppercase;border-radius:8px;padding:6px 14px;border:1px solid transparent;width:max-content}
+.tipo-badge.grande{font-size:16px;padding:8px 16px}
+.tipo-badge.mini{font-size:10.5px;padding:2px 8px;border-radius:6px;margin-bottom:4px}
+.t-cons{background:var(--ok-soft);color:var(--ok);border-color:var(--ok)}
+.t-perm{background:#dde8fb;color:#1d4e9e;border-color:#1d4e9e}
+.t-serv{background:#efe3fa;color:#6a2c99;border-color:#6a2c99}
+.t-outro{background:var(--warn-soft);color:var(--warn);border-color:var(--warn)}
+:root[data-theme="dark"] .t-perm{background:#1b2a45;color:#8db4ff;border-color:#8db4ff}
+:root[data-theme="dark"] .t-serv{background:#2e2140;color:#c9a2f0;border-color:#c9a2f0}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .t-perm{background:#1b2a45;color:#8db4ff;border-color:#8db4ff} :root:not([data-theme="light"]) .t-serv{background:#2e2140;color:#c9a2f0;border-color:#c9a2f0} }
+footer{padding:0 24px 24px;color:var(--muted);font-size:12px;max-width:110ch}
+</style>
+</head>
+<body>
+<header>
+  <h1>Classificador de Natureza de Despesa</h1>
+  <div class="ufbox"><label for="uf">Estado <span class="ubad" aria-hidden="true">*</span></label><select id="uf" required aria-required="true"><option value="">Selecionar</option></select></div>
+</header>
+<nav class="tabs" aria-label="Modo">
+  <a href="#consulta" id="t-consulta" aria-current="page">Consulta individual</a>
+  <a href="#importar" id="t-importar">Importar planilha<span class="pro">PRO</span></a>
+</nav>
+<main id="view-single">
+  <section class="panel" aria-labelledby="q-h">
+    <h2 id="q-h">Item a classificar</h2>
+    <form id="f">
+      <div class="field">
+        <label for="item">Nome ou descrição do item</label>
+        <input id="item" autocomplete="off" placeholder="Ex.: toner HP 85A para impressora laser" required>
+      </div>
+      <div class="field">
+        <label for="ctx">Finalidade ou detalhes <span class="hint">(opcional)</span></label>
+        <textarea id="ctx" placeholder="Ex.: reposição em veículo da frota; para a biblioteca pública; inclui pacote de dados"></textarea>
+      </div>
+      <div class="field">
+        <label for="un">Unidade de medida <span class="ubad" aria-hidden="true">*</span> <span class="hint" id="un-hint">(escolha na lista)</span></label>
+        <input id="un" list="ta22list" autocomplete="off" placeholder="Ex.: 027 - Comprimido">
+        <datalist id="ta22list"></datalist>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label for="forn">Fornecedor</label>
+          <select id="forn"><option value="">Não informado</option><option>Pessoa jurídica</option><option>Pessoa física</option></select>
+        </div>
+        <div class="field">
+          <label for="desp">Despesa</label>
+          <select id="desp"><option value="">Não informado</option><option>Manutenção / reposição</option><option>Melhoria / ampliação</option><option>Obra</option><option>Distribuição gratuita</option></select>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr auto;gap:8px">
+        <div id="go-wrap" style="display:grid"><button class="primary" id="go" type="submit">Classificar</button></div>
+        <button class="ghost" id="clear" type="button" style="padding:10px 16px">Limpar</button>
+      </div>
+      <p class="empty" id="go-hint" style="font-size:12.5px;margin:6px 0 0"></p>
+    </form>
+    <div class="chips" aria-label="Exemplos">
+      <button class="chip" type="button">Toner HP 85A</button>
+      <button class="chip" type="button">Cadeira giratória com rodízios</button>
+      <button class="chip" type="button">Pen-drive 64 GB</button>
+      <button class="chip" type="button">Licença anual Microsoft 365</button>
+      <button class="chip" type="button">Gêneros alimentícios para merenda escolar</button>
+      <button class="chip" type="button">Pneu 175/70 R13</button>
+      <button class="chip" type="button">Conserto de ar-condicionado</button>
+      <button class="chip" type="button">Livros para a biblioteca pública</button>
+      <button class="chip" type="button">Notebook</button>
+      <button class="chip" type="button">Plano de telefonia móvel com internet</button>
+    </div>
+    <div id="histWrap" hidden>
+      <h2 style="margin-top:18px">Consultas recentes</h2>
+      <div class="hist" id="hist"></div>
+    </div>
+  </section>
+
+  <div style="display:grid;gap:20px;align-content:start">
+  <section class="panel" aria-live="polite" id="out">
+    <div class="result" id="res">
+      <h2>Resultado</h2>
+      <p class="empty">Digite a descrição de um item e clique em “Classificar”. O classificador analisará a tabela de acordo com o Estado selecionado, aplicará os critérios estabelecidos pela Portaria nº 448/2002 e pelo MCASP e apresentará o código de classificação correspondente, acompanhado da respectiva justificativa, do nível de confiança e de possíveis classificações alternativas.</p>
+      <p class="empty">Exemplo de resposta para <b>toner HP 85A</b>: <span style="font-family:var(--mono);color:var(--code)">3.3.90.30.17</span> · Material de processamento de dados.</p>
+    </div>
+  </section>
+  <section class="panel" id="upd" aria-labelledby="upd-h"></section>
+  </div>
+</main>
+<div class="imp" id="view-import" hidden>
+  <div class="steps">
+    <section class="panel">
+      <div class="step-n">Passo 1</div>
+      <h3>Baixe o modelo</h3>
+      <p id="step1-txt">Colunas: TITULO, DESCRIÇÃO (até 400 caracteres), UNIDADE DE MEDIDA. Unidade fora da tabela retorna ERRO.</p>
+      <button class="ghost" type="button" id="dl-model" style="padding:9px 14px">Baixar modelo (.xlsx)</button>
+      <div id="dl-msg" class="empty" style="font-size:13px;margin-top:8px"></div>
+    </section>
+    <section class="panel">
+      <div class="step-n">Passo 2</div>
+      <h3>Envie a planilha preenchida</h3>
+      <p>Arquivo .xlsx ou .csv no padrão do modelo, até 500 linhas. A regra aplicada é a do estado escolhido no topo da página.</p>
+      <label class="drop" id="drop" for="file">Arraste o arquivo aqui ou <u>clique para escolher</u>
+        <input type="file" id="file" accept=".xlsx,.csv" hidden>
+      </label>
+      <div id="file-msg" style="margin-top:10px"></div>
+    </section>
+  </div>
+  <section class="panel" id="run-panel" hidden>
+    <div class="step-n">03</div>
+    <h3>Classificar</h3>
+    <div class="stats" id="pre-stats"></div>
+    <div class="toolbar" style="margin-top:12px">
+      <button class="primary" type="button" id="run" style="width:auto">Classificar itens</button>
+      <button class="ghost" type="button" id="stop" hidden>Interromper</button>
+    </div>
+    <div id="prog" hidden style="margin-top:12px;display:grid;gap:6px"><div class="bar"><i id="bar"></i></div><span class="empty" id="prog-txt" style="font-size:13px"></span></div>
+  </section>
+  <section id="res-panel" hidden style="display:grid;gap:12px">
+    <div class="toolbar" style="justify-content:space-between;align-items:center">
+      <div class="stats" id="post-stats"></div>
+      <div class="toolbar" style="align-items:center">
+        <div class="seg" role="group" aria-label="Filtro">
+          <button type="button" data-f="all" aria-pressed="true">Todos</button>
+          <button type="button" data-f="rev" aria-pressed="false">Com ERRO</button>
+        </div>
+        <button class="ghost" type="button" id="fix-all" style="padding:9px 12px">Corrigir unidades com sugestão</button>
+        <button class="primary" type="button" id="dl-res" style="width:auto">Baixar resultado (.xlsx)</button>
+      </div>
+    </div>
+    <div id="dlres-msg" class="empty" style="font-size:13px"></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Linha</th><th>Título</th><th>Descrição</th><th>Unidade de Medida</th><th>Sugestão</th><th>Classe (Elemento)</th><th>Sub Elemento (Sugestão)</th><th>Conta Contábil</th></tr></thead><tbody id="tb"></tbody></table></div>
+  </section>
+</div>
+<div id="termo" class="termo" role="dialog" aria-labelledby="termo-h" hidden>
+  <div class="termo-box">
+    <h3 id="termo-h">Termo de aceite – dados guardados neste navegador</h3>
+    <p>Para agilizar novas consultas, este sistema pode guardar <b>no seu navegador</b>: o Estado selecionado e as suas consultas recentes (item, unidade e código classificado).</p>
+    <ul>
+      <li>Esses dados ficam só neste navegador e neste computador. Não são compartilhados com outros usuários.</li>
+      <li>Os itens que você classifica são enviados à inteligência artificial apenas para gerar a classificação.</li>
+      <li>Você pode apagar os dados salvos a qualquer momento em “Preferências de dados”, no rodapé da página.</li>
+    </ul>
+    <p>Se recusar, o sistema funciona normalmente, mas o Estado precisa ser escolhido a cada acesso e as consultas recentes somem ao fechar a página.</p>
+    <div class="toolbar"><button class="primary" type="button" id="termo-ok" style="width:auto">Aceitar</button><button class="ghost" type="button" id="termo-no" style="padding:9px 14px">Recusar</button></div>
+  </div>
+</div>
+<footer id="foot"><button class="ghost" type="button" id="prefs" style="padding:2px 8px;font-size:12px;margin-right:8px">Preferências de dados</button>Ferramenta de apoio. A classificação final é responsabilidade do setor de contabilidade/orçamento do ente. Espírito Santo: Tabela TCE-ES 2027 (ainda em consulta pública) e Tabela Auxiliar 22 da IN 68/2020. Demais estados: base federal de referência, até o elemento.</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+let KB = null, sample = null, downloads = null;
+const $ = s => document.querySelector(s);
+const norm = s => (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+const STOP = new Set('para com das dos que de da do e em os as no na ou por tais como uma um ao aos the tipo item itens marca modelo unidade und un cx pct kit'.split(' '));
+const stem = w => w.length>5 ? w.slice(0,6) : w.replace(/s$/,'');
+const toks = s => norm(s).split(/[^a-z0-9]+/).filter(w=>w.length>2 && !STOP.has(w)).map(stem);
+const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const clip = (v, n) => String(v ?? '').replace(/\s+/g,' ').trim().slice(0, n);
+
+/* ---------- Estado (UF) ---------- */
+const UFS = {AC:'Acre',AL:'Alagoas',AP:'Amapá',AM:'Amazonas',BA:'Bahia',CE:'Ceará',DF:'Distrito Federal',ES:'Espírito Santo',GO:'Goiás',MA:'Maranhão',MT:'Mato Grosso',MS:'Mato Grosso do Sul',MG:'Minas Gerais',PA:'Pará',PB:'Paraíba',PR:'Paraná',PE:'Pernambuco',PI:'Piauí',RJ:'Rio de Janeiro',RN:'Rio Grande do Norte',RS:'Rio Grande do Sul',RO:'Rondônia',RR:'Roraima',SC:'Santa Catarina',SP:'São Paulo',SE:'Sergipe',TO:'Tocantins'};
+let UF = '';
+const isES = () => UF === 'ES';
+const ELEM_OK = ['3.3.90.30','3.3.90.31','3.3.90.32','3.3.90.33','3.3.90.35','3.3.90.36','3.3.90.37','3.3.90.38','3.3.90.39','3.3.90.40','4.4.90.30','4.4.90.35','4.4.90.36','4.4.90.39','4.4.90.40','4.4.90.51','4.4.90.52','4.4.90.61','4.5.90.61'];
+const ELNAME = {'30':'Material de consumo','31':'Premiações','32':'Material, bem ou serviço para distribuição gratuita','33':'Passagens e despesas com locomoção','35':'Serviços de consultoria','36':'Outros serviços de terceiros – PF','37':'Locação de mão de obra','38':'Arrendamento mercantil','39':'Outros serviços de terceiros – PJ','40':'Serviços de TIC – PJ','51':'Obras e instalações','52':'Equipamentos e material permanente','61':'Aquisição de imóveis'};
+const elName = c => ELNAME[(c||'').split('.')[3]] || '';
+function setUF(v){
+  UF = v; if(v) persist();
+  $('#uf').value = v;
+  $('#step1-txt').textContent = v === 'ES'
+    ? 'Colunas: TITULO, DESCRIÇÃO (até 400 caracteres), UNIDADE DE MEDIDA conforme a Tabela Auxiliar 22 (IN 68/2020, Anexo VI) e TIPO (Material ou Serviço). Unidade fora da tabela retorna ERRO.'
+    : 'Colunas: TITULO, DESCRIÇÃO (até 400 caracteres), UNIDADE DE MEDIDA. Unidade fora da tabela retorna ERRO.';
+  if(v) $('#uf').classList.remove('uf-alerta');
+  if(typeof gate === 'function') gate();
+  if(!v){
+    $('#upd').innerHTML = `<h2 id="upd-h">Última atualização</h2><p style="margin:0;color:var(--yellow);font-weight:500">Selecione o Estado no topo da página para carregar o regulamento aplicável.</p>`;
+    return;
+  }
+  const it = isES() ? [
+      ['Natureza da despesa','Tabela de Natureza da Despesa TCE-ES 2027 – 2ª consulta pública (PCM/2027), arquivo de 24/08/2026'],
+      ['Unidades de medida','Tabela Auxiliar 22 – IN 68/2020, Anexo VI, alterado pela Portaria 92/2025'],
+      ['Contas contábeis','PCASP 2027 – Portaria STN/MF nº 2.520, de 21/08/2026'],
+      ['Portaria STN 448','Portaria nº 448, de 13/09/2002 (DOU de 17/09/2002) – detalhamento de 339030, 339036, 339039 e 449052'],
+      ['Critérios','MCASP 11ª edição']
+    ] : [
+      ['Natureza da despesa',`Tabela do tribunal de contas de ${UFS[v]} ainda não carregada – base federal de referência, até o elemento`],
+      ['Portaria STN 448','Portaria nº 448, de 13/09/2002 (DOU de 17/09/2002) – detalhamento de 339030, 339036, 339039 e 449052'],
+      ['Base federal','MCASP 11ª edição'],
+      ['Contas contábeis','PCASP 2027 – Portaria STN/MF nº 2.520, de 21/08/2026']
+    ];
+  $('#upd').innerHTML = `<h2 id="upd-h">Última atualização · ${esc(UFS[v])}</h2><ul class="upd-list">${it.map(([k,t])=>`<li><b>${k}</b><span>${esc(t)}</span></li>`).join('')}</ul>`;
+}
+
+/* ---------- Regras ---------- */
+const RULES = `REGRAS DE CLASSIFICAÇÃO (Lei 4.320/64; Portaria STN 448/2002; MCASP 11ª ed., Parte I, item 4.6):
+1. Consumo × permanente: material é de CONSUMO se atender a PELO MENOS UM critério — durabilidade (perde condições de uso em até 2 anos), fragilidade (quebradiço, deformável ou danificável), perecibilidade (modificações químicas/físicas), incorporabilidade (incorporado a outro bem sem poder ser retirado sem prejuízo), transformabilidade (adquirido para transformação). Só é PERMANENTE (4.4.90.52) se não atender a nenhum.
+2. Peça de reposição com a mesma configuração → 3.3.90.30; peça para bem novo, melhoria ou adição complementar → 4.4.90.30.
+3. Melhoria (aumenta capacidade/vida útil) → capital (4.4.90.xx); manutenção → corrente (3.3.90.xx).
+4. Pen-drive, caneta óptica e similares → 3.3.90.30 (fragilidade).
+5. Livros para biblioteca pública → consumo (Lei 10.753/2003, art. 18); demais livros → 4.4.90.52.
+6. Material por encomenda: só é serviço (36/39) se o órgão fornecer a matéria-prima; senão 52 ou 30. Vale a essência, não a nota fiscal.
+7. Reparos, pinturas, reformas de imóveis sem ampliação → serviço (36/39); ampliação relevante → 4.4.90.51.
+8. Telefonia sem pacote de dados → 39; com pacote de dados/internet → 40. Token → 40.
+9. Serviços de TIC por PJ (locação de equipamentos e softwares, SaaS, nuvem, hospedagem, suporte, manutenção de equipamentos de TIC, outsourcing de impressão, digitalização) → 40. Desenvolvimento e aquisição de software → 4.4.90.40.
+10. Bens/serviços para distribuição gratuita à população → 32 (premiações → 31). Medicamento entregue ao paciente (farmácia básica, demanda judicial) → distribuição gratuita; medicamento usado na unidade de saúde → material de consumo.
+11. Quantitativo de pessoal especificado no contrato → 37; sem quantitativo → 39. Fornecedor PF → 36; PJ → 39. Consultoria/auditoria → 35.
+12. Evitar "outros" (99) quando houver subelemento específico. Modalidade padrão 90.`;
+const RULES_ES = `
+REGRAS ESPECÍFICAS DA TABELA TCE-ES 2027:
+- Gêneros alimentícios → 3.3.90.30.07 (exceto merenda) ou 3.3.90.30.61 (merenda escolar). Refeições preparadas por PJ → 3.3.90.39.33.
+- Uniforme escolar → 3.3.90.30.62; demais uniformes → 3.3.90.30.23.
+- Medicamentos na unidade de saúde → 3.3.90.30.09; para uso domiciliar → 3.3.90.32.02.
+- Equipamentos de TIC: 4.4.90.52.41 computadores e notebooks, .43 servidores/storage, .45 impressoras, .46 ativos de rede, .47 telefonia; 4.4.90.52.19 processamento de dados em geral.`;
+
+/* ---------- Busca local ---------- */
+function score(q, n=18){
+  const qt = toks(q); if(!qt.length) return [];
+  return KB.itens.filter(i=>i.u).map(i=>{
+    let s=0; for(const w of qt){ if(i._t.has(w)) s+=4; if(i._x.has(w)) s+=3; if(i._d.has(w)) s+=1; }
+    return {i,s};
+  }).filter(o=>o.s>0).sort((a,b)=>b.s-a.s).slice(0,n).map(o=>o.i);
+}
+function scoreFed(q, n=12){
+  const qt = toks(q); if(!qt.length) return [];
+  return KB.federal.map(i=>{ let s=0; for(const w of qt){ if(i._t.has(w)) s+=4; if(i._x.has(w)) s+=3; if(i._d.has(w)) s+=1; } return {i,s}; })
+    .filter(o=>o.s>0).sort((a,b)=>b.s-a.s).slice(0,n).map(o=>o.i);
+}
+const byCode = c => KB.itens.find(i=>i.c===c);
+function badgeTipo(code, grande){
+  const el = String(code||'').split('.')[3];
+  const m = {'30':['Material de consumo','t-cons'],'32':['Material de consumo – distribuição gratuita','t-cons'],'52':['Material permanente','t-perm'],
+             '31':['Premiação','t-outro'],'51':['Obra / instalação','t-outro'],'61':['Imóvel','t-outro']}[el] || (el ? ['Serviço','t-serv'] : null);
+  if(!m) return '';
+  return `<span class="tipo-badge ${m[1]} ${grande?'grande':'mini'}">${m[0]}</span>`;
+}
+function g0(l){ const g = IMP && IMP.grupos.find(x=>x.linhas.includes(l)); return g && g.res && g.res.codigo ? g : null; }
+const elOf = c => (c||'').split('.').slice(0,4).join('.');
+
+/* ---------- Unidade (TA 22) ---------- */
+function resolveUnit(raw){
+  const s = clip(raw, 60);
+  if(!s) return {status:'vazia'};
+  const m = s.match(/^(\d{1,3})(\b|\s|-|$)/);
+  if(m){ const c = m[1].padStart(3,'0'); const u = KB.ta22.find(x=>x.c===c); if(u) return {status:'ok', c:u.c, n:u.n}; }
+  const ns = norm(s).replace(/^\d+\s*-\s*/,'').trim();
+  const ex = KB.ta22.find(x=>norm(x.n)===ns); if(ex) return {status:'ok', c:ex.c, n:ex.n};
+  const sig = s.toUpperCase().replace(/[.\s]/g,'');
+  if(KB.siglas[sig]){ const u = KB.ta22.find(x=>x.c===KB.siglas[sig]); return {status:'corrigir', informada:s, sug:[u], motivo:`"${s}" não consta da Tabela Auxiliar 22; equivale a ${u.c} – ${u.n}.`}; }
+  if(KB.ambiguas[sig]){ const sug = KB.ambiguas[sig].map(c=>KB.ta22.find(x=>x.c===c)).filter(Boolean); return {status:'ambigua', informada:s, sug, motivo:`"${s}" não consta da Tabela Auxiliar 22 e pode corresponder a mais de uma unidade.`}; }
+  const parc = KB.ta22.filter(x=>norm(x.n).startsWith(ns) || (ns.length>3 && norm(x.n).includes(ns))).slice(0,3);
+  return {status: parc.length===1 ? 'corrigir' : 'ambigua', informada:s, sug:parc, motivo:`"${s}" não consta da Tabela Auxiliar 22.`};
+}
+const unitTxt = u => u && u.status==='ok' ? `${u.c} – ${u.n}` : '';
+
+/* ---------- Conta contábil ---------- */
+const digits = s => String(s||'').replace(/\D/g,'');
+function checkConta(informada, item){
+  const base = item && item.p ? item.p.split(/\s*[|/]\s*/).map(x=>x.trim()).filter(Boolean) : [];
+  const sug = base.join(' | ');
+  if(!digits(informada)) return {sug, conf: sug ? 'Sugerida pela base' : 'Sem vínculo direto na base'};
+  if(!base.length) return {sug, conf:'Sem vínculo direto na base para conferir'};
+  const d = digits(informada);
+  const ok = base.some(b => { const bd = digits(b); return bd.startsWith(d) || d.startsWith(bd.replace(/0+$/,'')); });
+  return {sug, conf: ok ? 'Confere' : `Diverge (base: ${sug})`};
+}
+
+/* ---------- Catálogos para o prompt ---------- */
+const TIPO_ELEMS = {
+  'Material': ['3.3.90.30','3.3.90.31','3.3.90.32','4.4.90.30','4.4.90.52'],
+  'Serviço': ['3.3.90.33','3.3.90.35','3.3.90.36','3.3.90.37','3.3.90.38','3.3.90.39','3.3.90.40','4.4.90.35','4.4.90.36','4.4.90.39','4.4.90.40','4.4.90.51']
+};
+function catalogES(elems){
+  const list = KB.itens.filter(i=>i.u && (!elems || elems.has(elOf(i.c))));
+  return list.map(i=>`${i.c} | ${i.t}`).join('\n');
+}
+function catalogFed(tipo){
+  const ok = tipo ? TIPO_ELEMS[tipo] : ELEM_OK;
+  const sub = KB.federal.filter(f=>ok.includes(f.e)).map(f=>`${f.e} | ${f.n}`).join('\n');
+  const els = ELEM_OK.filter(e=>ok.includes(e)).map(e=>`${e} | ${elName(e)}`).join('\n');
+  return `ELEMENTOS VÁLIDOS:\n${els}\n\nSUBELEMENTOS DE REFERÊNCIA (nome, sem código; elemento | nome):\n${sub}`;
+}
+function unitGroupElems(u){
+  if(!u || u.status!=='ok') return null;
+  const g = KB.u2grp[u.c]; return g ? KB.grupos[g] : null;
+}
+
+/* ===================== CONSULTA INDIVIDUAL ===================== */
+function buildPrompt(st){
+  const {item, ctx, forn, desp, extra, un} = st;
+  const el = Object.entries(KB.elementos).map(([k,v])=>`${k} – ${v.n}: ${v.c}`).join('\n');
+  const head = `ITEM: ${item}\nFINALIDADE/DETALHES: ${ctx||'não informado'}\nUNIDADE: ${un||'não informada'}\nFORNECEDOR: ${forn||'não informado'}\nTIPO DE DESPESA: ${desp||'não informado'}\n${extra?'RESPOSTA DO USUÁRIO À PERGUNTA ANTERIOR: '+extra:''}`;
+  if(isES()){
+    const cand = score([item,ctx,extra].join(' ')).map(i=>`${i.c} — ${i.t}\n  Descrição: ${i.d||'—'}\n  Exemplos: ${(i.x||'—').slice(0,600)}`).join('\n');
+    return `Você classifica itens de compras públicas municipais do Espírito Santo na natureza de despesa (até o subelemento), usando EXCLUSIVAMENTE códigos da Tabela de Natureza da Despesa TCE-ES 2027.
+
+${RULES}
+${RULES_ES}
+
+CONCEITO DOS ELEMENTOS (MCASP):
+${el}
+
+CANDIDATOS MAIS PRÓXIMOS (busca na base):
+${cand || '(nenhum por palavra-chave)'}
+
+CATÁLOGO DE SUBELEMENTOS VÁLIDOS (código | título):
+${catalogES()}
+
+${head}
+
+Instruções: escolha UM código do catálogo, nunca invente. Para material, avalie os cinco critérios da regra 1. Se finalidade, fornecedor ou tipo de despesa puderem mudar o código e não foram informados, use a hipótese mais comum e confiança "média" ou "baixa". Se a confiança for "média" ou "baixa", monte um QUIZ em "quiz": uma pergunta objetiva sobre o fator que decide a classificação (finalidade, uso, forma de fornecimento etc.) e de 2 a 4 opções curtas, cada uma ligada ao código do catálogo que vale se o usuário escolher aquela opção (códigos diferentes entre si). Se a confiança for "alta", "quiz" = null. Alternativas: até 3 códigos do catálogo com a condição. Justificativa: 2 a 4 frases citando a regra ou ementa. Se a unidade informada for incompatível com o item, explique em "alerta_unidade".
+Responda SOMENTE com JSON:
+{"item_interpretado":"...","codigo":"x.x.90.xx.xx","justificativa":"...","regras":["..."],"criterios":{"durabilidade":null,"fragilidade":null,"perecibilidade":null,"incorporabilidade":null,"transformabilidade":null},"confianca":"alta|média|baixa","alternativas":[{"codigo":"...","quando":"..."}],"quiz":{"pergunta":"...","opcoes":[{"texto":"...","codigo":"..."}]},"alerta_unidade":null}`;
+  }
+  const cand = scoreFed([item,ctx,extra].join(' ')).map(f=>`${f.e} | ${f.n}\n  Descrição: ${f.d||'—'}\n  Exemplos: ${(f.x||'—').slice(0,500)}`).join('\n');
+  return `Você classifica itens de compras públicas municipais (estado: ${UFS[UF]}) na natureza de despesa pela base FEDERAL de referência (Portaria STN 448/2002, MCASP 11ª ed.). Não há tabela estadual carregada para este estado: classifique até o ELEMENTO (código x.x.90.ee) e indique o subelemento apenas pelo NOME de referência, sem código.
+
+${RULES}
+
+CONCEITO DOS ELEMENTOS (MCASP):
+${el}
+
+CANDIDATOS MAIS PRÓXIMOS:
+${cand || '(nenhum por palavra-chave)'}
+
+${catalogFed()}
+
+${head}
+
+Instruções: "codigo" deve ser um dos ELEMENTOS VÁLIDOS. "subelemento" é o nome de referência (ou null se não houver). Para material, avalie os cinco critérios. Se a confiança for "média" ou "baixa", monte um QUIZ em "quiz": uma pergunta objetiva sobre o fator que decide a classificação (finalidade, uso, forma de fornecimento etc.) e de 2 a 4 opções curtas, cada uma ligada ao elemento válido que vale se o usuário escolher aquela opção (códigos diferentes entre si). Se a confiança for "alta", "quiz" = null. Alternativas: até 3 elementos com a condição.
+Responda SOMENTE com JSON:
+{"item_interpretado":"...","codigo":"x.x.90.ee","subelemento":"...","justificativa":"...","regras":["..."],"criterios":{"durabilidade":null,"fragilidade":null,"perecibilidade":null,"incorporabilidade":null,"transformabilidade":null},"confianca":"alta|média|baixa","alternativas":[{"codigo":"...","quando":"..."}],"quiz":{"pergunta":"...","opcoes":[{"texto":"...","codigo":"..."}]},"alerta_unidade":null}`;
+}
+
+function renderLocal(q, note){
+  if(!isES()){
+    const c = scoreFed(q).slice(0,6);
+    return `<div class="cand"><h2>Mais próximos na base federal (busca por palavra)</h2>${note?`<p class="empty">${note}</p>`:''}${c.length? c.map(f=>`<div class="cand-item"><span class="cd">${f.e}</span><span>${esc(f.n)}<small>subelemento de referência, sem código</small></span></div>`).join('') : '<p class="empty">Nenhum resultado com essas palavras.</p>'}</div>`;
+  }
+  const c = score(q).slice(0,6);
+  return `<div class="cand"><h2>Mais próximos na base (busca por palavra)</h2>${note?`<p class="empty">${note}</p>`:''}${
+    c.length? c.map(i=>`<div class="cand-item"><span class="cd">${i.c}</span><span>${esc(i.t)}<small>${esc(i.k)}</small></span></div>`).join('') : '<p class="empty">Nenhum subelemento com essas palavras.</p>'}</div>`;
+}
+
+function unitBox(u){
+  if(!isES() || !u || u.status==='vazia' || u.status==='ok') return '';
+  return `<div class="ask" style="background:var(--bad-soft)"><p style="color:var(--bad)">Unidade fora da Tabela Auxiliar 22 (IN 68/2020, Anexo VI): ${esc(u.motivo)}</p>${u.sug&&u.sug.length?`<p>Sugestão: ${u.sug.map(x=>`<b>${x.c} – ${esc(x.n)}</b>`).join(' ou ')}</p>`:''}</div>`;
+}
+
+function renderResult(r, q, st){
+  const es = isES();
+  const it = es ? byCode(r.codigo) : null;
+  const okFed = !es && ELEM_OK.includes(r.codigo);
+  const conf = (r.confianca||'').toLowerCase();
+  const cr = r.criterios||{};
+  const keys = ['durabilidade','fragilidade','perecibilidade','incorporabilidade','transformabilidade'];
+  const hasCr = keys.some(k=>cr[k]===true||cr[k]===false);
+  const alts = (r.alternativas||[]).filter(a=>a&&a.codigo);
+  const title = es ? (it?it.t:'') : `${elName(r.codigo)}${r.subelemento?` · subelemento de referência: ${r.subelemento}`:''}`;
+  let h = `<h2>Resultado · ${es?'Espírito Santo (TCE-ES 2027)':esc(UFS[UF])+' (base federal)'}</h2>`;
+  if(es && !it) h += `<div class="warnbox">O código sugerido (${esc(r.codigo)}) não existe na tabela TCE-ES 2027. Use os candidatos abaixo e reformule a busca.</div>`;
+  if(!es && !okFed) h += `<div class="warnbox">O elemento sugerido (${esc(r.codigo)}) não está entre os elementos válidos desta base.</div>`;
+  if(!es) h += `<p class="empty" style="margin:0">Para ${esc(UFS[UF])} não há tabela estadual carregada: a classificação vai até o elemento. Confirme o subelemento na tabela do tribunal de contas do estado.</p>`;
+  h += unitBox(st.u);
+  if(es && r.alerta_unidade) h += `<div class="warnbox">Unidade × item: ${esc(r.alerta_unidade)}</div>`;
+  h += `<div class="verdict">
+    ${badgeTipo(r.codigo, true)}
+    <div class="code">${esc(r.codigo)}</div>
+    <div class="title">${esc(title)}</div>
+    <div class="meta"><span class="pill c-${esc(conf)}">Confiança ${esc(r.confianca||'—')}${r._quiz?' · confirmada no quiz':''}</span>${it?`<span class="pill">${esc(it.k)}</span>`:''}${it&&it.s?`<span class="pill">${esc(it.s)}</span>`:''}${it&&it.p?`<span class="pill">PCASP ${esc(it.p)}</span>`:''}
+    <button class="ghost" type="button" id="copy">Copiar código</button></div>
+    <p class="empty" style="margin:0">Item interpretado: ${esc(r.item_interpretado||q)}</p>
+  </div>`;
+  const quiz = r.quiz && r.quiz.pergunta && Array.isArray(r.quiz.opcoes) && !conf.startsWith('alta') ? r.quiz : null;
+  if(quiz){
+    const ops = quiz.opcoes.filter(o=>o && o.codigo && (es ? byCode(o.codigo) : ELEM_OK.includes(o.codigo)));
+    h += `<div class="ask quiz"><p><b>Quiz</b> · ${esc(quiz.pergunta)}</p><div class="quiz-ops">${ops.map((o,k)=>`<button class="chip quiz-op" type="button" data-k="${k}">${esc(o.texto)}</button>`).join('')}<button class="chip quiz-other" type="button" ${REFINE_USED?'disabled':''}>Nenhuma dessas</button>${REFINE_USED?'<small class="empty quiz-lock" style="display:block;margin-top:4px">Para uma nova descrição em “Nenhuma dessas”, apague por completo o campo “Nome ou descrição do item”.</small>':''}</div><div class="row" id="quiz-free" hidden><input id="ans" aria-label="Descreva" placeholder="Descreva a finalidade ou o uso do item"><button class="ghost" type="button" id="refine">Reclassificar</button></div></div>`;
+    r._ops = ops;
+  } else if(r.pergunta && !REFINE_USED) h += `<div class="ask"><p>${esc(r.pergunta)}</p><div class="row"><input id="ans" aria-label="Resposta" placeholder="Responda para refinar"><button class="ghost" type="button" id="refine">Refinar</button></div></div>`;
+  h += `<div><h2>Justificativa</h2><p class="just">${esc(r.justificativa)}</p></div>`;
+  if(hasCr) h += `<div><h2>Critérios de consumo (Portaria 448, art. 3º)</h2><div class="tests">${keys.map(k=>`<div class="test"><b>${k[0].toUpperCase()+k.slice(1)}</b><span class="${cr[k]?'y':'n'}">${cr[k]===true?'atende':cr[k]===false?'não atende':'—'}</span></div>`).join('')}</div></div>`;
+  if((r.regras||[]).length) h += `<div><h2>Regras aplicadas</h2><ul class="rules">${r.regras.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`;
+  if(alts.length) h += `<div><h2>Alternativas</h2><div style="display:grid;gap:8px">${alts.map(a=>{const ai=es?byCode(a.codigo):null;const nm=es?(ai?ai.t:'(código não encontrado)'):elName(a.codigo);return `<div class="alt"><span class="cd">${esc(a.codigo)}</span><span>${esc(nm)}</span><small class="empty">${esc(a.quando)}</small></div>`}).join('')}</div></div>`;
+  if(it && (it.d||it.x)) h += `<details><summary style="cursor:pointer;font-weight:600">Ementa do subelemento</summary><p class="just">${esc(it.d)}</p>${it.x?`<p class="just"><b>Exemplos:</b> ${esc(it.x)}</p>`:''}</details>`;
+  h += renderLocal([q,st.ctx].join(' '));
+  $('#res').innerHTML = h;
+  $('#copy')?.addEventListener('click', async e=>{ try{ await navigator.clipboard.writeText(r.codigo); e.target.textContent='Copiado'; }catch{ e.target.textContent='Selecione e copie'; } });
+  $('#refine')?.addEventListener('click', ()=>{ const a=$('#ans').value.trim(); const q=(quiz&&quiz.pergunta)||r.pergunta||''; if(a && !REFINE_USED) classify({...st, refino:true, extra:[st.extra,q+' → '+a].filter(Boolean).join(' | ')}); });
+  document.querySelectorAll('.quiz-op').forEach(b=>b.addEventListener('click', ()=>{
+    const o = r._ops[Number(b.dataset.k)]; if(!o) return;
+    const novo = {...r, codigo:o.codigo, subelemento: es ? r.subelemento : '', confianca:'alta',
+      justificativa: `${r.justificativa} Definido pelo quiz: "${quiz.pergunta}" → ${o.texto}.`,
+      alternativas: (r.alternativas||[]).filter(a=>a.codigo!==o.codigo), quiz:null, pergunta:null, _quiz:true};
+    renderResult(novo, q, st); saveHist(st.item, o.codigo);
+  }));
+  $('.quiz-other')?.addEventListener('click', ()=>{ if(REFINE_USED) return; $('#quiz-free').hidden=false; $('#ans').focus(); });
+  $('#ans')?.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); $('#refine').click(); } });
+}
+
+/* ---------- Dados guardados no navegador (com termo de aceite) ---------- */
+let HIST = [];
+const consent = () => { try{ return localStorage.getItem('cnd_consent'); }catch{ return null; } };
+function persist(){
+  if(consent() !== 'sim') return;
+  try{ localStorage.setItem('cnd_hist', JSON.stringify(HIST)); if(UF) localStorage.setItem('cnd_uf', UF); }catch{}
+}
+function apagarDadosSalvos(){ try{ localStorage.removeItem('cnd_hist'); localStorage.removeItem('cnd_uf'); }catch{} }
+function saveHist(q, code){
+  HIST = HIST.filter(x=>x.q!==q); HIST.unshift({q,code,un:$('#un').value}); HIST = HIST.slice(0,8);
+  persist(); showHist();
+}
+function showHist(){
+  const h = HIST;
+  $('#histWrap').hidden = !h.length;
+  $('#hist').innerHTML = h.map(x=>`<button type="button" data-q="${esc(x.q)}"><span>${esc(x.q)}</span><span>${esc(x.code)}</span></button>`).join('');
+  $('#hist').querySelectorAll('button').forEach(b=>b.onclick=()=>{ $('#item').value=b.dataset.q; const hh=h.find(x=>x.q===b.dataset.q); if(hh&&hh.un) $('#un').value=hh.un; gate(); $('#f').requestSubmit(); });
+}
+
+let busy=false;
+async function classify(st){
+  if(busy||!KB||!UF) return;
+  st.u = st.un ? resolveUnit(st.un) : null;
+  if(!sample){ $('#res').innerHTML = `<h2>Resultado</h2>` + unitBox(st.u) + renderLocal([st.item,st.ctx].join(' '), 'A classificação com raciocínio não está disponível nesta visualização. Abaixo, os resultados mais próximos por palavra-chave.'); return; }
+  busy=true; $('#go').disabled=true; $('#go').innerHTML='<span class="spin"></span>Classificando…';
+  $('#res').innerHTML = `<h2>Resultado</h2><p class="empty"><span class="spin"></span>Analisando “${esc(st.item)}” pela ${isES()?'tabela TCE-ES 2027':'base federal de referência'}…</p>` + unitBox(st.u) + renderLocal([st.item,st.ctx].join(' '));
+  try{
+    const r = await sample.json(buildPrompt(st), {modelTier:'default'});
+    if(!r || !r.codigo) throw {message:'Resposta sem código.'};
+    if(st.refino) REFINE_USED = true;
+    renderResult(r, st.item, st);
+    saveHist(st.item, r.codigo);
+    LAST_ITEM = {item: st.item, ctx: st.ctx||''};
+  }catch(e){
+    const msg = e&&e.code==='rate_limited' ? 'Muitas consultas seguidas. Aguarde um minuto e tente de novo.' : e&&e.code==='not_granted' ? 'O acesso ao Claude não foi autorizado nesta página.' : 'Não foi possível concluir a classificação. Tente de novo ou detalhe melhor o item.';
+    $('#res').innerHTML = `<h2>Resultado</h2><div class="warnbox">${msg}</div>` + renderLocal([st.item,st.ctx].join(' '));
+  }finally{ busy=false; $('#go').textContent='Classificar'; gate(); }
+}
+/* Regras do botão Classificar: mínimo de 3 letras; nova classificação só após apagar ao menos 3 letras */
+let LAST_ITEM = null;
+let REFINE_USED = false;  /* "Nenhuma dessas" já usado: só libera de novo com o item apagado por completo */
+$('#item').addEventListener('input', ()=>{
+  if(REFINE_USED && !$('#item').value.trim()){
+    REFINE_USED = false;
+    document.querySelectorAll('.quiz-other').forEach(b=>b.disabled=false);
+    document.querySelectorAll('.quiz-lock').forEach(x=>x.remove());
+  }
+});
+const letras = s => (String(s||'').match(/[A-Za-zÀ-ÿ]/g)||[]).length;
+function apagadas(antes, agora){
+  const a = antes, b = agora, m = a.length, n = b.length;
+  if(!m) return 0;
+  let prev = new Array(n+1).fill(0), cur = new Array(n+1).fill(0);
+  for(let i=1;i<=m;i++){ for(let j=1;j<=n;j++) cur[j] = a[i-1]===b[j-1] ? prev[j-1]+1 : Math.max(prev[j], cur[j-1]); [prev,cur]=[cur,prev]; cur.fill(0); }
+  return m - prev[n];
+}
+function podeClassificar(){
+  if(!UF) return {ok:false, msg:'Selecione o Estado.'};
+  const v = $('#item').value.trim();
+  if(letras(v) < 3) return {ok:false, msg:'Digite ao menos 3 letras em "Nome ou descrição do item".'};
+  if(!KB || resolveUnit($('#un').value).status !== 'ok') return {ok:false, msg:'Escolha a unidade de medida na lista.'};
+  if(LAST_ITEM !== null && apagadas(LAST_ITEM.item, v) + apagadas(LAST_ITEM.ctx, $('#ctx').value.trim()) < 3) return {ok:false, msg:'Para uma nova classificação, apague ao menos 3 letras do item ou da finalidade, ou clique em Limpar.'};
+  return {ok:true, msg:''};
+}
+function gate(){ if(busy) return; const p = podeClassificar(); $('#go').disabled = !p.ok; if(p.ok){ $('#go-hint').textContent=''; $('#go-hint').classList.remove('alerta'); } else if($('#go-hint').classList.contains('alerta')) $('#go-hint').textContent = p.msg; }
+$('#go-wrap').addEventListener('click', ()=>{
+  if(busy || !$('#go').disabled) return;
+  const p = podeClassificar(); if(p.ok) return;
+  $('#go-hint').textContent = !UF ? 'Selecione o Estado.' : p.msg;
+  $('#go-hint').classList.add('alerta');
+  if(!UF){ $('#uf').classList.add('uf-alerta'); $('#uf').focus(); }
+});
+$('#item').addEventListener('input', gate);
+$('#un').addEventListener('input', gate);
+$('#un').addEventListener('change', gate);
+$('#ctx').addEventListener('input', gate);
+$('#f').addEventListener('submit', e=>{
+  e.preventDefault();
+  const item=$('#item').value.trim(); if(!item || !podeClassificar().ok){ gate(); return; }
+  classify({item, ctx:$('#ctx').value.trim(), un:$('#un').value.trim(), forn:$('#forn').value, desp:$('#desp').value, extra:''});
+});
+const RES_INICIAL = $('#res').innerHTML;
+$('#clear').addEventListener('click', ()=>{
+  if(busy) return;
+  ['#item','#ctx','#un'].forEach(id=>$(id).value='');
+  $('#forn').value=''; $('#desp').value='';
+  $('#res').innerHTML = RES_INICIAL;
+  LAST_ITEM = null; REFINE_USED = false; gate();
+  $('#item').focus();
+});
+const CHIP_UN = {'Gêneros alimentícios para merenda escolar':'099 - Quilograma','Conserto de ar-condicionado':'120 - Serviço','Plano de telefonia móvel com internet':'073 - Mês'};
+document.querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>{ $('#item').value=c.textContent; $('#ctx').value=''; $('#un').value=CHIP_UN[c.textContent]||'131 - Unidade'; gate(); $('#f').requestSubmit(); }));
+
+/* ===================== IMPORTADOR ===================== */
+const MODELO_B64 = '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';
+let IMP = null, abortCtl = null, FILTER = 'all';
+const MAXROWS = 500, BATCH = 20, DMAX = 400;
+
+function route(){
+  const imp = location.hash === '#importar';
+  $('#view-single').hidden = imp; $('#view-import').hidden = !imp;
+  $('#t-importar').removeAttribute('aria-current'); $('#t-consulta').removeAttribute('aria-current');
+  (imp ? $('#t-importar') : $('#t-consulta')).setAttribute('aria-current','page');
+}
+window.addEventListener('hashchange', route);
+
+async function saveFile(filename, data, msgEl){
+  if(!downloads){ msgEl.textContent = 'O download não está disponível nesta visualização. Abra a página em claude.ai.'; return; }
+  try{ await downloads.save({filename, data}); msgEl.textContent = ''; }
+  catch(e){ msgEl.textContent = e && e.code==='declined' ? 'Download cancelado.' : e && e.code==='rate_limited' ? 'Já há um download aguardando confirmação.' : 'Não foi possível baixar o arquivo.'; }
+}
+$('#dl-model').addEventListener('click', async ()=>{
+  try{ const b = new Blob([Uint8Array.from(atob(MODELO_B64), c => c.charCodeAt(0))]); await saveFile('modelo_importacao_classificador.xlsx', b, $('#dl-msg')); }
+  catch{ $('#dl-msg').textContent='Não foi possível gerar o modelo.'; }
+});
+
+/* Unidade conforme TCE (Tabela Auxiliar 22): aceita só código ou nome exato da tabela */
+function unitTA22(raw){
+  const s = clip(raw, 60); if(!s) return null;
+  const m = s.match(/^(\d{1,3})(\s|-|$)/);
+  if(m){ const u = KB.ta22.find(x=>x.c===m[1].padStart(3,'0')); if(u) return u; }
+  const ns = norm(s).replace(/^\d+\s*-\s*/,'').trim();
+  return KB.ta22.find(x=>norm(x.n)===ns) || null;
+}
+
+function parseRows(rows){
+  if(!rows.length) return {errs:['A planilha está vazia.']};
+  const head = rows[0].map(h => norm(h).trim());
+  const col = k => head.findIndex(h => h.startsWith(k));
+  const ci = {tit:col('titulo'), des:col('descri'), un:col('unidade'), tipo:col('tipo')};
+  const falta = [['TITULO',ci.tit],['DESCRIÇÃO',ci.des],['UNIDADE DE MEDIDA',ci.un],['TIPO',ci.tipo]].filter(x=>x[1]<0).map(x=>x[0]);
+  if(falta.length) return {errs:[`Coluna(s) não encontrada(s): ${falta.join(', ')}. Use o modelo padrão e não altere os títulos das colunas.`]};
+  const linhas = [];
+  for(let r = 1; r < rows.length; r++){
+    const row = rows[r] || [];
+    const tit = clip(row[ci.tit], 1000), des = clip(row[ci.des], DMAX), un = clip(row[ci.un], 60), tipoRaw = clip(row[ci.tipo], 30);
+    if(!tit && !des && !un && !tipoRaw) continue;
+    const u = isES() ? unitTA22(un) : (un ? {c:'', n:un} : null);
+    const nt = norm(tipoRaw);
+    const tipo = nt.startsWith('mat') ? 'Material' : nt.startsWith('serv') ? 'Serviço' : '';
+    const falta = [!tit&&'TITULO', !des&&'DESCRIÇÃO', !un&&'UNIDADE DE MEDIDA', !tipo&&'TIPO'].filter(Boolean);
+    const erro = falta.length>0 || (isES() && !u);
+    linhas.push({linha:r+1, tit, des, un, unOrig:un, u, tipo, falta, erro});
+  }
+  const errs = [];
+  if(!linhas.length) errs.push('Nenhuma linha preenchida.');
+  if(linhas.length > MAXROWS) errs.push(`O arquivo tem ${linhas.length} itens. O limite desta versão é ${MAXROWS} por arquivo: divida a planilha.`);
+  const grupos = [];
+  for(const l of linhas.filter(l=>!l.erro)) addToGroup(grupos, l);
+  return {errs, linhas, grupos};
+}
+function addToGroup(grupos, l){
+  const k = [norm(l.tit), norm(l.des), l.u.c || norm(l.un), l.tipo].join('|').replace(/\s+/g,' ');
+  let g = grupos.find(x=>x.k===k);
+  if(!g){ g = {k, tit:l.tit, des:l.des, u:l.u, tipo:l.tipo, linhas:[], res:null}; grupos.push(g); }
+  g.linhas.push(l);
+}
+/* Sugestão de unidade (TA 22) para linhas com unidade fora da tabela */
+function unitSug(l){
+  if(IMP.uf !== 'ES' || !l.un || l.u) return null;
+  const r = resolveUnit(l.un);
+  return {status:r.status, sug:(r.sug||[]).filter(Boolean)};
+}
+function corrigirUnidade(l, codigo){
+  const u = KB.ta22.find(x=>x.c===codigo); if(!u) return;
+  l.un = u.n; l.u = u;
+  l.erro = l.falta.length>0;
+  if(!l.erro) addToGroup(IMP.grupos, l);
+}
+function stat(n, label, cls=''){ return `<div class="stat ${cls}"><b>${n}</b><span>${label}</span></div>`; }
+
+async function loadFile(file){
+  const msg = $('#file-msg'); msg.innerHTML = ''; $('#run-panel').hidden = true; $('#res-panel').hidden = true;
+  if(!UF){ msg.innerHTML = '<div class="warnbox">Selecione o Estado no topo da página antes de enviar a planilha.</div>'; return; }
+  if(!/\.(xlsx|csv)$/i.test(file.name)){ msg.innerHTML = '<div class="warnbox">Formato não aceito. Envie .xlsx ou .csv no padrão do modelo.</div>'; return; }
+  if(typeof XLSX === 'undefined'){ msg.innerHTML = '<div class="warnbox">O leitor de planilhas não carregou. Recarregue a página.</div>'; return; }
+  try{
+    const buf = await file.arrayBuffer(); let wb;
+    if(/\.csv$/i.test(file.name)){
+      let txt = new TextDecoder('utf-8').decode(buf);
+      if(txt.includes(String.fromCharCode(0xFFFD))) txt = new TextDecoder('windows-1252').decode(buf);
+      const first = txt.split(/\r?\n/)[0];
+      const FS = (first.match(/;/g)||[]).length > (first.match(/,/g)||[]).length ? ';' : ',';
+      wb = XLSX.read(txt, {type:'string', FS, raw:true});
+    } else wb = XLSX.read(buf, {type:'array'});
+    const sh = wb.Sheets['Itens'] || wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sh, {header:1, defval:'', raw:false, blankrows:false});
+    const p = parseRows(rows);
+    if(p.errs.length){ msg.innerHTML = `<div class="warnbox">${p.errs.map(esc).join('<br>')}</div>`; return; }
+    IMP = {...p, nome:file.name, uf:UF};
+    msg.innerHTML = `<span class="pill">${esc(file.name)}</span> <span class="pill">${esc(UFS[UF])}</span>`;
+    const nErro = p.linhas.filter(l=>l.erro).length;
+    $('#pre-stats').innerHTML = stat(p.linhas.length,'linhas') + stat(p.grupos.length,'itens distintos a classificar') + stat(nErro,'linhas com ERRO', nErro?'bad':'')
+      + (nErro ? `<ul class="errlist"><li>Linhas com ERRO (campo vazio, TIPO diferente de Material ou Serviço${isES()?' ou unidade fora da Tabela Auxiliar 22':''}) não são classificadas: ${p.linhas.filter(l=>l.erro).slice(0,15).map(l=>l.linha).join(', ')}${nErro>15?'…':''}.</li></ul>` : '');
+    $('#run-panel').hidden = false; $('#prog').hidden = true; $('#run').textContent = 'Classificar itens';
+    $('#res-panel').hidden = false; postStats(); renderTable();
+    if(!sample) $('#pre-stats').insertAdjacentHTML('beforeend','<div class="warnbox">A classificação com IA não está disponível nesta visualização.</div>');
+  }catch(e){ msg.innerHTML = '<div class="warnbox">Não foi possível ler o arquivo. Confira se está no padrão do modelo.</div>'; }
+}
+$('#file').addEventListener('change', e => { const f = e.target.files[0]; if(f) loadFile(f); e.target.value=''; });
+const drop = $('#drop');
+['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if(f) loadFile(f); });
+
+function batchPrompt(gs, full){
+  const es = IMP.uf === 'ES';
+  const tipo = gs[0].tipo, okEl = new Set(TIPO_ELEMS[tipo]);
+  let elems = new Set(okEl);
+  if(es && !full){
+    const cand = new Set(); let weak = false;
+    for(const g of gs){
+      const ge = (unitGroupElems({status:'ok', c:g.u.c})||[]).filter(e=>okEl.has(e)); ge.forEach(e=>cand.add(e));
+      const c = score([g.tit,g.des].join(' '), 8).filter(i=>okEl.has(elOf(i.c)));
+      if(!c.length && !ge.length) weak = true;
+      c.forEach(i=>cand.add(elOf(i.c)));
+    }
+    if(!weak && cand.size) elems = cand;
+  }
+  const restrito = elems.size < okEl.size;
+  const elTxt = Object.entries(KB.elementos).filter(([k])=>[...elems].some(e=>e.endsWith('.'+k))).map(([k,v])=>`${k} – ${v.n}: ${v.c.slice(0,350)}`).join('\n');
+  const itens = gs.map((g,n)=>`${n+1} | ${g.tit} | ${g.des} | unidade: ${g.u.c?g.u.c+' ':''}${g.u.n}`).join('\n');
+  const comPerm = elems.has('4.4.90.52');
+  const contas = tipo !== 'Material' ? '' : 'CONTAS CONTÁBEIS (PCASP 2027) – material de consumo (estoque/almoxarifado):\n' + KB.almox.map(c=>`${c.c} ${c.n}`).join('\n')
+    + (comPerm ? '\n\nCONTAS CONTÁBEIS (PCASP 2027) – material permanente (bens móveis):\n' + KB.bensmoveis.map(c=>`${c.c} ${c.n}`).join('\n') : '');
+  return `Você classifica itens de compras públicas municipais (${es?'Espírito Santo, Tabela de Natureza da Despesa TCE-ES 2027, até o subelemento':`${UFS[IMP.uf]}, base federal de referência, até o ELEMENTO`}).
+
+${RULES}${es?RULES_ES:''}
+
+ELEMENTOS (MCASP):
+${elTxt}
+
+TIPO DOS ITENS (informado pelo usuário): ${tipo.toUpperCase()}
+
+${es?`CATÁLOGO DE ${tipo.toUpperCase()} (código | título)${restrito?' – restrito aos elementos prováveis destes itens':''}:\n${catalogES(elems)}`:catalogFed(tipo)}
+
+ITENS (nº | título | descrição | unidade):
+${itens}
+
+${contas}
+
+Para cada item, escolha ${es?'um código do catálogo':'um elemento válido'}; nunca invente código.${es&&restrito?' Se nenhum código do catálogo servir, responda "fora_do_catalogo": true.':''}${tipo==='Material'?' Identifique pelo título se o item é material de consumo ou permanente e escolha a conta contábil na lista correspondente (prefira a conta analítica mais específica).':' Itens de serviço: "conta" vazia.'}
+Responda SOMENTE com um array JSON, um objeto por item, na mesma ordem:
+${es?'[{"n":1,"codigo":"x.x.90.xx.xx","conta":"x.x.x.x.x.xx.xx"}]':'[{"n":1,"codigo":"x.x.90.ee","subelemento":"nome de referência ou vazio","conta":"x.x.x.x.x.xx.xx"}]'}`;
+}
+
+async function runBatch(gs, signal, full){
+  const call = () => sample.json(batchPrompt(gs, full), {modelTier:'default', signal});
+  let arr;
+  try{ arr = await call(); }
+  catch(e){ if(e && e.code==='rate_limited'){ await new Promise(r=>setTimeout(r, 20000)); arr = await call(); } else throw e; }
+  if(!Array.isArray(arr)) arr = arr && Array.isArray(arr.itens) ? arr.itens : [];
+  const retry = [];
+  gs.forEach((g,n) => {
+    const r = arr.find(x => Number(x.n)===n+1) || arr[n];
+    if(r && r.fora_do_catalogo && !full){ retry.push(g); return; }
+    g.res = r && r.codigo ? {codigo:String(r.codigo).trim(), sub:r.subelemento||'', conta:String(r.conta||'').trim()} : {falha:true};
+  });
+  if(retry.length) await runBatch(retry, signal, true);
+}
+
+/* Saída: Título, Descrição, Classe (Elemento), Sub Elemento (Sugestão), Conta Contábil */
+const CONTA_NOME = c => { const x = (KB.almox.find(a=>a.c===c) || KB.bensmoveis.find(a=>a.c===c)); return x ? `${x.c} – ${x.n}` : ''; };
+function contaDe(it, r, tipo){
+  if(tipo === 'Serviço') return 'Não se aplica (serviço)';
+  const el = (r.codigo||'').split('.')[3];
+  if(it && it.p){ const pc = it.p.split(/\s*[|/]\s*/).map(x=>x.trim()).find(x=>/^1\.(1\.5|2\.3)\./.test(x)); if(pc && CONTA_NOME(pc)) return CONTA_NOME(pc); }
+  const ai = r.conta ? (r.conta.match(/\d\.\d\.\d\.\d\.\d\.\d{2}\.\d{2}/)||[])[0] : '';
+  if(ai && CONTA_NOME(ai)) return CONTA_NOME(ai);
+  if(['30','32','52'].includes(el)) return '';
+  return 'Não se aplica (serviço)';
+}
+function saida(l){
+  const es = IMP.uf === 'ES';
+  if(l.erro) return {classe:'ERRO', sub:'ERRO', conta:'ERRO'};
+  const g = IMP.grupos.find(x=>x.linhas.includes(l)); const r = g && g.res;
+  if(!r) return {classe:'', sub:'', conta:''};
+  if(r.falha) return {classe:'', sub:'Não classificado – tente de novo', conta:''};
+  if(es){
+    const it = byCode(r.codigo); const el = elOf(r.codigo);
+    return {classe:`${el} – ${elName(el)}`, sub: it ? `${it.c} – ${it.t}` : `${r.codigo} – código não encontrado na tabela`, conta: contaDe(it, r, g.tipo)};
+  }
+  return {classe:`${r.codigo} – ${elName(r.codigo)}`, sub: r.sub || '', conta: contaDe(null, r, g.tipo)};
+}
+
+function postStats(){
+  const nErro = IMP.linhas.filter(l=>l.erro).length;
+  const ok = IMP.linhas.filter(l=>!l.erro && saida(l).classe).length;
+  $('#post-stats').innerHTML = stat(ok,'linhas classificadas') + stat(nErro,'linhas com ERRO', nErro?'bad':'');
+}
+function renderTable(){
+  const rows = [];
+  for(const l of IMP.linhas){
+    if(FILTER==='rev' && !l.erro) continue;
+    const s = saida(l);
+    const us = unitSug(l);
+    let sugCell = '';
+    if(us){
+      const opts = us.sug.map(u=>`<option value="${u.c}">${esc(u.n)}</option>`).join('')
+        + `<option disabled>──────────</option>` + KB.ta22.filter(u=>!us.sug.some(x=>x.c===u.c)).map(u=>`<option value="${u.c}">${esc(u.n)}</option>`).join('');
+      sugCell = `<div style="display:flex;gap:6px;align-items:center"><select class="sug-sel" data-l="${l.linha}" aria-label="Unidade sugerida para a linha ${l.linha}" style="width:auto;max-width:190px;padding:5px 8px">${us.sug.length?'':'<option value="">Escolha a unidade</option>'}${opts}</select><button class="ghost fix-one" type="button" data-l="${l.linha}">Corrigir</button></div>`;
+    } else if(l.falta.length){
+      sugCell = `<span class="ubad">Preencha ${esc(l.falta.join(', '))} no arquivo</span>`;
+    }
+    const unBad = IMP.uf==='ES' && l.un && !l.u;
+    const unCell = `${unBad?`<span class="ubad">${esc(l.un)}</span>`:esc(l.un)}${l.unOrig!==l.un?`<br><small class="empty">corrigida (era "${esc(l.unOrig)}")</small>`:''}`;
+    rows.push(`<tr><td>${l.linha}</td><td><b>${esc(l.tit)}</b></td><td class="j">${esc(l.des)}</td><td>${unCell}</td><td>${sugCell}</td><td class="${l.erro?'ubad':''}">${!l.erro && g0(l) ? badgeTipo(g0(l).res.codigo, false) + '<br>' : ''}${esc(s.classe)}</td><td class="${l.erro?'ubad':''}">${esc(s.sub)}</td><td class="${l.erro?'ubad':''}">${esc(s.conta)}</td></tr>`);
+  }
+  $('#tb').innerHTML = rows.join('') || '<tr><td colspan="8" class="empty">Nenhuma linha neste filtro.</td></tr>';
+  const nFix = IMP.linhas.filter(l=>{ const u = unitSug(l); return u && u.sug.length===1; }).length;
+  $('#fix-all').hidden = !nFix; $('#fix-all').textContent = `Corrigir unidades com sugestão (${nFix})`;
+}
+function aposCorrecao(){
+  const pend = IMP.grupos.filter(g=>!g.res).length;
+  if(pend){ $('#prog').hidden = false; $('#prog-txt').textContent = `${pend} item(ns) corrigido(s) aguardando classificação. Clique em Classificar itens pendentes.`; $('#run').textContent = 'Classificar itens pendentes'; }
+  postStats(); renderTable();
+}
+$('#tb').addEventListener('click', e => {
+  const b = e.target.closest('.fix-one'); if(!b || busy) return;
+  const l = IMP.linhas.find(x=>x.linha===Number(b.dataset.l));
+  const sel = $('#tb').querySelector(`.sug-sel[data-l="${b.dataset.l}"]`);
+  if(l && sel && sel.value){ corrigirUnidade(l, sel.value); aposCorrecao(); }
+});
+$('#fix-all').addEventListener('click', () => {
+  if(!IMP || busy) return;
+  for(const l of IMP.linhas){ const u = unitSug(l); if(u && u.sug.length===1) corrigirUnidade(l, u.sug[0].c); }
+  aposCorrecao();
+});
+document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
+  FILTER = b.dataset.f; document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', x===b)); renderTable();
+}));
+
+$('#run').addEventListener('click', async () => {
+  if(!IMP || !sample || busy) return;
+  if(!UF){ $('#prog').hidden=false; $('#prog-txt').textContent = 'Selecione o Estado no topo da página.'; return; }
+  if(IMP.uf !== UF){ $('#prog').hidden=false; $('#prog-txt').textContent = `O estado foi alterado para ${UFS[UF]}. Envie o arquivo de novo para aplicar a regra desse estado.`; return; }
+  busy = true; abortCtl = new AbortController();
+  $('#run').disabled = true; $('#stop').hidden = false; $('#prog').hidden = false; $('#res-panel').hidden = false;
+  const pend = IMP.grupos.filter(g => !g.res || g.res.falha);
+  const lotes = [];
+  for(const t of ['Material','Serviço']){ const pt = pend.filter(g=>g.tipo===t); for(let i=0;i<pt.length;i+=BATCH) lotes.push(pt.slice(i,i+BATCH)); }
+  let feitos = 0, falhas = 0;
+  const upd = () => { $('#bar').style.width = (lotes.length?100*feitos/lotes.length:100)+'%'; $('#prog-txt').textContent = `Lote ${Math.min(feitos+1,lotes.length)} de ${lotes.length}${falhas?` · ${falhas} lote(s) com erro`:''}`; };
+  upd(); postStats(); renderTable();
+  let idx = 0;
+  const worker = async () => {
+    while(idx < lotes.length && !abortCtl.signal.aborted){
+      const lote = lotes[idx++];
+      try{ await runBatch(lote, abortCtl.signal, false); }
+      catch(e){ if(abortCtl.signal.aborted) return; falhas++; lote.forEach(g => g.res = {falha:true}); if(e && e.code==='not_granted') abortCtl.abort(); }
+      feitos++; upd(); postStats(); renderTable();
+    }
+  };
+  await Promise.all([worker(), worker()]);
+  $('#prog-txt').textContent = abortCtl.signal.aborted ? 'Interrompido. Clique em Classificar itens pendentes para continuar.' : `Concluído: ${IMP.linhas.length} linhas em ${lotes.length} lote(s)${falhas?`, ${falhas} lote(s) com erro`:''}.`;
+  $('#run').disabled = false; $('#run').textContent = 'Classificar itens pendentes'; $('#stop').hidden = true; busy = false;
+  postStats(); renderTable();
+});
+$('#stop').addEventListener('click', () => abortCtl && abortCtl.abort());
+
+$('#dl-res').addEventListener('click', async () => {
+  if(!IMP) return;
+  const out = [['TITULO','DESCRIÇÃO','UNIDADE DE MEDIDA','CLASSE (ELEMENTO)','SUB ELEMENTO (SUGESTÃO)','CONTA CONTÁBIL']];
+  for(const l of IMP.linhas){ const s = saida(l); out.push([l.tit, l.des, l.un, s.classe, s.sub, s.conta]); }
+  const ws = XLSX.utils.aoa_to_sheet(out);
+  ws['!cols'] = [40,70,24,40,55,34].map(w=>({wch:w}));
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Classificação');
+  const data = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+  await saveFile(IMP.nome.replace(/\.(xlsx|csv)$/i,'') + '_classificado.xlsx', new Blob([data]), $('#dlres-msg'));
+});
+
+$('#termo-ok').addEventListener('click', ()=>{ try{ localStorage.setItem('cnd_consent','sim'); }catch{} persist(); $('#termo').hidden = true; });
+$('#termo-no').addEventListener('click', ()=>{ try{ localStorage.setItem('cnd_consent','nao'); }catch{} apagarDadosSalvos(); $('#termo').hidden = true; });
+$('#prefs').addEventListener('click', ()=>{ $('#termo').hidden = false; $('#termo-ok').focus(); });
+
+/* ===================== INÍCIO ===================== */
+(async()=>{
+  route();
+  const sel = $('#uf');
+  sel.innerHTML = '<option value="">Selecionar</option>' + Object.entries(UFS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');
+  sel.addEventListener('change', ()=>setUF(sel.value));
+  try{
+    KB = await (await fetch('kb.json')).json();
+    for(const i of KB.itens){ i._t=new Set(toks(i.t)); i._x=new Set(toks(i.x)); i._d=new Set(toks(i.d)); }
+    for(const f of KB.federal){ f._t=new Set(toks(f.n)); f._x=new Set(toks(f.x)); f._d=new Set(toks(f.d)); }
+    $('#ta22list').innerHTML = KB.ta22.map(u=>`<option value="${u.c} - ${esc(u.n)}"></option>`).join('');
+  }catch{ $('#res').innerHTML='<div class="warnbox">Não foi possível carregar a base. Recarregue a página.</div>'; }
+  if(consent() === 'sim'){
+    try{ HIST = JSON.parse(localStorage.getItem('cnd_hist')||'[]'); }catch{ HIST = []; }
+    try{ const u = localStorage.getItem('cnd_uf'); if(u && UFS[u]) UF = u; }catch{}
+  }
+  setUF(UF);
+  showHist();
+  gate();
+  if(!consent()) $('#termo').hidden = false;
+  try{ sample = window.claude ? await window.claude.use('sample') : null; }catch{ sample=null; }
+  try{ downloads = window.claude ? await window.claude.use('downloads') : null; }catch{ downloads=null; }
+})();
+
+</script>
+</body>
+</html>

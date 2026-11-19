@@ -1,0 +1,54 @@
+{
+ "30": {
+  "nome": "Material de Consumo",
+  "conceito": "Despesas orçamentárias com álcool automotivo; gasolina automotiva; diesel automotivo; lubrificantes automotivos; combustível e lubrificantes de aviação; gás engarrafado; outros combustíveis e lubrificantes; material biológico, farmacológico e laboratorial; animais para estudo, corte ou abate; alimentos para animais; material de coudelaria ou de uso zootécnico; sementes e mudas de plantas; gêneros de alimentação; material de construção para reparos em imóveis; material de manobra e patrulhamento; material de proteção, segurança, socorro e sobrevivência; material de expediente; material de cama e mesa, copa e cozinha, e produtos de higienização; material gráfico e de processamento de dados; aquisição de disquete; pen-drive; material para esportes e diversões; material para fotografia e filmagem; material para instalação elétrica e eletrônica; material para manutenção, reposição e aplicação; material odontológico, hospitalar e ambulatorial; material químico; material para telecomunicações; vestuário, uniformes, fardamento, tecidos e aviamentos; material de acondicionamento e embalagem; suprimento de proteção ao voo; suprimento de aviação; sobressalentes de máquinas e motores de navios e esquadra; explosivos e munições; bandeiras, flâmulas e insígnias e outros materiais de uso não duradouro."
+ },
+ "31": {
+  "nome": "Premiações Culturais, Artísticas, Científicas, Desportivas e Outras",
+  "conceito": "Despesas orçamentárias com a aquisição de prêmios, condecorações, medalhas, troféus, etc., bem como com o pagamento de prêmios em pecúnia, inclusive decorrentes de sorteios lotéricos."
+ },
+ "32": {
+  "nome": "Material, Bem ou Serviço para Distribuição Gratuita",
+  "conceito": "Despesas orçamentárias com aquisição de materiais, bens ou serviços para distribuição gratuita, tais como livros didáticos, medicamentos, gêneros alimentícios e outros materiais, bens ou serviços que possam ser distribuídos gratuitamente, exceto se destinados a premiações culturais, artísticas, científicas, desportivas e outras."
+ },
+ "33": {
+  "nome": "Passagens e Despesas com Locomoção",
+  "conceito": "Despesas orçamentárias, realizadas diretamente ou por meio de empresa contratada, com aquisição de passagens (aéreas, terrestres, fluviais ou marítimas), taxas de embarque, seguros, fretamento, pedágios, locação ou uso de veículos para transporte de pessoas e suas respectivas bagagens, inclusive quando decorrentes de mudanças de domicílio no interesse da administração."
+ },
+ "35": {
+  "nome": "Serviços de Consultoria",
+  "conceito": "Despesas orçamentárias decorrentes de contratos com pessoas físicas ou jurídicas, prestadoras de serviços nas áreas de consultorias técnicas ou auditorias financeiras ou jurídicas, ou assemelhadas."
+ },
+ "36": {
+  "nome": "Outros Serviços de Terceiros – Pessoa Física",
+  "conceito": "Despesas orçamentárias decorrentes de serviços prestados por pessoa física pagos diretamente a esta e não enquadrados nos elementos de despesa específicos, tais como: remuneração de serviços de natureza eventual, prestado por pessoa física sem vínculo empregatício; estagiários, monitores diretamente contratados; gratificação por encargo de curso ou de concurso; diárias a colaboradores eventuais; locação de imóveis; salário de internos nas penitenciárias; e outras despesas pagas diretamente à pessoa física."
+ },
+ "37": {
+  "nome": "Locação de Mão-de-Obra",
+  "conceito": "Despesas orçamentárias com prestação de serviços por pessoas jurídicas para órgãos públicos, tais como limpeza e higiene, vigilância ostensiva e outros, nos casos em que o contrato especifique o quantitativo físico do pessoal a ser utilizado."
+ },
+ "38": {
+  "nome": "Arrendamento Mercantil",
+  "conceito": "Despesas orçamentárias com contratos de arrendamento mercantil, com opção ou não de compra do bem de propriedade do arrendador."
+ },
+ "39": {
+  "nome": "Outros Serviços de Terceiros – Pessoa Jurídica",
+  "conceito": "Despesas orçamentárias decorrentes da prestação de serviços por pessoas jurídicas para órgãos públicos, exceto as relativas aos Serviços de Tecnologia da Informação e Comunicação - TIC, tais como: assinaturas de jornais e periódicos; tarifas de energia elétrica, gás, água e esgoto; serviços de comunicação (telex, correios, telefonia fixa e móvel, que não integrem pacote de comunicação de dados); fretes e carretos; locação de imóveis (inclusive despesas de condomínio e tributos à conta do locatário, quando previstos no contrato de locação); locação de equipamentos e materiais permanentes; conservação e adaptação de bens imóveis; seguros em geral (exceto os decorrentes de obrigação patronal); serviços de asseio e higiene; serviços de divulgação, impressão, encadernação e emolduramento; serviços funerários; despesas com congressos, simpósios, conferências ou exposições; vale-refeição; auxílio-creche (exclusive a indenização a servidor); e outros congêneres, bem como os encargos resultantes do pagamento com atraso de obrigações não tributárias."
+ },
+ "40": {
+  "nome": "Serviços de Tecnologia da Informação e Comunicação - Pessoa Jurídica",
+  "conceito": "Despesas orçamentárias decorrentes da prestação de serviços por pessoas jurídicas para órgãos e entidades da Administração Pública, relacionadas à Tecnologia da Informação e Comunicação - TIC, não classificadas em outros elementos de despesa, tais como: locação de equipamentos e softwares, desenvolvimento e manutenção de software, hospedagens de sistemas, comunicação de dados, serviços de telefonia fixa e móvel, quando integrarem pacote de comunicação de dados, suporte a usuários de TIC, suporte de infraestrutura de TIC, serviços técnicos profissionais de TIC, manutenção e conservação de equipamentos de TIC, digitalização, outsourcing de impressão e serviços relacionados a computação em nuvem, treinamento e capacitação em TIC, tratamento de dados, conteúdo de web; e outros congêneres."
+ },
+ "51": {
+  "nome": "Obras e Instalações",
+  "conceito": "Despesas com estudos e projetos; início, prosseguimento e conclusão de obras; pagamento de pessoal temporário não pertencente ao quadro da entidade e necessário à realização das mesmas; pagamento de obras contratadas; instalações que sejam incorporáveis ou inerentes ao imóvel, tais como: elevadores, aparelhagem para ar condicionado central, etc."
+ },
+ "52": {
+  "nome": "Equipamentos e Material Permanente",
+  "conceito": "Despesas orçamentárias com aquisição de aeronaves; aparelhos de medição; aparelhos e equipamentos de comunicação; aparelhos, equipamentos e utensílios médico, odontológico, laboratorial e hospitalar; aparelhos e equipamentos para esporte e diversões; aparelhos e utensílios domésticos; armamentos; coleções e materiais bibliográficos; embarcações, equipamentos de manobra e patrulhamento; equipamentos de proteção, segurança, socorro e sobrevivência; instrumentos musicais e artísticos; máquinas, aparelhos e equipamentos de uso industrial; máquinas, aparelhos e equipamentos gráficos e equipamentos diversos; máquinas, aparelhos e utensílios de escritório; máquinas, ferramentas e utensílios de oficina; máquinas, tratores e equipamentos agrícolas, rodoviários e de movimentação de carga; mobiliário em geral; obras de arte e peças para museu; semoventes; veículos diversos; veículos ferroviários; veículos rodoviários; outros materiais permanentes."
+ },
+ "61": {
+  "nome": "Aquisição de Imóveis",
+  "conceito": "Despesas orçamentárias com a aquisição de imóveis considerados necessários à realização de obras ou para sua pronta utilização."
+ }
+}
