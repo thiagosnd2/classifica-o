@@ -14,7 +14,7 @@ window.CFG = { API_URL: '', TURNSTILE_SITEKEY: '' };
   var api = ''; try{ api = window.CFG.API_URL ? new URL(window.CFG.API_URL).origin : ''; }catch(e){}
   var csp = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://challenges.cloudflare.com",
+    "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src https://fonts.gstatic.com",
     "img-src 'self' data: blob:",
@@ -311,7 +311,9 @@ footer{padding:0 24px 24px;color:var(--muted);font-size:12px;max-width:110ch}
 </div>
 <footer id="foot"><button class="ghost" type="button" id="prefs" style="padding:2px 8px;font-size:12px;margin-right:8px">Preferências de dados</button>Ferramenta de apoio. A classificação final é responsabilidade do setor de contabilidade/orçamento do ente.</footer>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- SheetJS 0.20.3 servido pelo próprio site, com verificação de integridade.
+     Onde o arquivo não existe (claude.ai), cai para a versão do cdnjs. -->
+<script src="vendor/xlsx.full.min.js" integrity="sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT" crossorigin="anonymous" onerror="this.onerror=null;var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';document.head.appendChild(s);"></script>
 <script>
 let KB = null, sample = null, downloads = null;
 /* ===== Hospedagem própria (GitHub Pages + servidor no Cloudflare Workers) =====

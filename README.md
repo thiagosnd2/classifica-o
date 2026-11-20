@@ -42,6 +42,7 @@ A página pode rodar no GitHub Pages, sem depender do claude.ai. A IA e a valida
 - Chaves Pro guardadas como hash; no Projeto 1 os dados da licença (município, validade) ficam cifrados com a própria chave (`servidor/lacrar_licenca.mjs`).
 - Projeto 2: verificação anti-robô (Turnstile) na consulta individual, teto diário de consultas, limite por IP opcional e chave Pro conferida no servidor para o importador.
 - Política de conteúdo (CSP) na hospedagem própria.
+- SheetJS 0.20.3 servido pelo próprio site (`vendor/`), com verificação de integridade (SRI). No claude.ai a página usa a versão 0.18.5 do cdnjs.
 
 ## Funcionalidades
 
