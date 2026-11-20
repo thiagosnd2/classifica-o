@@ -15,8 +15,8 @@ window.CFG = { API_URL: '', TURNSTILE_SITEKEY: '' };
   var csp = [
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com",
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "font-src https://fonts.gstatic.com",
+    "style-src 'self' 'unsafe-inline'",
+    "font-src 'self'",
     "img-src 'self' data: blob:",
     "connect-src 'self' " + api,
     "frame-src https://challenges.cloudflare.com",
@@ -27,8 +27,9 @@ window.CFG = { API_URL: '', TURNSTILE_SITEKEY: '' };
 })();
 </script>
 <title>Classificador de Natureza de Despesa</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@600&display=swap" rel="stylesheet">
+<!-- Fontes IBM Plex servidas pelo próprio site (sem envio de dados ao Google).
+     Onde o arquivo não existe (claude.ai), cai para o Google Fonts. -->
+<link rel="stylesheet" href="vendor/fonts/fonts.css" onerror="this.onerror=null;this.href='https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Serif:wght@600&amp;display=swap';">
 <style>
 :root{
   /* Layout: coluna de consulta à esquerda, resultado à direita; empilha no celular */
@@ -299,10 +300,16 @@ footer{padding:0 24px 24px;color:var(--muted);font-size:12px;max-width:110ch}
 <div id="termo" class="termo" role="dialog" aria-labelledby="termo-h" hidden>
   <div class="termo-box">
     <h3 id="termo-h">Termo de aceite – dados guardados neste navegador</h3>
-    <p>Para agilizar novas consultas, este sistema pode guardar <b>no seu navegador</b>: o Estado selecionado e as suas consultas recentes (item, unidade e código classificado).</p>
+    <p>Este sistema <b>não usa cookies</b> próprios, nem ferramentas de rastreamento, estatística ou publicidade. Para agilizar novas consultas, ele pode guardar <b>no armazenamento local do seu navegador</b> (localStorage):</p>
     <ul>
-      <li>Esses dados ficam só neste navegador e neste computador. Não são compartilhados com outros usuários.</li>
+      <li>o Estado selecionado;</li>
+      <li>as suas últimas 8 consultas (item, unidade e código classificado);</li>
+      <li>a chave Pro, se você ativar uma.</li>
+    </ul>
+    <ul>
+      <li>Esses dados ficam só neste navegador e neste computador, até você apagá-los. Não são enviados a nós nem compartilhados com outros usuários.</li>
       <li>Os itens que você classifica são enviados à inteligência artificial apenas para gerar a classificação.</li>
+      <li>Na versão publicada fora do Claude, uma verificação anti-robô do Cloudflare (Turnstile) protege o serviço contra uso automatizado. No claude.ai valem também as regras de privacidade da Anthropic.</li>
       <li>Você pode apagar os dados salvos a qualquer momento em “Preferências de dados”, no rodapé da página.</li>
     </ul>
     <p>Se recusar, o sistema funciona normalmente, mas o Estado precisa ser escolhido a cada acesso e as consultas recentes somem ao fechar a página.</p>
