@@ -3,6 +3,29 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+/* ===== Configuração da hospedagem própria (GitHub Pages + Cloudflare Workers) =====
+   API_URL: endereço do servidor (sem barra no fim). TURNSTILE_SITEKEY: chave pública do Turnstile.
+   Dentro do claude.ai estes valores são ignorados. */
+window.CFG = { API_URL: '', TURNSTILE_SITEKEY: '' };
+/* Política de conteúdo (CSP) para a hospedagem própria. No claude.ai a plataforma já aplica a dela. */
+(function(){
+  if(!/(^|\.)github\.io$/.test(location.hostname) && !window.CFG.API_URL) return;
+  var api = ''; try{ api = window.CFG.API_URL ? new URL(window.CFG.API_URL).origin : ''; }catch(e){}
+  var csp = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://challenges.cloudflare.com",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src https://fonts.gstatic.com",
+    "img-src 'self' data: blob:",
+    "connect-src 'self' " + api,
+    "frame-src https://challenges.cloudflare.com",
+    "object-src 'none'", "base-uri 'none'", "form-action 'none'"
+  ].join('; ');
+  var m = document.createElement('meta'); m.httpEquiv = 'Content-Security-Policy'; m.content = csp;
+  document.head.appendChild(m);
+})();
+</script>
 <title>Classificador de Natureza de Despesa</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@600&display=swap" rel="stylesheet">
@@ -294,7 +317,8 @@ let KB = null, sample = null, downloads = null;
 /* ===== Hospedagem própria (GitHub Pages + servidor no Cloudflare Workers) =====
    Fora do claude.ai, a IA e as chaves Pro passam pelo servidor abaixo.
    Depois de publicar o servidor, cole aqui o endereço dele (sem barra no fim). */
-const API_URL = '';
+const API_URL = (window.CFG && window.CFG.API_URL) || '';
+const TS_KEY = (window.CFG && window.CFG.TURNSTILE_SITEKEY) || '';
 let CHAVE_ATUAL = '';
 async function apiPost(rota, corpo, signal){
   let r;
@@ -313,12 +337,39 @@ const baixarLocal = { save: async ({filename, data}) => {
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(url), 4000);
 }};
+/* Turnstile (anti-robô do Cloudflare), só na hospedagem própria e só na consulta individual */
+let tsId = null, tsPend = null, tsFila = Promise.resolve();
+function carregarTurnstile(){
+  if(!TS_KEY || window.claude) return;
+  window.onTsLoad = () => {
+    const box = document.createElement('div'); box.id = 'ts-box'; box.style.cssText = 'position:fixed;bottom:12px;right:12px;z-index:50';
+    document.body.appendChild(box);
+    tsId = turnstile.render('#ts-box', {sitekey: TS_KEY, execution:'execute', appearance:'interaction-only',
+      callback: t => { if(tsPend){ tsPend.res(t); tsPend = null; } },
+      'error-callback': () => { if(tsPend){ tsPend.rej({code:'not_granted'}); tsPend = null; } }});
+  };
+  const sc = document.createElement('script');
+  sc.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onTsLoad'; sc.async = true;
+  document.head.appendChild(sc);
+}
+function tokenTurnstile(){
+  if(!TS_KEY) return Promise.resolve('');
+  const p = tsFila.then(() => new Promise((res, rej) => {
+    if(tsId === null || !window.turnstile) return rej({code:'not_granted'});
+    const t = setTimeout(()=>{ tsPend = null; rej({code:'network'}); }, 30000);
+    tsPend = {res: v=>{ clearTimeout(t); res(v); }, rej: e=>{ clearTimeout(t); rej(e); }};
+    turnstile.reset(tsId); turnstile.execute(tsId);
+  }));
+  tsFila = p.catch(()=>{});
+  return p;
+}
 function servidorProprio(){
   if(!API_URL) return null;
   return {
     sample: { json: (prompt, opts={}) => {
       const lote = /array JSON/.test(prompt);
-      return apiPost(lote ? '/lote' : '/classificar', {prompt, chave: lote ? CHAVE_ATUAL : undefined}, opts.signal).then(j => j && j.resultado);
+      if(lote) return apiPost('/lote', {prompt, chave: CHAVE_ATUAL}, opts.signal).then(j => j && j.resultado);
+      return tokenTurnstile().then(ts => apiPost('/classificar', {prompt, ts}, opts.signal)).then(j => j && j.resultado);
     }},
     db: { doc: path => ({ get: async () => {
       const hash = String(path).split('/').pop();
@@ -608,7 +659,7 @@ async function classify(st){
     saveHist(st.item, r.codigo);
     LAST_ITEM = {item: st.item, ctx: st.ctx||''};
   }catch(e){
-    const msg = e&&e.code==='rate_limited' ? 'Muitas consultas seguidas. Aguarde um minuto e tente de novo.' : e&&e.code==='not_granted' ? 'O acesso ao Claude não foi autorizado nesta página.' : 'Não foi possível concluir a classificação. Tente de novo ou detalhe melhor o item.';
+    const msg = e&&e.code==='rate_limited' ? 'Muitas consultas seguidas. Aguarde um minuto e tente de novo.' : e&&e.code==='not_granted' ? (window.claude ? 'O acesso ao Claude não foi autorizado nesta página.' : (e.message || 'O servidor recusou a consulta.')) : 'Não foi possível concluir a classificação. Tente de novo ou detalhe melhor o item.';
     $('#res').innerHTML = `<h2>Resultado</h2><div class="warnbox">${msg}</div>` + renderLocal([st.item,st.ctx].join(' '));
   }finally{ busy=false; $('#go').textContent='Classificar'; gate(); }
 }
@@ -957,6 +1008,15 @@ async function hashChave(k){
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('qw-classificador:' + normChave(k)));
   return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
 }
+/* Os dados da licença (município, validade) ficam cifrados com a própria chave:
+   quem lista a coleção vê só códigos opacos, e só quem tem a chave lê o conteúdo. */
+async function abrirLicenca(chave, e){
+  const raw = Uint8Array.from(atob(e), c => c.charCodeAt(0));
+  const kbuf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('qw-classificador-enc:' + normChave(chave)));
+  const key = await crypto.subtle.importKey('raw', kbuf, 'AES-GCM', false, ['decrypt']);
+  const pt = await crypto.subtle.decrypt({name:'AES-GCM', iv: raw.slice(0,12)}, key, raw.slice(12));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
 function aplicarPlano(){
   const on = !!PRO;
   $('#pro-status').textContent = on ? `Plano Pro · ${PRO.municipio||''}${PRO.validade?' · até '+PRO.validade.split('-').reverse().join('/'):''}` : 'Plano gratuito';
@@ -972,7 +1032,8 @@ async function validarChave(chave, silencioso){
   if(!db){ if(!silencioso) $('#pro-status').textContent = (window.claude ? 'Entre na sua conta Claude para ativar a chave' : 'Servidor não configurado'); return false; }
   try{
     const snap = await db.doc('licencas/' + await hashChave(chave)).get();
-    const d = snap && (typeof snap.data === 'function' ? snap.data() : snap.data);
+    let d = snap && (typeof snap.data === 'function' ? snap.data() : snap.data);
+    if(d && d.e){ try{ d = {...(await abrirLicenca(chave, d.e)), ativa: d.ativa}; }catch{ d = null; } }
     const hoje = new Date().toISOString().slice(0,10);
     if(!snap || snap.exists === false || !d){ if(!silencioso) $('#pro-status').textContent = 'Chave inválida'; return false; }
     if(d.ativa === false){ if(!silencioso) $('#pro-status').textContent = 'Chave cancelada'; return false; }
@@ -1013,6 +1074,7 @@ $('#pro-form').addEventListener('submit', async e=>{
   if(!consent()) $('#termo').hidden = false;
   const proprio = window.claude ? null : servidorProprio();
   if(!window.claude) downloads = baixarLocal;
+  if(proprio) carregarTurnstile();
   if(proprio){ sample = proprio.sample; }
   else{
     try{ sample = window.claude ? await window.claude.use('sample') : null; }catch{ sample=null; }

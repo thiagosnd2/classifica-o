@@ -12,6 +12,8 @@
  *   Variável MODEL              opcional; padrão claude-haiku-5-5
  *   KV       LICENCAS           chaves Pro: nome = hash da chave, valor = JSON
  *   Rate limit RL               opcional; limita consultas por IP
+ *   Segredo  TURNSTILE_SECRET   opcional; exige a verificação anti-robô na consulta individual
+ *   Variável DAILY_LIMIT        opcional; teto de consultas de IA por dia (todas as pessoas somadas)
  */
 
 const PREFIXO = 'qw-classificador:';
@@ -66,7 +68,12 @@ export default {
         if (tipo === 'lote') {
           const lic = await licencaValida(env, corpo.chave);
           if (!lic) return resp(403, { erro: 'Chave Pro inválida, vencida ou cancelada' });
+        } else if (env.TURNSTILE_SECRET) {
+          const ok = await verificarTurnstile(env, corpo.ts, req.headers.get('CF-Connecting-IP'));
+          if (!ok) return resp(403, { erro: 'Verificação anti-robô falhou' });
         }
+
+        if (!(await dentroDoTeto(env))) return resp(429, { erro: 'Limite diário de consultas atingido' });
 
         const resultado = await chamarIA(env, prompt, LIM[tipo].maxTokens);
         return resp(200, { resultado });
@@ -79,6 +86,32 @@ export default {
     }
   },
 };
+
+async function verificarTurnstile(env, token, ip) {
+  if (!token) return false;
+  const f = new FormData();
+  f.append('secret', env.TURNSTILE_SECRET);
+  f.append('response', String(token));
+  if (ip) f.append('remoteip', ip);
+  try {
+    const r = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', { method: 'POST', body: f });
+    const j = await r.json();
+    return !!j.success;
+  } catch { return false; }
+}
+
+// Teto diário aproximado (contador no KV; a contagem pode escapar em poucas unidades
+// com muitos acessos simultâneos). No plano gratuito o KV aceita 1.000 gravações por dia.
+async function dentroDoTeto(env) {
+  const lim = Number(env.DAILY_LIMIT || 0);
+  if (!lim || !env.LICENCAS) return true;
+  const dia = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10); // dia em Brasília
+  const k = 'uso:' + dia;
+  const n = Number((await env.LICENCAS.get(k)) || 0);
+  if (n >= lim) return false;
+  await env.LICENCAS.put(k, String(n + 1), { expirationTtl: 3 * 86400 });
+  return true;
+}
 
 async function lerLicenca(env, hash) {
   if (!env.LICENCAS) return null;

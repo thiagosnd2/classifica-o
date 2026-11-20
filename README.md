@@ -35,6 +35,14 @@ Contas contábeis: PCASP 2027 (Portaria STN/MF nº 2.520, de 21/08/2026).
 
 A página pode rodar no GitHub Pages, sem depender do claude.ai. A IA e a validação das chaves Pro passam por um servidor próprio em `servidor/worker.js` (Cloudflare Workers), que guarda a chave da API da Anthropic e confere as chaves Pro no servidor. O passo a passo completo está em [`servidor/PUBLICAR.md`](servidor/PUBLICAR.md).
 
+## Segurança
+
+- Respostas da IA sempre escapadas antes de aparecer na tela.
+- Chave da API só no servidor (Cloudflare), nunca na página ou no repositório.
+- Chaves Pro guardadas como hash; no Projeto 1 os dados da licença (município, validade) ficam cifrados com a própria chave (`servidor/lacrar_licenca.mjs`).
+- Projeto 2: verificação anti-robô (Turnstile) na consulta individual, teto diário de consultas, limite por IP opcional e chave Pro conferida no servidor para o importador.
+- Política de conteúdo (CSP) na hospedagem própria.
+
 ## Funcionalidades
 
 **Consulta individual**

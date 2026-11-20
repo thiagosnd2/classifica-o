@@ -33,6 +33,16 @@ A mesma `index.html` funciona nos dois lugares: dentro do claude.ai usa a plataf
 
 > Pelo terminal, a alternativa é: `cd servidor && npx wrangler deploy` (depois de ajustar o `wrangler.toml`) e `npx wrangler secret put ANTHROPIC_API_KEY`.
 
+## 2b. Proteções do servidor (recomendado)
+
+- **Verificação anti-robô (Turnstile).** No painel do Cloudflare, em **Turnstile**, crie um widget para o domínio da página (ex.: `thiagosnd2.github.io`), modo *Invisible* ou *Managed*. Ele gera duas chaves:
+  - a **chave secreta** vai no Worker como segredo `TURNSTILE_SECRET`;
+  - a **chave pública (site key)** vai no `index.html`, em `window.CFG.TURNSTILE_SITEKEY`.
+  Com isso, a consulta individual só é aceita depois da verificação. O importador já é protegido pela chave Pro.
+- **Teto diário.** Variável `DAILY_LIMIT` no Worker (ex.: `800`): ao atingir o número de consultas de IA no dia, o servidor recusa as seguintes até a meia-noite (horário de Brasília). Usa o KV `LICENCAS`; no plano gratuito do Cloudflare o KV aceita 1.000 gravações por dia, então mantenha o teto abaixo disso ou use o plano pago (US$ 5/mês).
+- **Limite por IP.** Opcional: binding de *Rate Limiting* chamado `RL` (veja o `wrangler.toml`).
+- **Política de conteúdo (CSP).** Já vem na página: no GitHub Pages ela só carrega scripts de origens conhecidas e só envia dados ao endereço em `API_URL`.
+
 ## 3. Cadastrar as chaves Pro
 
 Cada chave vira uma entrada no KV `LICENCAS`:
@@ -55,10 +65,10 @@ A chave em texto nunca fica no servidor nem no repositório — só o hash.
 
 ## 4. Apontar a página para o servidor
 
-No `index.html`, preencha a linha:
+No `index.html`, no início da página, preencha:
 
 ```js
-const API_URL = 'https://classificador-api.SEU-USUARIO.workers.dev';
+window.CFG = { API_URL: 'https://classificador-api.SEU-USUARIO.workers.dev', TURNSTILE_SITEKEY: 'SUA_SITE_KEY' };
 ```
 
 Faça commit e push.
@@ -73,5 +83,5 @@ https://thiagosnd2.github.io/classifica-o/
 
 - A chave da API fica só no Cloudflare, nunca na página.
 - O importador (rota `/lote`) só funciona com chave Pro válida, conferida no servidor — trava real.
-- A consulta individual é gratuita e aberta; o Worker aceita apenas pedidos vindos do endereço em `ALLOWED_ORIGIN` e com tamanho limitado. Um uso automatizado fora do navegador ainda é possível; por isso, mantenha o limite de gasto no console da Anthropic e, se quiser, ative o limite por IP (`[[ratelimits]]` no `wrangler.toml`, binding `RL`).
+- A consulta individual é gratuita; o Worker aceita só pedidos vindos de `ALLOWED_ORIGIN`, com tamanho limitado, e — com o Turnstile e o `DAILY_LIMIT` configurados — exige a verificação anti-robô e respeita o teto diário. Mantenha também o limite de gasto no console da Anthropic.
 - Custo de referência (estimativa do projeto): cerca de US$ 39/mês para o ES inteiro com Haiku 5.5 e prompt otimizado. O Worker e o GitHub Pages ficam no plano gratuito nesse volume.
