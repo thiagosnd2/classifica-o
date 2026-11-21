@@ -7,10 +7,10 @@
 /* ===== Configuração da hospedagem própria (GitHub Pages + Cloudflare Workers) =====
    API_URL: endereço do servidor (sem barra no fim). TURNSTILE_SITEKEY: chave pública do Turnstile.
    Dentro do claude.ai estes valores são ignorados. */
-window.CFG = { API_URL: '', TURNSTILE_SITEKEY: '' };
+window.CFG = { API_URL: 'https://classificador-ap.tbraga262.workers.dev', TURNSTILE_SITEKEY: '0x4AAAAAAGLGzle2EfLRor-d' };
 /* Política de conteúdo (CSP) para a hospedagem própria. No claude.ai a plataforma já aplica a dela. */
 (function(){
-  if(!/(^|\.)(github\.io|classificabr\.com)$/.test(location.hostname) && !window.CFG.API_URL) return;
+  if(!/(^|\.)(github\.io|classificabr\.com)$/.test(location.hostname)) return;
   var api = ''; try{ api = window.CFG.API_URL ? new URL(window.CFG.API_URL).origin : ''; }catch(e){}
   var csp = [
     "default-src 'self'",
