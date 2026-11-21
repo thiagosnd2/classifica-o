@@ -828,7 +828,7 @@ async function loadFile(file){
     msg.innerHTML = `<span class="pill">${esc(file.name)}</span> <span class="pill">${esc(UFS[UF])}</span>`;
     preStats();
     $('#run-panel').hidden = false; $('#prog').hidden = true; $('#run').textContent = 'Classificar itens';
-    $('#res-panel').hidden = false; postStats(); renderTable();
+    $('#res-panel').hidden = false; gateDownload(); postStats(); renderTable();
   }catch(e){ msg.innerHTML = '<div class="warnbox">Não foi possível ler o arquivo. Confira se está no padrão do modelo.</div>'; }
 }
 $('#file').addEventListener('change', e => { const f = e.target.files[0]; if(f) loadFile(f); e.target.value=''; });
@@ -953,7 +953,7 @@ function renderTable(){
 }
 function aposCorrecao(){
   const pend = IMP.grupos.filter(g=>!g.res).length;
-  if(pend){ $('#prog').hidden = false; $('#prog-txt').textContent = `${pend} item(ns) corrigido(s) aguardando classificação. Clique em Classificar itens pendentes.`; $('#run').textContent = 'Classificar itens pendentes'; }
+  if(pend){ IMP.classificado = false; gateDownload(); $('#prog').hidden = false; $('#prog-txt').textContent = `${pend} item(ns) corrigido(s) aguardando classificação. Clique em Classificar itens pendentes.`; $('#run').textContent = 'Classificar itens pendentes'; }
   postStats(); renderTable();
 }
 $('#tb').addEventListener('click', e => {
@@ -982,7 +982,7 @@ $('#run').addEventListener('click', async () => {
   if(!IMP || !sample || busy || !PRO) return;
   if(!UF){ $('#prog').hidden=false; $('#prog-txt').textContent = 'Selecione o Estado no topo da página.'; return; }
   if(IMP.uf !== UF){ $('#prog').hidden=false; $('#prog-txt').textContent = `O estado foi alterado para ${UFS[UF]}. Envie o arquivo de novo para aplicar a regra desse estado.`; return; }
-  busy = true; abortCtl = new AbortController();
+  busy = true; abortCtl = new AbortController(); gateDownload();
   $('#run').disabled = true; $('#stop').hidden = false; $('#prog').hidden = false; $('#res-panel').hidden = false;
   const pend = IMP.grupos.filter(g => !g.res || g.res.falha);
   const lotes = [];
@@ -1002,12 +1002,13 @@ $('#run').addEventListener('click', async () => {
   await Promise.all([worker(), worker()]);
   $('#prog-txt').textContent = abortCtl.signal.aborted ? 'Interrompido. Clique em Classificar itens pendentes para continuar.' : `Concluído: ${IMP.linhas.length} linhas em ${lotes.length} lote(s)${falhas?`, ${falhas} lote(s) com erro`:''}.`;
   $('#run').disabled = false; $('#run').textContent = 'Classificar itens pendentes'; $('#stop').hidden = true; busy = false;
+  IMP.classificado = true; gateDownload();
   postStats(); renderTable();
 });
 $('#stop').addEventListener('click', () => abortCtl && abortCtl.abort());
 
 $('#dl-res').addEventListener('click', async () => {
-  if(!IMP || !PRO) return;
+  if(!IMP || !PRO || !IMP.classificado || busy) return;
   const out = [['TITULO','DESCRIÇÃO','UNIDADE DE MEDIDA','CLASSE (ELEMENTO)','SUB ELEMENTO (SUGESTÃO)','CONTA CONTÁBIL']];
   for(const l of IMP.linhas){ const s = saida(l); out.push([l.tit, l.des, l.un, s.classe, s.sub, s.conta]); }
   const ws = XLSX.utils.aoa_to_sheet(out);
@@ -1037,6 +1038,12 @@ async function abrirLicenca(chave, e){
   const pt = await crypto.subtle.decrypt({name:'AES-GCM', iv: raw.slice(0,12)}, key, raw.slice(12));
   return JSON.parse(new TextDecoder().decode(pt));
 }
+/* Baixar resultado: só depois de clicar em Classificar itens e a classificação terminar */
+function gateDownload(){
+  const ok = !!PRO && !busy && !!IMP && !!IMP.classificado;
+  const b = $('#dl-res'); b.disabled = !ok;
+  b.title = ok ? '' : 'Clique em Classificar itens antes de baixar o resultado';
+}
 function aplicarPlano(){
   const on = !!PRO;
   $('#pro-status').textContent = on ? `Plano Pro · ${PRO.municipio||''}${PRO.validade?' · até '+PRO.validade.split('-').reverse().join('/'):''}` : 'Plano gratuito';
@@ -1045,7 +1052,7 @@ function aplicarPlano(){
   $('#pro-lock').hidden = on;
   $('#drop').classList.toggle('locked', !on);
   $('#file').disabled = !on;
-  $('#dl-res').disabled = !on;
+  gateDownload();
   $('#run').disabled = !on || busy;
 }
 async function validarChave(chave, silencioso){
