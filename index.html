@@ -874,6 +874,7 @@ ${itens}
 ${contas}
 
 Para cada item, escolha ${es?'um código do catálogo':'um elemento válido'}; nunca invente código.${es&&restrito?' Se nenhum código do catálogo servir, responda "fora_do_catalogo": true.':''}${tipo==='Material'?' Identifique pelo título se o item é material de consumo ou permanente e escolha a conta contábil na lista correspondente (prefira a conta analítica mais específica).':' Itens de serviço: "conta" vazia.'}
+Se um item claramente for ${tipo==='Material'?'SERVIÇO':'MATERIAL'} e não ${tipo.toUpperCase()} (o TIPO informado está errado), classifique assim mesmo dentro do catálogo acima e acrescente "tipo_sugerido": "${tipo==='Material'?'Serviço':'Material'}". Na dúvida, não acrescente.
 Responda SOMENTE com um array JSON, um objeto por item, na mesma ordem:
 ${es?'[{"n":1,"codigo":"x.x.90.xx.xx","conta":"x.x.x.x.x.xx.xx"}]':'[{"n":1,"codigo":"x.x.90.ee","subelemento":"nome de referência ou vazio","conta":"x.x.x.x.x.xx.xx"}]'}`;
 }
@@ -888,7 +889,8 @@ async function runBatch(gs, signal, full){
   gs.forEach((g,n) => {
     const r = arr.find(x => Number(x.n)===n+1) || arr[n];
     if(r && r.fora_do_catalogo && !full){ retry.push(g); return; }
-    g.res = r && r.codigo ? {codigo:String(r.codigo).trim(), sub:r.subelemento||'', conta:String(r.conta||'').trim()} : {falha:true};
+    const ts = r && /^(mat|serv)/i.test(String(r.tipo_sugerido||'')) ? (/^mat/i.test(r.tipo_sugerido) ? 'Material' : 'Serviço') : '';
+    g.res = r && r.codigo ? {codigo:String(r.codigo).trim(), sub:r.subelemento||'', conta:String(r.conta||'').trim(), tipoSug: ts && ts !== g.tipo ? ts : ''} : {falha:true};
   });
   if(retry.length) await runBatch(retry, signal, true);
 }
@@ -942,6 +944,11 @@ function renderTable(){
     } else if(l.falta.length){
       sugCell = `<span class="ubad">Preencha ${esc(l.falta.join(', '))} no arquivo</span>`;
     }
+    if(l.tipoOrig && l.tipoOrig !== l.tipo) sugCell += `<small class="empty">TIPO corrigido para ${esc(l.tipo)} (era ${esc(l.tipoOrig)})</small>`;
+    const gr = !l.erro && g0(l);
+    if(gr && gr.res && gr.res.tipoSug){
+      sugCell += `<div><span class="ubad">TIPO informado: ${esc(l.tipo)} — parece ${esc(gr.res.tipoSug)}</span><br><button class="ghost fix-tipo" type="button" data-l="${l.linha}" style="padding:5px 10px;margin-top:6px">Corrigir tipo para ${esc(gr.res.tipoSug)}</button></div>`;
+    }
     if(l.erro) sugCell += `<div style="margin-top:6px"><button class="ghost rm-one" type="button" data-l="${l.linha}" aria-label="Remover a linha ${l.linha}" style="padding:5px 10px">Remover linha</button></div>`;
     const unBad = IMP.uf==='ES' && l.un && !l.u;
     const unCell = `${unBad?`<span class="ubad">${esc(l.un)}</span>`:esc(l.un)}${l.unOrig!==l.un?`<br><small class="empty">corrigida (era "${esc(l.unOrig)}")</small>`:''}`;
@@ -962,6 +969,17 @@ $('#tb').addEventListener('click', e => {
     const n = Number(rm.dataset.l);
     IMP.linhas = IMP.linhas.filter(x => !(x.linha === n && x.erro));
     preStats(); postStats(); renderTable();
+    return;
+  }
+  const ft = e.target.closest('.fix-tipo');
+  if(ft && !busy){
+    const l0 = IMP.linhas.find(x=>x.linha===Number(ft.dataset.l)); const g = l0 && g0(l0);
+    if(g && g.res && g.res.tipoSug){
+      const novo = g.res.tipoSug;
+      IMP.grupos = IMP.grupos.filter(x=>x!==g);
+      for(const l of g.linhas){ l.tipo = novo; l.tipoOrig = l.tipoOrig || g.tipo; addToGroup(IMP.grupos, l); }
+      preStats(); aposCorrecao();
+    }
     return;
   }
   const b = e.target.closest('.fix-one'); if(!b || busy) return;
