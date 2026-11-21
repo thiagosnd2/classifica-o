@@ -27,7 +27,7 @@ A mesma `index.html` funciona nos dois lugares: dentro do claude.ai usa a plataf
 5. Nas configurações do Worker (**Settings → Bindings / Variables**):
    - Binding de KV: nome `LICENCAS`, namespace `LICENCAS`.
    - Segredo (Secret): `ANTHROPIC_API_KEY` = sua chave da API.
-   - Variável: `ALLOWED_ORIGIN` = `https://thiagosnd2.github.io`
+   - Variável: `ALLOWED_ORIGIN` = `https://thiagosnd2.github.io,https://classificabr.com`
    - Variável (opcional): `MODEL` = `claude-haiku-5-5` (padrão) ou `claude-sonnet-5-5` para mais precisão, com custo maior.
 6. Anote o endereço do Worker, algo como `https://classificador-api.SEU-USUARIO.workers.dev`.
 
@@ -35,7 +35,7 @@ A mesma `index.html` funciona nos dois lugares: dentro do claude.ai usa a plataf
 
 ## 2b. Proteções do servidor (recomendado)
 
-- **Verificação anti-robô (Turnstile).** No painel do Cloudflare, em **Turnstile**, crie um widget para o domínio da página (ex.: `thiagosnd2.github.io`), modo *Invisible* ou *Managed*. Ele gera duas chaves:
+- **Verificação anti-robô (Turnstile).** No painel do Cloudflare, em **Turnstile**, crie um widget para os domínios da página (`classificabr.com` e `thiagosnd2.github.io`), modo *Invisible* ou *Managed*. Ele gera duas chaves:
   - a **chave secreta** vai no Worker como segredo `TURNSTILE_SECRET`;
   - a **chave pública (site key)** vai no `index.html`, em `window.CFG.TURNSTILE_SITEKEY`.
   Com isso, a consulta individual só é aceita depois da verificação. O importador já é protegido pela chave Pro.
@@ -77,7 +77,9 @@ Faça commit e push.
 
 No repositório: **Settings → Pages → Build and deployment → Deploy from a branch**, branch `main`, pasta `/ (root)`. Em poucos minutos a página fica em:
 
-https://thiagosnd2.github.io/classifica-o/
+https://classificabr.com (domínio próprio; o arquivo `CNAME` do repositório aponta para ele). Endereço alternativo: https://thiagosnd2.github.io/classifica-o/
+
+No registrador do domínio (Wix), crie quatro registros A para `185.199.108.153`, `185.199.109.153`, `185.199.110.153` e `185.199.111.153`, e um CNAME `www` → `thiagosnd2.github.io`. Depois, em Settings → Pages, confirme o domínio e marque *Enforce HTTPS*.
 
 ## Segurança e custos
 

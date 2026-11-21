@@ -4,7 +4,7 @@ main = "worker.js"
 compatibility_date = "2026-11-01"
 
 [vars]
-ALLOWED_ORIGIN = "https://thiagosnd2.github.io"
+ALLOWED_ORIGIN = "https://thiagosnd2.github.io,https://classificabr.com"
 MODEL = "claude-haiku-5-5"
 
 # Crie o KV com: npx wrangler kv namespace create LICENCAS
