@@ -290,6 +290,7 @@ footer{padding:0 24px 24px;color:var(--muted);font-size:12px;max-width:110ch}
           <button type="button" data-f="rev" aria-pressed="false">Com ERRO</button>
         </div>
         <button class="ghost" type="button" id="fix-all" style="padding:9px 12px">Corrigir unidades com sugestão</button>
+        <button class="ghost" type="button" id="txt-all" style="padding:9px 12px" hidden>Aceitar todos os textos sugeridos</button>
         <button class="primary" type="button" id="dl-res" style="width:auto">Baixar resultado (.xlsx)</button>
       </div>
     </div>
@@ -430,6 +431,8 @@ function setUF(v){
 }
 
 /* ---------- Regras ---------- */
+const TEXT_RULE = `REVISÃO DO TEXTO (para o usuário melhorar a descrição; não altera a classificação):
+(a) corrija ortografia e acentuação; (b) padronize: primeira letra maiúscula, abreviações por extenso (cx→caixa, un→unidade, pct→pacote, c/→com), ordem item, especificação, medida; (c) NUNCA invente característica que não esteja no texto informado; (d) se a descrição for vaga (repete o título ou é genérica demais para uma compra pública), liste em "falta" até 4 especificações que deveriam ser informadas (ex.: material, dimensões, cor, capacidade, modelo). Só preencha os campos de texto quando houver mudança; senão use null.`;
 const RULES = `REGRAS DE CLASSIFICAÇÃO (Lei 4.320/64; Portaria STN 448/2002; MCASP 11ª ed., Parte I, item 4.6):
 1. Consumo × permanente: material é de CONSUMO se atender a PELO MENOS UM critério — durabilidade (perde condições de uso em até 2 anos), fragilidade (quebradiço, deformável ou danificável), perecibilidade (modificações químicas/físicas), incorporabilidade (incorporado a outro bem sem poder ser retirado sem prejuízo), transformabilidade (adquirido para transformação). Só é PERMANENTE (4.4.90.52) se não atender a nenhum.
 2. Peça de reposição com a mesma configuração → 3.3.90.30; peça para bem novo, melhoria ou adição complementar → 4.4.90.30.
@@ -546,8 +549,9 @@ ${catalogES()}
 ${head}
 
 Instruções: escolha UM código do catálogo, nunca invente. Para material, avalie os cinco critérios da regra 1. Se finalidade, fornecedor ou tipo de despesa puderem mudar o código e não foram informados, use a hipótese mais comum e confiança "média" ou "baixa". Se a confiança for "média" ou "baixa", monte um QUIZ em "quiz": uma pergunta objetiva sobre o fator que decide a classificação (finalidade, uso, forma de fornecimento etc.) e de 2 a 4 opções curtas, cada uma ligada ao código do catálogo que vale se o usuário escolher aquela opção (códigos diferentes entre si). Se a confiança for "alta", "quiz" = null. Alternativas: até 3 códigos do catálogo com a condição. Justificativa: 2 a 4 frases citando a regra ou ementa. Se a unidade informada for incompatível com o item, explique em "alerta_unidade".
+${TEXT_RULE} Na consulta, "texto_sugerido" é a versão revisada do "Nome ou descrição do item".
 Responda SOMENTE com JSON:
-{"item_interpretado":"...","codigo":"x.x.90.xx.xx","justificativa":"...","regras":["..."],"criterios":{"durabilidade":null,"fragilidade":null,"perecibilidade":null,"incorporabilidade":null,"transformabilidade":null},"confianca":"alta|média|baixa","alternativas":[{"codigo":"...","quando":"..."}],"quiz":{"pergunta":"...","opcoes":[{"texto":"...","codigo":"..."}]},"alerta_unidade":null}`;
+{"item_interpretado":"...","codigo":"x.x.90.xx.xx","justificativa":"...","regras":["..."],"criterios":{"durabilidade":null,"fragilidade":null,"perecibilidade":null,"incorporabilidade":null,"transformabilidade":null},"confianca":"alta|média|baixa","alternativas":[{"codigo":"...","quando":"..."}],"quiz":{"pergunta":"...","opcoes":[{"texto":"...","codigo":"..."}]},"alerta_unidade":null,"texto_sugerido":null,"falta":[]}`;
   }
   const cand = scoreFed([item,ctx,extra].join(' ')).map(f=>`${f.e} | ${f.n}\n  Descrição: ${f.d||'—'}\n  Exemplos: ${(f.x||'—').slice(0,500)}`).join('\n');
   return `Você classifica itens de compras públicas municipais (estado: ${UFS[UF]}) na natureza de despesa pela base FEDERAL de referência (Portaria STN 448/2002, MCASP 11ª ed.). Não há tabela estadual carregada para este estado: classifique até o ELEMENTO (código x.x.90.ee) e indique o subelemento apenas pelo NOME de referência, sem código.
@@ -565,8 +569,9 @@ ${catalogFed()}
 ${head}
 
 Instruções: "codigo" deve ser um dos ELEMENTOS VÁLIDOS. "subelemento" é o nome de referência (ou null se não houver). Para material, avalie os cinco critérios. Se a confiança for "média" ou "baixa", monte um QUIZ em "quiz": uma pergunta objetiva sobre o fator que decide a classificação (finalidade, uso, forma de fornecimento etc.) e de 2 a 4 opções curtas, cada uma ligada ao elemento válido que vale se o usuário escolher aquela opção (códigos diferentes entre si). Se a confiança for "alta", "quiz" = null. Alternativas: até 3 elementos com a condição.
+${TEXT_RULE} Na consulta, "texto_sugerido" é a versão revisada do "Nome ou descrição do item".
 Responda SOMENTE com JSON:
-{"item_interpretado":"...","codigo":"x.x.90.ee","subelemento":"...","justificativa":"...","regras":["..."],"criterios":{"durabilidade":null,"fragilidade":null,"perecibilidade":null,"incorporabilidade":null,"transformabilidade":null},"confianca":"alta|média|baixa","alternativas":[{"codigo":"...","quando":"..."}],"quiz":{"pergunta":"...","opcoes":[{"texto":"...","codigo":"..."}]},"alerta_unidade":null}`;
+{"item_interpretado":"...","codigo":"x.x.90.ee","subelemento":"...","justificativa":"...","regras":["..."],"criterios":{"durabilidade":null,"fragilidade":null,"perecibilidade":null,"incorporabilidade":null,"transformabilidade":null},"confianca":"alta|média|baixa","alternativas":[{"codigo":"...","quando":"..."}],"quiz":{"pergunta":"...","opcoes":[{"texto":"...","codigo":"..."}]},"alerta_unidade":null,"texto_sugerido":null,"falta":[]}`;
 }
 
 function renderLocal(q, note){
@@ -608,6 +613,11 @@ function renderResult(r, q, st){
     <button class="ghost" type="button" id="copy">Copiar código</button></div>
     <p class="empty" style="margin:0">Item interpretado: ${esc(r.item_interpretado||q)}</p>
   </div>`;
+  const txtSug = r.texto_sugerido && String(r.texto_sugerido).trim() && String(r.texto_sugerido).trim() !== String(q).trim() ? String(r.texto_sugerido).trim() : '';
+  const falta = Array.isArray(r.falta) ? r.falta.filter(Boolean).slice(0,4) : [];
+  if(txtSug || falta.length){
+    h += `<div class="ask"><p><b>Melhorar o texto</b></p>${txtSug?`<p style="margin:4px 0">Sugestão: <b>${esc(txtSug)}</b></p><button class="ghost" type="button" id="usar-txt" style="width:auto">Usar este texto</button>`:''}${falta.length?`<p class="empty" style="margin:6px 0 0">Descrição vaga. Para uma compra pública, informe também: ${esc(falta.join(', '))}.</p>`:''}</div>`;
+  }
   const quiz = r.quiz && r.quiz.pergunta && Array.isArray(r.quiz.opcoes) && !conf.startsWith('alta') ? r.quiz : null;
   if(quiz){
     const ops = quiz.opcoes.filter(o=>o && o.codigo && (es ? byCode(o.codigo) : ELEM_OK.includes(o.codigo)));
@@ -621,6 +631,7 @@ function renderResult(r, q, st){
   if(it && (it.d||it.x)) h += `<details><summary style="cursor:pointer;font-weight:600">Ementa do subelemento</summary><p class="just">${esc(it.d)}</p>${it.x?`<p class="just"><b>Exemplos:</b> ${esc(it.x)}</p>`:''}</details>`;
   h += renderLocal([q,st.ctx].join(' '));
   $('#res').innerHTML = h;
+  $('#usar-txt')?.addEventListener('click', e => { $('#item').value = txtSug.slice(0, 400); e.target.textContent = 'Texto aplicado no campo'; e.target.disabled = true; });
   $('#copy')?.addEventListener('click', async e=>{ try{ await navigator.clipboard.writeText(r.codigo); e.target.textContent='Copiado'; }catch{ e.target.textContent='Selecione e copie'; } });
   $('#refine')?.addEventListener('click', ()=>{ const a=$('#ans').value.trim(); const q=(quiz&&quiz.pergunta)||r.pergunta||''; if(a && !REFINE_USED) classify({...st, refino:true, extra:[st.extra,q+' → '+a].filter(Boolean).join(' | ')}); });
   document.querySelectorAll('.quiz-op').forEach(b=>b.addEventListener('click', ()=>{
@@ -874,11 +885,28 @@ ${itens}
 ${contas}
 
 Para cada item, escolha ${es?'um código do catálogo':'um elemento válido'}; nunca invente código.${es&&restrito?' Se nenhum código do catálogo servir, responda "fora_do_catalogo": true.':''}${tipo==='Material'?' Identifique pelo título se o item é material de consumo ou permanente e escolha a conta contábil na lista correspondente (prefira a conta analítica mais específica).':' Itens de serviço: "conta" vazia.'}
+${TEXT_RULE} No lote, use "titulo_sugerido" e "descricao_sugerida" (até 400 caracteres) para o título e a descrição de cada item.
 Se um item claramente for ${tipo==='Material'?'SERVIÇO':'MATERIAL'} e não ${tipo.toUpperCase()} (o TIPO informado está errado), classifique assim mesmo dentro do catálogo acima e acrescente "tipo_sugerido": "${tipo==='Material'?'Serviço':'Material'}". Na dúvida, não acrescente.
 Responda SOMENTE com um array JSON, um objeto por item, na mesma ordem:
-${es?'[{"n":1,"codigo":"x.x.90.xx.xx","conta":"x.x.x.x.x.xx.xx"}]':'[{"n":1,"codigo":"x.x.90.ee","subelemento":"nome de referência ou vazio","conta":"x.x.x.x.x.xx.xx"}]'}`;
+${es?'[{"n":1,"codigo":"x.x.90.xx.xx","conta":"x.x.x.x.x.xx.xx","titulo_sugerido":null,"descricao_sugerida":null,"falta":[]}]':'[{"n":1,"codigo":"x.x.90.ee","subelemento":"nome de referência ou vazio","conta":"x.x.x.x.x.xx.xx","titulo_sugerido":null,"descricao_sugerida":null,"falta":[]}]'}`;
 }
 
+function txtDe(r, g){
+  const lim = v => v ? String(v).trim() : '';
+  const tit = lim(r.titulo_sugerido), des = lim(r.descricao_sugerida).slice(0, DMAX);
+  const falta = Array.isArray(r.falta) ? r.falta.filter(Boolean).map(String).slice(0,4) : [];
+  const t = {tit: tit && tit !== g.tit ? tit : '', des: des && des !== g.des ? des : '', falta, ok:false};
+  return (t.tit || t.des || t.falta.length) ? t : null;
+}
+function aceitarTexto(g){
+  const t = g && g.res && g.res.txt; if(!t || t.ok) return;
+  for(const l of g.linhas){
+    if(t.tit){ l.titOrig = l.titOrig || l.tit; l.tit = t.tit; }
+    if(t.des){ l.desOrig = l.desOrig || l.des; l.des = t.des; }
+  }
+  if(t.tit) g.tit = t.tit; if(t.des) g.des = t.des;
+  t.ok = true;
+}
 async function runBatch(gs, signal, full){
   const call = () => sample.json(batchPrompt(gs, full), {modelTier:'default', signal});
   let arr;
@@ -890,7 +918,7 @@ async function runBatch(gs, signal, full){
     const r = arr.find(x => Number(x.n)===n+1) || arr[n];
     if(r && r.fora_do_catalogo && !full){ retry.push(g); return; }
     const ts = r && /^(mat|serv)/i.test(String(r.tipo_sugerido||'')) ? (/^mat/i.test(r.tipo_sugerido) ? 'Material' : 'Serviço') : '';
-    g.res = r && r.codigo ? {codigo:String(r.codigo).trim(), sub:r.subelemento||'', conta:String(r.conta||'').trim(), tipoSug: ts && ts !== g.tipo ? ts : ''} : {falha:true};
+    g.res = r && r.codigo ? {codigo:String(r.codigo).trim(), sub:r.subelemento||'', conta:String(r.conta||'').trim(), tipoSug: ts && ts !== g.tipo ? ts : '', txt: txtDe(r, g)} : {falha:true};
   });
   if(retry.length) await runBatch(retry, signal, true);
 }
@@ -946,6 +974,12 @@ function renderTable(){
     }
     if(l.tipoOrig && l.tipoOrig !== l.tipo) sugCell += `<small class="empty">TIPO corrigido para ${esc(l.tipo)} (era ${esc(l.tipoOrig)})</small>`;
     const gr = !l.erro && g0(l);
+    const tx = gr && gr.res && gr.res.txt;
+    if(tx && !tx.ok && (tx.tit || tx.des)){
+      sugCell += `<div style="margin-bottom:6px"><small class="empty">Texto sugerido:</small>${tx.tit?`<br><b>${esc(tx.tit)}</b>`:''}${tx.des?`<br>${esc(tx.des)}`:''}<br><button class="ghost fix-txt" type="button" data-l="${l.linha}" style="padding:5px 10px;margin-top:4px">Aceitar texto</button></div>`;
+    }
+    if(tx && tx.ok && (l.titOrig || l.desOrig)) sugCell += `<small class="empty">Texto revisado${l.titOrig?` (título era "${esc(l.titOrig)}")`:''}${l.desOrig?` (descrição era "${esc(l.desOrig.slice(0,60))}${l.desOrig.length>60?'…':''}")`:''}</small><br>`;
+    if(tx && tx.falta.length) sugCell += `<small class="ubad">Descrição vaga: informe ${esc(tx.falta.join(', '))}</small><br>`;
     if(gr && gr.res && gr.res.tipoSug){
       sugCell += `<div><span class="ubad">TIPO informado: ${esc(l.tipo)} — parece ${esc(gr.res.tipoSug)}</span><br><button class="ghost fix-tipo" type="button" data-l="${l.linha}" style="padding:5px 10px;margin-top:6px">Corrigir tipo para ${esc(gr.res.tipoSug)}</button></div>`;
     }
@@ -957,6 +991,8 @@ function renderTable(){
   $('#tb').innerHTML = rows.join('') || '<tr><td colspan="8" class="empty">Nenhuma linha neste filtro.</td></tr>';
   const nFix = IMP.linhas.filter(l=>{ const u = unitSug(l); return u && u.sug.length===1; }).length;
   $('#fix-all').hidden = !nFix; $('#fix-all').textContent = `Corrigir unidades com sugestão (${nFix})`;
+  const nTxt = IMP.grupos.filter(g=>g.res && g.res.txt && !g.res.txt.ok && (g.res.txt.tit || g.res.txt.des)).length;
+  $('#txt-all').hidden = !nTxt; $('#txt-all').textContent = `Aceitar todos os textos sugeridos (${nTxt})`;
 }
 function aposCorrecao(){
   const pend = IMP.grupos.filter(g=>!g.res).length;
@@ -971,6 +1007,8 @@ $('#tb').addEventListener('click', e => {
     preStats(); postStats(); renderTable();
     return;
   }
+  const fx = e.target.closest('.fix-txt');
+  if(fx && !busy){ const l0 = IMP.linhas.find(x=>x.linha===Number(fx.dataset.l)); aceitarTexto(l0 && g0(l0)); renderTable(); return; }
   const ft = e.target.closest('.fix-tipo');
   if(ft && !busy){
     const l0 = IMP.linhas.find(x=>x.linha===Number(ft.dataset.l)); const g = l0 && g0(l0);
@@ -986,6 +1024,10 @@ $('#tb').addEventListener('click', e => {
   const l = IMP.linhas.find(x=>x.linha===Number(b.dataset.l));
   const sel = $('#tb').querySelector(`.sug-sel[data-l="${b.dataset.l}"]`);
   if(l && sel && sel.value){ corrigirUnidade(l, sel.value); aposCorrecao(); }
+});
+$('#txt-all').addEventListener('click', () => {
+  if(!IMP || busy) return;
+  IMP.grupos.forEach(aceitarTexto); renderTable();
 });
 $('#fix-all').addEventListener('click', () => {
   if(!IMP || busy) return;
