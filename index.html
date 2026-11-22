@@ -291,6 +291,7 @@ footer{padding:0 24px 24px;color:var(--muted);font-size:12px;max-width:110ch}
         </div>
         <button class="ghost" type="button" id="fix-all" style="padding:9px 12px">Corrigir unidades com sugestão</button>
         <button class="ghost" type="button" id="txt-all" style="padding:9px 12px" hidden>Aceitar todos os textos sugeridos</button>
+        <button class="ghost" type="button" id="tipo-all" style="padding:9px 12px" hidden>Corrigir todos os TIPOS sugeridos</button>
         <button class="primary" type="button" id="dl-res" style="width:auto">Baixar resultado (.xlsx)</button>
       </div>
     </div>
@@ -741,7 +742,7 @@ document.querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>{ i
 /* ===================== IMPORTADOR ===================== */
 const MODELO_B64 = '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';
 let IMP = null, abortCtl = null, FILTER = 'all';
-const MAXROWS = 500, BATCH = 20, DMAX = 400;
+const MAXROWS = 500, BATCH = 15, DMAX = 400;
 
 function route(){
   const imp = location.hash === '#importar';
@@ -796,10 +797,20 @@ function parseRows(rows){
   for(const l of linhas.filter(l=>!l.erro)) addToGroup(grupos, l);
   return {errs, linhas, grupos};
 }
+/* TIPO incoerente com a unidade (ex.: ampola/comprimido marcado como Serviço) */
+function tipoPelaUnidade(g){
+  const cod = (g.u && g.u.c) || (KB.siglas||{})[String(g.un||'').trim().toUpperCase()] || ((g.un && unitTA22(g.un)) || {}).c;
+  const grp = cod ? KB.u2grp[cod] : null;
+  if(g.tipo === 'Serviço' && grp === 'farmaco') return 'Material';
+  if(g.tipo === 'Material' && (grp === 'servico' || grp === 'maodeobra')) return 'Serviço';
+  return '';
+}
+function grpDe(l){ return IMP && IMP.grupos.find(x=>x.linhas.includes(l)); }
+function sugTipo(g){ return g ? ((g.res && g.res.tipoSug) || (!g.res && g.tipoLocal) || '') : ''; }
 function addToGroup(grupos, l){
   const k = [norm(l.tit), norm(l.des), l.u.c || norm(l.un), l.tipo].join('|').replace(/\s+/g,' ');
   let g = grupos.find(x=>x.k===k);
-  if(!g){ g = {k, tit:l.tit, des:l.des, u:l.u, tipo:l.tipo, linhas:[], res:null}; grupos.push(g); }
+  if(!g){ g = {k, tit:l.tit, des:l.des, u:l.u, un:l.un, tipo:l.tipo, linhas:[], res:null}; g.tipoLocal = tipoPelaUnidade(g); grupos.push(g); }
   g.linhas.push(l);
 }
 /* Sugestão de unidade (TA 22) para linhas com unidade fora da tabela */
@@ -886,7 +897,7 @@ ${contas}
 
 Para cada item, escolha ${es?'um código do catálogo':'um elemento válido'}; nunca invente código.${es&&restrito?' Se nenhum código do catálogo servir, responda "fora_do_catalogo": true.':''}${tipo==='Material'?' Identifique pelo título se o item é material de consumo ou permanente e escolha a conta contábil na lista correspondente (prefira a conta analítica mais específica).':' Itens de serviço: "conta" vazia.'}
 ${TEXT_RULE} No lote, use "titulo_sugerido" e "descricao_sugerida" (até 400 caracteres) para o título e a descrição de cada item.
-Se um item claramente for ${tipo==='Material'?'SERVIÇO':'MATERIAL'} e não ${tipo.toUpperCase()} (o TIPO informado está errado), classifique assim mesmo dentro do catálogo acima e acrescente "tipo_sugerido": "${tipo==='Material'?'Serviço':'Material'}". Na dúvida, não acrescente.
+Se um item claramente for ${tipo==='Material'?'SERVIÇO':'MATERIAL'} e não ${tipo.toUpperCase()} (o TIPO informado está errado), NÃO o classifique: responda "codigo": null e "tipo_sugerido": "${tipo==='Material'?'Serviço':'Material'}" (mantenha os campos de texto). Na dúvida, classifique normalmente.
 Responda SOMENTE com um array JSON, um objeto por item, na mesma ordem:
 ${es?'[{"n":1,"codigo":"x.x.90.xx.xx","conta":"x.x.x.x.x.xx.xx","titulo_sugerido":null,"descricao_sugerida":null,"falta":[]}]':'[{"n":1,"codigo":"x.x.90.ee","subelemento":"nome de referência ou vazio","conta":"x.x.x.x.x.xx.xx","titulo_sugerido":null,"descricao_sugerida":null,"falta":[]}]'}`;
 }
@@ -907,15 +918,24 @@ function aceitarTexto(g){
   if(t.tit) g.tit = t.tit; if(t.des) g.des = t.des;
   t.ok = true;
 }
+let PAUSA_ATE = 0;
 async function runBatch(gs, signal, full){
   const call = () => sample.json(batchPrompt(gs, full), {modelTier:'default', signal});
   let arr;
-  try{ arr = await call(); }
-  catch(e){ if(e && e.code==='rate_limited'){ await new Promise(r=>setTimeout(r, 20000)); arr = await call(); } else throw e; }
+  for(let t = 0; ; t++){
+    const espera = PAUSA_ATE - Date.now(); if(espera > 0) await new Promise(r=>setTimeout(r, espera));
+    try{ arr = await call(); break; }
+    catch(e){
+      if(e && e.code==='rate_limited' && t < 3){ PAUSA_ATE = Date.now() + 20000 * (t + 1); continue; }
+      throw e;
+    }
+  }
   if(!Array.isArray(arr)) arr = arr && Array.isArray(arr.itens) ? arr.itens : [];
   const retry = [];
   gs.forEach((g,n) => {
     const r = arr.find(x => Number(x.n)===n+1) || arr[n];
+    const tsx = r && /^(mat|serv)/i.test(String(r.tipo_sugerido||'')) ? (/^mat/i.test(r.tipo_sugerido) ? 'Material' : 'Serviço') : '';
+    if(r && tsx && tsx !== g.tipo && !r.codigo){ g.res = {tipoPend:true, tipoSug:tsx, txt: txtDe(r, g)}; return; }
     if(r && r.fora_do_catalogo && !full){ retry.push(g); return; }
     const ts = r && /^(mat|serv)/i.test(String(r.tipo_sugerido||'')) ? (/^mat/i.test(r.tipo_sugerido) ? 'Material' : 'Serviço') : '';
     g.res = r && r.codigo ? {codigo:String(r.codigo).trim(), sub:r.subelemento||'', conta:String(r.conta||'').trim(), tipoSug: ts && ts !== g.tipo ? ts : '', txt: txtDe(r, g)} : {falha:true};
@@ -938,8 +958,9 @@ function saida(l){
   const es = IMP.uf === 'ES';
   if(l.erro) return {classe:'ERRO', sub:'ERRO', conta:'ERRO'};
   const g = IMP.grupos.find(x=>x.linhas.includes(l)); const r = g && g.res;
-  if(!r) return {classe:'', sub:'', conta:''};
+  if(!r) return g && g.tipoLocal ? {classe:'Corrigir o TIPO', sub:`TIPO informado: ${g.tipo}; a unidade indica ${g.tipoLocal}`, conta:''} : {classe:'', sub:'', conta:''};
   if(r.falha) return {classe:'', sub:'Não classificado – tente de novo', conta:''};
+  if(r.tipoPend) return {classe:'Corrigir o TIPO', sub:`TIPO informado: ${g.tipo}; parece ${r.tipoSug}`, conta:''};
   if(es){
     const it = byCode(r.codigo); const el = elOf(r.codigo);
     return {classe:`${el} – ${elName(el)}`, sub: it ? `${it.c} – ${it.t}` : `${r.codigo} – código não encontrado na tabela`, conta: contaDe(it, r, g.tipo)};
@@ -951,6 +972,8 @@ function preStats(){
   const p = IMP, nErro = p.linhas.filter(l=>l.erro).length;
   $('#pre-stats').innerHTML = stat(p.linhas.length,'linhas') + stat(p.grupos.length,'itens distintos a classificar') + stat(nErro,'linhas com ERRO', nErro?'bad':'')
     + (nErro ? `<ul class="errlist"><li>Linhas com ERRO (campo vazio, TIPO diferente de Material ou Serviço${isES()?' ou unidade fora da Tabela Auxiliar 22':''}) não são classificadas: ${p.linhas.filter(l=>l.erro).slice(0,15).map(l=>l.linha).join(', ')}${nErro>15?'…':''}. Corrija no arquivo e envie de novo, ou use Remover na tabela.</li></ul>` : '');
+  const nTL = p.grupos.filter(g=>!g.res && g.tipoLocal).length;
+  if(nTL) $('#pre-stats').insertAdjacentHTML('beforeend', `<div class="warnbox">${nTL} item(ns) com TIPO provavelmente errado pela unidade de medida (ex.: ampola ou comprimido marcado como Serviço). Eles não serão enviados à IA até o TIPO ser corrigido: use Corrigir tipo na tabela ou Corrigir todos os TIPOS sugeridos.</div>`);
   if(!sample) $('#pre-stats').insertAdjacentHTML('beforeend','<div class="warnbox">A classificação com IA não está disponível nesta visualização.</div>');
 }
 function postStats(){
@@ -980,8 +1003,10 @@ function renderTable(){
     }
     if(tx && tx.ok && (l.titOrig || l.desOrig)) sugCell += `<small class="empty">Texto revisado${l.titOrig?` (título era "${esc(l.titOrig)}")`:''}${l.desOrig?` (descrição era "${esc(l.desOrig.slice(0,60))}${l.desOrig.length>60?'…':''}")`:''}</small><br>`;
     if(tx && tx.falta.length) sugCell += `<small class="ubad">Descrição vaga: informe ${esc(tx.falta.join(', '))}</small><br>`;
-    if(gr && gr.res && gr.res.tipoSug){
-      sugCell += `<div><span class="ubad">TIPO informado: ${esc(l.tipo)} — parece ${esc(gr.res.tipoSug)}</span><br><button class="ghost fix-tipo" type="button" data-l="${l.linha}" style="padding:5px 10px;margin-top:6px">Corrigir tipo para ${esc(gr.res.tipoSug)}</button></div>`;
+    const gt = !l.erro && grpDe(l), st2 = sugTipo(gt);
+    if(st2){
+      const porque = gt.res ? `parece ${esc(st2)}` : `a unidade indica ${esc(st2)}`;
+      sugCell += `<div><span class="ubad">TIPO informado: ${esc(l.tipo)} — ${porque}</span><br><button class="ghost fix-tipo" type="button" data-l="${l.linha}" style="padding:5px 10px;margin-top:6px">Corrigir tipo para ${esc(st2)}</button></div>`;
     }
     if(l.erro) sugCell += `<div style="margin-top:6px"><button class="ghost rm-one" type="button" data-l="${l.linha}" aria-label="Remover a linha ${l.linha}" style="padding:5px 10px">Remover linha</button></div>`;
     const unBad = IMP.uf==='ES' && l.un && !l.u;
@@ -993,6 +1018,8 @@ function renderTable(){
   $('#fix-all').hidden = !nFix; $('#fix-all').textContent = `Corrigir unidades com sugestão (${nFix})`;
   const nTxt = IMP.grupos.filter(g=>g.res && g.res.txt && !g.res.txt.ok && (g.res.txt.tit || g.res.txt.des)).length;
   $('#txt-all').hidden = !nTxt; $('#txt-all').textContent = `Aceitar todos os textos sugeridos (${nTxt})`;
+  const nTp = IMP.grupos.filter(g=>sugTipo(g)).length;
+  $('#tipo-all').hidden = !nTp; $('#tipo-all').textContent = `Corrigir todos os TIPOS sugeridos (${nTp})`;
 }
 function aposCorrecao(){
   const pend = IMP.grupos.filter(g=>!g.res).length;
@@ -1011,9 +1038,9 @@ $('#tb').addEventListener('click', e => {
   if(fx && !busy){ const l0 = IMP.linhas.find(x=>x.linha===Number(fx.dataset.l)); aceitarTexto(l0 && g0(l0)); renderTable(); return; }
   const ft = e.target.closest('.fix-tipo');
   if(ft && !busy){
-    const l0 = IMP.linhas.find(x=>x.linha===Number(ft.dataset.l)); const g = l0 && g0(l0);
-    if(g && g.res && g.res.tipoSug){
-      const novo = g.res.tipoSug;
+    const l0 = IMP.linhas.find(x=>x.linha===Number(ft.dataset.l)); const g = l0 && grpDe(l0);
+    if(g && sugTipo(g)){
+      const novo = sugTipo(g);
       IMP.grupos = IMP.grupos.filter(x=>x!==g);
       for(const l of g.linhas){ l.tipo = novo; l.tipoOrig = l.tipoOrig || g.tipo; addToGroup(IMP.grupos, l); }
       preStats(); aposCorrecao();
@@ -1024,6 +1051,16 @@ $('#tb').addEventListener('click', e => {
   const l = IMP.linhas.find(x=>x.linha===Number(b.dataset.l));
   const sel = $('#tb').querySelector(`.sug-sel[data-l="${b.dataset.l}"]`);
   if(l && sel && sel.value){ corrigirUnidade(l, sel.value); aposCorrecao(); }
+});
+function corrigirTipoGrupo(g){
+  const novo = sugTipo(g); if(!novo) return;
+  IMP.grupos = IMP.grupos.filter(x=>x!==g);
+  for(const l of g.linhas){ l.tipo = novo; l.tipoOrig = l.tipoOrig || g.tipo; addToGroup(IMP.grupos, l); }
+}
+$('#tipo-all').addEventListener('click', () => {
+  if(!IMP || busy) return;
+  IMP.grupos.filter(g=>sugTipo(g)).forEach(corrigirTipoGrupo);
+  preStats(); aposCorrecao();
 });
 $('#txt-all').addEventListener('click', () => {
   if(!IMP || busy) return;
@@ -1044,10 +1081,11 @@ $('#run').addEventListener('click', async () => {
   if(IMP.uf !== UF){ $('#prog').hidden=false; $('#prog-txt').textContent = `O estado foi alterado para ${UFS[UF]}. Envie o arquivo de novo para aplicar a regra desse estado.`; return; }
   busy = true; abortCtl = new AbortController(); gateDownload();
   $('#run').disabled = true; $('#stop').hidden = false; $('#prog').hidden = false; $('#res-panel').hidden = false;
-  const pend = IMP.grupos.filter(g => !g.res || g.res.falha);
+  const pend = IMP.grupos.filter(g => (!g.res || g.res.falha) && !g.tipoLocal);
+  const nTipo = IMP.grupos.filter(g => !g.res && g.tipoLocal).length;
   const lotes = [];
   for(const t of ['Material','Serviço']){ const pt = pend.filter(g=>g.tipo===t); for(let i=0;i<pt.length;i+=BATCH) lotes.push(pt.slice(i,i+BATCH)); }
-  let feitos = 0, falhas = 0;
+  let feitos = 0, falhas = 0, motivo = '';
   const upd = () => { $('#bar').style.width = (lotes.length?100*feitos/lotes.length:100)+'%'; $('#prog-txt').textContent = `Lote ${Math.min(feitos+1,lotes.length)} de ${lotes.length}${falhas?` · ${falhas} lote(s) com erro`:''}`; };
   upd(); postStats(); renderTable();
   let idx = 0;
@@ -1055,12 +1093,12 @@ $('#run').addEventListener('click', async () => {
     while(idx < lotes.length && !abortCtl.signal.aborted){
       const lote = lotes[idx++];
       try{ await runBatch(lote, abortCtl.signal, false); }
-      catch(e){ if(abortCtl.signal.aborted) return; falhas++; lote.forEach(g => g.res = {falha:true}); if(e && e.code==='not_granted') abortCtl.abort(); }
+      catch(e){ if(abortCtl.signal.aborted) return; falhas++; motivo = e && e.code==='rate_limited' ? 'limite de uso da IA atingido; aguarde um minuto e clique em Classificar itens pendentes' : (e && e.message) || 'falha na resposta da IA'; lote.forEach(g => g.res = {falha:true}); if(e && e.code==='not_granted') abortCtl.abort(); }
       feitos++; upd(); postStats(); renderTable();
     }
   };
   await Promise.all([worker(), worker()]);
-  $('#prog-txt').textContent = abortCtl.signal.aborted ? 'Interrompido. Clique em Classificar itens pendentes para continuar.' : `Concluído: ${IMP.linhas.length} linhas em ${lotes.length} lote(s)${falhas?`, ${falhas} lote(s) com erro`:''}.`;
+  $('#prog-txt').textContent = abortCtl.signal.aborted ? 'Interrompido. Clique em Classificar itens pendentes para continuar.' : `Concluído: ${IMP.linhas.length} linhas em ${lotes.length} lote(s)${falhas?`, ${falhas} lote(s) com erro (${motivo})`:''}.${nTipo?` ${nTipo} item(ns) aguardando correção do TIPO.`:''}`;
   $('#run').disabled = false; $('#run').textContent = 'Classificar itens pendentes'; $('#stop').hidden = true; busy = false;
   IMP.classificado = true; gateDownload();
   postStats(); renderTable();
