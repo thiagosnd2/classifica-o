@@ -288,6 +288,9 @@ footer{padding:0 24px 24px;color:var(--muted);font-size:12px;max-width:110ch}
         <div class="seg" role="group" aria-label="Filtro">
           <button type="button" data-f="all" aria-pressed="true">Todos</button>
           <button type="button" data-f="rev" aria-pressed="false">Com ERRO</button>
+          <button type="button" data-f="tipo" aria-pressed="false" hidden>TIPO a corrigir</button>
+          <button type="button" data-f="txt" aria-pressed="false" hidden>Texto sugerido</button>
+          <button type="button" data-f="nc" aria-pressed="false" hidden>Não classificados</button>
         </div>
         <button class="ghost" type="button" id="fix-all" style="padding:9px 12px">Corrigir unidades com sugestão</button>
         <button class="ghost" type="button" id="txt-all" style="padding:9px 12px" hidden>Aceitar todos os textos sugeridos</button>
@@ -927,6 +930,7 @@ async function runBatch(gs, signal, full){
     try{ arr = await call(); break; }
     catch(e){
       if(e && e.code==='rate_limited' && t < 3){ PAUSA_ATE = Date.now() + 20000 * (t + 1); continue; }
+      if(e && e.code==='server' && t < 1){ await new Promise(r=>setTimeout(r, 3000)); continue; }
       throw e;
     }
   }
@@ -981,10 +985,35 @@ function postStats(){
   const ok = IMP.linhas.filter(l=>!l.erro && saida(l).classe).length;
   $('#post-stats').innerHTML = stat(ok,'linhas classificadas') + stat(nErro,'linhas com ERRO', nErro?'bad':'');
 }
+/* Filtros da tabela do importador */
+function passaFiltro(l, f){
+  if(f === 'all') return true;
+  if(f === 'rev') return !!l.erro;
+  if(l.erro) return false;
+  const g = grpDe(l);
+  if(f === 'tipo') return !!sugTipo(g);
+  if(f === 'txt') return !!(g && g.res && g.res.txt && !g.res.txt.ok && (g.res.txt.tit || g.res.txt.des));
+  if(f === 'nc') return !!(g && g.res && g.res.falha);
+  return true;
+}
+function atualizaFiltros(){
+  const conta = f => IMP ? IMP.linhas.filter(l => passaFiltro(l, f)).length : 0;
+  const nomes = {rev:'Com ERRO', tipo:'TIPO a corrigir', txt:'Texto sugerido', nc:'Não classificados'};
+  for(const f of Object.keys(nomes)){
+    const b = document.querySelector(`.seg button[data-f="${f}"]`), n = conta(f);
+    b.textContent = `${nomes[f]} (${n})`;
+    b.hidden = f !== 'rev' && !n;
+  }
+  if(FILTER !== 'all' && !conta(FILTER)){
+    FILTER = 'all';
+    document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', x.dataset.f === 'all'));
+  }
+}
 function renderTable(){
+  atualizaFiltros();
   const rows = [];
   for(const l of IMP.linhas){
-    if(FILTER==='rev' && !l.erro) continue;
+    if(!passaFiltro(l, FILTER)) continue;
     const s = saida(l);
     const us = unitSug(l);
     let sugCell = '';
@@ -1020,6 +1049,7 @@ function renderTable(){
   $('#txt-all').hidden = !nTxt; $('#txt-all').textContent = `Aceitar todos os textos sugeridos (${nTxt})`;
   const nTp = IMP.grupos.filter(g=>sugTipo(g)).length;
   $('#tipo-all').hidden = !nTp; $('#tipo-all').textContent = `Corrigir todos os TIPOS sugeridos (${nTp})`;
+  atualizaFiltros();
 }
 function aposCorrecao(){
   const pend = IMP.grupos.filter(g=>!g.res).length;

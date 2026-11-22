@@ -19,7 +19,7 @@
 const PREFIXO = 'qw-classificador:';
 const LIM = {
   classificar: { chars: 120000, maxTokens: 2000 },
-  lote:        { chars: 300000, maxTokens: 6000 },
+  lote:        { chars: 300000, maxTokens: 8000 },
 };
 const SISTEMA = 'Você é um classificador de natureza de despesa pública brasileira. Responda SOMENTE com JSON válido, sem texto antes ou depois e sem blocos de código.';
 
@@ -82,7 +82,9 @@ export default {
       return resp(404, { erro: 'Rota não encontrada' });
     } catch (e) {
       const status = e && e.status === 429 ? 429 : 502;
-      return resp(status, { erro: status === 429 ? 'Limite da IA atingido' : 'Falha ao consultar a IA' });
+      const motivo = e && e.motivo ? e.motivo : (e && e.status ? `a IA respondeu ${e.status}` : 'erro inesperado');
+      console.error('falha IA', rota, motivo);
+      return resp(status, { erro: status === 429 ? 'Limite da IA atingido' : `Falha ao consultar a IA (${motivo})` });
     }
   },
 };
@@ -150,10 +152,12 @@ async function chamarIA(env, prompt, maxTokens) {
       messages: [{ role: 'user', content: prompt }],
     }),
   });
-  if (!r.ok) throw { status: r.status };
+  if (!r.ok) throw { status: r.status, motivo: r.status === 529 ? 'IA sobrecarregada, tente de novo' : `a IA respondeu ${r.status}` };
   const j = await r.json();
   const texto = (j.content || []).filter(c => c.type === 'text').map(c => c.text).join('');
-  return extrairJSON(texto);
+  if (j.stop_reason === 'max_tokens') throw { status: 502, motivo: 'resposta da IA cortada por tamanho' };
+  try { return extrairJSON(texto); }
+  catch { throw { status: 502, motivo: 'resposta da IA fora do formato' }; }
 }
 
 function extrairJSON(t) {
