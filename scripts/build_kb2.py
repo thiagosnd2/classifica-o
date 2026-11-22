@@ -1,3 +1,5 @@
+"""Gera o kb.json final usado pela página: subelementos ES, base federal, Tabela Auxiliar 22, siglas de
+unidade, grupos de unidade, contas de almoxarifado e de bens móveis e versões das bases."""
 import json, re, sys
 sys.path.insert(0, '/home/claude/scripts')
 

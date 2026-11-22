@@ -1,3 +1,5 @@
+"""Extrai do texto da Portaria STN 448/2002 os anexos I a IV (detalhamento dos elementos 30, 36, 39 e 52)
+em trechos por código. Uso: python parse448b.py portaria448.txt > p448_chunks.json"""
 import re, json, sys
 
 lines = open(sys.argv[1], encoding='utf-8').read().split('\n')

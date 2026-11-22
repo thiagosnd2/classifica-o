@@ -1,3 +1,5 @@
+"""Monta a base completa do ES: lê a Tabela de Natureza da Despesa TCE-ES 2027, alinha cada subelemento
+com os trechos da Portaria 448 e com as contas do PCASP, e gera palavras-chave, ementas e exemplos."""
 import json, re, unicodedata
 import openpyxl
 

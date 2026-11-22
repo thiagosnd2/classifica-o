@@ -1,3 +1,4 @@
+"""Gera a planilha de conferência da base (subelementos, elementos e contas) para revisão humana."""
 import json
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, PatternFill

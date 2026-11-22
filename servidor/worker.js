@@ -16,13 +16,17 @@
  *   Variável DAILY_LIMIT        opcional; teto de consultas de IA por dia (todas as pessoas somadas)
  */
 
+/* Prefixo do hash das chaves Pro (o mesmo usado na página e nos scripts). */
 const PREFIXO = 'qw-classificador:';
+/* Limites por rota: tamanho máximo do pedido (caracteres) e da resposta da IA (tokens). */
 const LIM = {
   classificar: { chars: 120000, maxTokens: 2000 },
   lote:        { chars: 300000, maxTokens: 8000 },
 };
+/* Instrução de sistema enviada à IA em toda chamada: resposta só em JSON. */
 const SISTEMA = 'Você é um classificador de natureza de despesa pública brasileira. Responda SOMENTE com JSON válido, sem texto antes ou depois e sem blocos de código.';
 
+/* Ponto de entrada do Worker: trata CORS, confere origem e limite por IP e despacha para as rotas. */
 export default {
   async fetch(req, env) {
     const origem = req.headers.get('Origin') || '';
@@ -89,6 +93,7 @@ export default {
   },
 };
 
+/* Confere o token anti-robô no serviço do Cloudflare (só se TURNSTILE_SECRET estiver configurado). */
 async function verificarTurnstile(env, token, ip) {
   if (!token) return false;
   const f = new FormData();
@@ -115,6 +120,7 @@ async function dentroDoTeto(env) {
   return true;
 }
 
+/* Lê a licença no KV pelo hash da chave; devolve o JSON ou null. */
 async function lerLicenca(env, hash) {
   if (!env.LICENCAS) return null;
   const v = await env.LICENCAS.get(hash);
@@ -122,12 +128,14 @@ async function lerLicenca(env, hash) {
   try { return JSON.parse(v); } catch { return null; }
 }
 
+/* SHA-256 da chave normalizada — igual ao cálculo feito na página. */
 async function hashChave(chave) {
   const norm = String(chave || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(PREFIXO + norm));
   return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+/* Licença válida = existe, não está cancelada (ativa !== false) e não venceu. */
 async function licencaValida(env, chave) {
   if (!chave) return null;
   const d = await lerLicenca(env, await hashChave(chave));
@@ -137,6 +145,7 @@ async function licencaValida(env, chave) {
   return d;
 }
 
+/* Chama a API da Anthropic com a chave secreta, detecta resposta cortada e extrai o JSON. */
 async function chamarIA(env, prompt, maxTokens) {
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -160,6 +169,7 @@ async function chamarIA(env, prompt, maxTokens) {
   catch { throw { status: 502, motivo: 'resposta da IA fora do formato' }; }
 }
 
+/* Extrai o JSON da resposta mesmo que venha com cercas de código ou texto em volta. */
 function extrairJSON(t) {
   const s = String(t).replace(/```(?:json)?/gi, '').trim();
   try { return JSON.parse(s); } catch {}

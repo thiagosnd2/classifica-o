@@ -30,6 +30,7 @@ window.CFG = { API_URL: 'https://classificador-ap.tbraga262.workers.dev', TURNST
 <!-- Fontes IBM Plex servidas pelo próprio site (sem envio de dados ao Google).
      Onde o arquivo não existe (claude.ai), cai para o Google Fonts. -->
 <link rel="stylesheet" href="vendor/fonts/fonts.css" onerror="this.onerror=null;this.href='https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Serif:wght@600&amp;display=swap';">
+<!-- Estilos: tema escuro, tipografia IBM Plex, componentes (abas, tabela, selos, janelas). -->
 <style>
 :root{
   /* Layout: coluna de consulta à esquerda, resultado à direita; empilha no celular */
@@ -183,6 +184,7 @@ footer{padding:0 24px 24px;color:var(--muted);font-size:12px;max-width:110ch}
 </style>
 </head>
 <body>
+<!-- Cabeçalho: título, campo da chave Pro e seletor de Estado (obrigatório). -->
 <header>
   <h1>Classificador de Natureza de Despesa</h1>
   <div class="ufbox">
@@ -193,10 +195,12 @@ footer{padding:0 24px 24px;color:var(--muted);font-size:12px;max-width:110ch}
     </form>
     <label for="uf">Estado <span class="ubad" aria-hidden="true">*</span></label><select id="uf" required aria-required="true"><option value="">Selecionar</option></select></div>
 </header>
+<!-- Abas: Consulta individual (gratuita) e Importar planilha (Pro). -->
 <nav class="tabs" aria-label="Modo">
   <a href="#consulta" id="t-consulta" aria-current="page">Consulta individual</a>
   <a href="#importar" id="t-importar">Importar planilha<span class="pro">PRO</span></a>
 </nav>
+<!-- ABA 1 — Consulta individual: formulário do item (esquerda) e resultado + última atualização (direita). -->
 <main id="view-single">
   <section class="panel" aria-labelledby="q-h">
     <h2 id="q-h">Item a classificar</h2>
@@ -259,6 +263,7 @@ footer{padding:0 24px 24px;color:var(--muted);font-size:12px;max-width:110ch}
   <section class="panel" id="upd" aria-labelledby="upd-h"></section>
   </div>
 </main>
+<!-- ABA 2 — Importador (Pro): Passo 1 baixar modelo, Passo 2 enviar planilha, 03 classificar, tabela de resultado. -->
 <div class="imp" id="view-import" hidden>
   <div class="steps">
     <section class="panel">
@@ -310,6 +315,7 @@ footer{padding:0 24px 24px;color:var(--muted);font-size:12px;max-width:110ch}
     <div class="tbl-wrap"><table><thead><tr><th>Linha</th><th>Título</th><th>Descrição</th><th>Unidade de Medida</th><th>Sugestão</th><th>Classe (Elemento)</th><th>Sub Elemento (Sugestão)</th><th>Conta Contábil</th></tr></thead><tbody id="tb"></tbody></table></div>
   </section>
 </div>
+<!-- Janela de distribuição gratuita: aparece antes de classificar quando há candidatos a 3.3.90.32. -->
 <div id="dg" class="dg" role="dialog" aria-modal="true" aria-labelledby="dg-h" hidden>
   <div class="dg-box">
     <h3 id="dg-h">Distribuição gratuita</h3>
@@ -321,6 +327,7 @@ footer{padding:0 24px 24px;color:var(--muted);font-size:12px;max-width:110ch}
     <div class="toolbar" id="dg-acoes" style="gap:8px;justify-content:flex-end;flex-wrap:wrap"></div>
   </div>
 </div>
+<!-- Termo de aceite (LGPD): o que fica guardado no navegador e como apagar. -->
 <div id="termo" class="termo" role="dialog" aria-labelledby="termo-h" hidden>
   <div class="termo-box">
     <h3 id="termo-h">Termo de aceite – dados guardados neste navegador</h3>
@@ -340,12 +347,38 @@ footer{padding:0 24px 24px;color:var(--muted);font-size:12px;max-width:110ch}
     <div class="toolbar"><button class="primary" type="button" id="termo-ok" style="width:auto">Aceitar</button><button class="ghost" type="button" id="termo-no" style="padding:9px 14px">Recusar</button></div>
   </div>
 </div>
+<!-- Rodapé: aviso de responsabilidade e botão Preferências de dados. -->
 <footer id="foot"><button class="ghost" type="button" id="prefs" style="padding:2px 8px;font-size:12px;margin-right:8px">Preferências de dados</button>Ferramenta de apoio. A classificação final é responsabilidade do setor de contabilidade/orçamento do ente.</footer>
 
 <!-- SheetJS 0.20.3 servido pelo próprio site, com verificação de integridade.
      Onde o arquivo não existe (claude.ai), cai para a versão do cdnjs. -->
 <script src="vendor/xlsx.full.min.js" integrity="sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT" crossorigin="anonymous" onerror="this.onerror=null;var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';document.head.appendChild(s);"></script>
 <script>
+/* =====================================================================
+   CLASSIFICADOR DE NATUREZA DE DESPESA — código da página (index.html)
+   ---------------------------------------------------------------------
+   O que faz: recebe um material ou serviço de compra pública e sugere a
+   natureza de despesa (até o subelemento no ES / até o elemento nos demais
+   estados) e a conta contábil do PCASP.
+
+   Mapa do arquivo (procure pelos títulos em CAIXA ALTA):
+     1. INFRAESTRUTURA ........ conexão com o servidor próprio ou com o Claude
+     2. UTILITÁRIOS ........... normalização de texto, escape, recortes
+     3. ESTADO (UF) ........... regra por estado (ES = tabela TCE-ES; demais = federal)
+     4. REGRAS E BUSCA LOCAL .. regras enviadas à IA e busca por palavra-chave (RAG caseiro)
+     5. CONSULTA INDIVIDUAL ... monta o pedido, chama a IA, mostra o resultado e o quiz
+     6. IMPORTADOR (Pro) ...... lê a planilha, valida, agrupa, classifica em lotes, exporta
+     7. PLANO PRO ............. chave de licença (hash + licença cifrada)
+     8. INÍCIO ................ carrega a base (kb.json) e liga os eventos
+
+   Princípios: a IA só sugere; o código valida antes e confere depois; o
+   usuário decide (Corrigir tipo, Aceitar texto, finalidade).
+   Documentação completa: Doc "Documentação – Classificador de Natureza de Despesa".
+   ===================================================================== */
+
+/* ===================== 1. INFRAESTRUTURA ===================== */
+/* KB: base de conhecimento (kb.json). sample/downloads: capacidades de IA e
+   de download — vêm do Claude (claude.use) ou do servidor próprio. */
 let KB = null, sample = null, downloads = null;
 /* ===== Hospedagem própria (GitHub Pages + servidor no Cloudflare Workers) =====
    Fora do claude.ai, a IA e as chaves Pro passam pelo servidor abaixo.
@@ -353,6 +386,8 @@ let KB = null, sample = null, downloads = null;
 const API_URL = (window.CFG && window.CFG.API_URL) || '';
 const TS_KEY = (window.CFG && window.CFG.TURNSTILE_SITEKEY) || '';
 let CHAVE_ATUAL = '';
+/** Envia um POST em JSON ao servidor próprio (Cloudflare Worker) e traduz os erros
+    HTTP para os códigos que o resto da página entende (rate_limited, not_granted, server). */
 async function apiPost(rota, corpo, signal){
   let r;
   try{ r = await fetch(API_URL + rota, {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify(corpo), signal}); }
@@ -372,6 +407,7 @@ const baixarLocal = { save: async ({filename, data}) => {
 }};
 /* Turnstile (anti-robô do Cloudflare), só na hospedagem própria e só na consulta individual */
 let tsId = null, tsPend = null, tsFila = Promise.resolve();
+/** Carrega o widget invisível do Turnstile (anti-robô) — só fora do claude.ai e se houver site key. */
 function carregarTurnstile(){
   if(!TS_KEY || window.claude) return;
   window.onTsLoad = () => {
@@ -385,6 +421,8 @@ function carregarTurnstile(){
   sc.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onTsLoad'; sc.async = true;
   document.head.appendChild(sc);
 }
+/** Pede um token novo ao Turnstile para cada consulta individual. As chamadas entram numa
+    fila (tsFila) porque o widget só atende um pedido por vez. */
 function tokenTurnstile(){
   if(!TS_KEY) return Promise.resolve('');
   const p = tsFila.then(() => new Promise((res, rej) => {
@@ -396,6 +434,9 @@ function tokenTurnstile(){
   tsFila = p.catch(()=>{});
   return p;
 }
+/** Cria substitutos com a mesma interface do Claude (sample.json e db.doc().get())
+    que falam com o servidor próprio. Lote → /lote (exige chave Pro); consulta → /classificar
+    (exige token do Turnstile); licença → /licenca. */
 function servidorProprio(){
   if(!API_URL) return null;
   return {
@@ -412,6 +453,10 @@ function servidorProprio(){
   };
 }
 const $ = s => document.querySelector(s);
+/* ===================== 2. UTILITÁRIOS ===================== */
+/** norm: minúsculas sem acento. STOP: palavras ignoradas na busca. stem: radical curto.
+    toks: texto → lista de radicais. esc: escapa HTML (guardrail contra injeção na tela).
+    clip: limpa espaços e corta no tamanho máximo. */
 const norm = s => (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
 const STOP = new Set('para com das dos que de da do e em os as no na ou por tais como uma um ao aos the tipo item itens marca modelo unidade und un cx pct kit'.split(' '));
 const stem = w => w.length>5 ? w.slice(0,6) : w.replace(/s$/,'');
@@ -420,12 +465,16 @@ const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>'
 const clip = (v, n) => String(v ?? '').replace(/\s+/g,' ').trim().slice(0, n);
 
 /* ---------- Estado (UF) ---------- */
+/* ===================== 3. ESTADO (UF) ===================== */
+/** Estados atendidos. Só o ES tem tabela própria carregada; os demais usam a base federal. */
 const UFS = {AC:'Acre',AL:'Alagoas',AP:'Amapá',AM:'Amazonas',BA:'Bahia',CE:'Ceará',DF:'Distrito Federal',ES:'Espírito Santo',GO:'Goiás',MA:'Maranhão',MT:'Mato Grosso',MS:'Mato Grosso do Sul',MG:'Minas Gerais',PA:'Pará',PB:'Paraíba',PR:'Paraná',PE:'Pernambuco',PI:'Piauí',RJ:'Rio de Janeiro',RN:'Rio Grande do Norte',RS:'Rio Grande do Sul',RO:'Rondônia',RR:'Roraima',SC:'Santa Catarina',SP:'São Paulo',SE:'Sergipe',TO:'Tocantins'};
 let UF = '';
 const isES = () => UF === 'ES';
+/** Elementos válidos na base federal e seus nomes (usados fora do ES). */
 const ELEM_OK = ['3.3.90.30','3.3.90.31','3.3.90.32','3.3.90.33','3.3.90.35','3.3.90.36','3.3.90.37','3.3.90.38','3.3.90.39','3.3.90.40','4.4.90.30','4.4.90.35','4.4.90.36','4.4.90.39','4.4.90.40','4.4.90.51','4.4.90.52','4.4.90.61','4.5.90.61'];
 const ELNAME = {'30':'Material de consumo','31':'Premiações','32':'Material, bem ou serviço para distribuição gratuita','33':'Passagens e despesas com locomoção','35':'Serviços de consultoria','36':'Outros serviços de terceiros – PF','37':'Locação de mão de obra','38':'Arrendamento mercantil','39':'Outros serviços de terceiros – PJ','40':'Serviços de TIC – PJ','51':'Obras e instalações','52':'Equipamentos e material permanente','61':'Aquisição de imóveis'};
 const elName = c => ELNAME[(c||'').split('.')[3]] || '';
+/** Troca o Estado ativo: atualiza textos, o quadro "Última atualização" e guarda a escolha (com aceite). */
 function setUF(v){
   UF = v; if(v) persist();
   $('#uf').value = v;
@@ -454,8 +503,12 @@ function setUF(v){
 }
 
 /* ---------- Regras ---------- */
+/* ===================== 4. REGRAS E BUSCA LOCAL ===================== */
+/** Regra de revisão de texto (ortografia, padronização, alerta de descrição vaga). Nunca inventa
+    característica. Entra no pedido da consulta e do lote. */
 const TEXT_RULE = `REVISÃO DO TEXTO (para o usuário melhorar a descrição; não altera a classificação):
 (a) corrija ortografia e acentuação; (b) padronize: primeira letra maiúscula, abreviações por extenso (cx→caixa, un→unidade, pct→pacote, c/→com), ordem item, especificação, medida; (c) NUNCA invente característica que não esteja no texto informado; (d) se a descrição for vaga (repete o título ou é genérica demais para uma compra pública), liste em "falta" até 4 especificações que deveriam ser informadas (ex.: material, dimensões, cor, capacidade, modelo). Só preencha os campos de texto quando houver mudança; senão use null.`;
+/** Regras de classificação (Lei 4.320/64, Portaria 448/2002, MCASP) enviadas à IA em todo pedido. */
 const RULES = `REGRAS DE CLASSIFICAÇÃO (Lei 4.320/64; Portaria STN 448/2002; MCASP 11ª ed., Parte I, item 4.6):
 1. Consumo × permanente: material é de CONSUMO se atender a PELO MENOS UM critério — durabilidade (perde condições de uso em até 2 anos), fragilidade (quebradiço, deformável ou danificável), perecibilidade (modificações químicas/físicas), incorporabilidade (incorporado a outro bem sem poder ser retirado sem prejuízo), transformabilidade (adquirido para transformação). Só é PERMANENTE (4.4.90.52) se não atender a nenhum.
 2. Peça de reposição com a mesma configuração → 3.3.90.30; peça para bem novo, melhoria ou adição complementar → 4.4.90.30.
@@ -469,6 +522,7 @@ const RULES = `REGRAS DE CLASSIFICAÇÃO (Lei 4.320/64; Portaria STN 448/2002; M
 10. Bens/serviços para distribuição gratuita à população → 32 (premiações → 31). Medicamento entregue ao paciente (farmácia básica, demanda judicial) → distribuição gratuita; medicamento usado na unidade de saúde → material de consumo.
 11. Quantitativo de pessoal especificado no contrato → 37; sem quantitativo → 39. Fornecedor PF → 36; PJ → 39. Consultoria/auditoria → 35.
 12. Evitar "outros" (99) quando houver subelemento específico. Modalidade padrão 90.`;
+/** Regras específicas do ES (Tabela TCE-ES 2027 e Tabela Auxiliar 22). */
 const RULES_ES = `
 REGRAS ESPECÍFICAS DA TABELA TCE-ES 2027:
 - Gêneros alimentícios → 3.3.90.30.07 (exceto merenda) ou 3.3.90.30.61 (merenda escolar). Refeições preparadas por PJ → 3.3.90.39.33.
@@ -477,6 +531,8 @@ REGRAS ESPECÍFICAS DA TABELA TCE-ES 2027:
 - Equipamentos de TIC: 4.4.90.52.41 computadores e notebooks, .43 servidores/storage, .45 impressoras, .46 ativos de rede, .47 telefonia; 4.4.90.52.19 processamento de dados em geral.`;
 
 /* ---------- Busca local ---------- */
+/** Busca local por palavra-chave nos subelementos do ES: devolve os n mais parecidos.
+    É a etapa de "busca" do RAG caseiro — restringe o catálogo enviado à IA. */
 function score(q, n=18){
   const qt = toks(q); if(!qt.length) return [];
   return KB.itens.filter(i=>i.u).map(i=>{
@@ -484,12 +540,14 @@ function score(q, n=18){
     return {i,s};
   }).filter(o=>o.s>0).sort((a,b)=>b.s-a.s).slice(0,n).map(o=>o.i);
 }
+/** Mesma busca local, na base federal (estados fora do ES). */
 function scoreFed(q, n=12){
   const qt = toks(q); if(!qt.length) return [];
   return KB.federal.map(i=>{ let s=0; for(const w of qt){ if(i._t.has(w)) s+=4; if(i._x.has(w)) s+=3; if(i._d.has(w)) s+=1; } return {i,s}; })
     .filter(o=>o.s>0).sort((a,b)=>b.s-a.s).slice(0,n).map(o=>o.i);
 }
 const byCode = c => KB.itens.find(i=>i.c===c);
+/** Selo visual: MATERIAL DE CONSUMO, PERMANENTE, SERVIÇO ou DISTRIBUIÇÃO GRATUITA, conforme o elemento. */
 function badgeTipo(code, grande){
   const el = String(code||'').split('.')[3];
   const m = {'30':['Material de consumo','t-cons'],'32':['Material de consumo – distribuição gratuita','t-cons'],'52':['Material permanente','t-perm'],
@@ -497,10 +555,12 @@ function badgeTipo(code, grande){
   if(!m) return '';
   return `<span class="tipo-badge ${m[1]} ${grande?'grande':'mini'}">${m[0]}</span>`;
 }
+/** Grupo já classificado (com código) ao qual a linha pertence; null se ainda não classificado. */
 function g0(l){ const g = IMP && IMP.grupos.find(x=>x.linhas.includes(l)); return g && g.res && g.res.codigo ? g : null; }
 const elOf = c => (c||'').split('.').slice(0,4).join('.');
 
 /* ---------- Unidade (TA 22) ---------- */
+/** Interpreta a unidade digitada (código, nome ou sigla) e devolve status + sugestões da TA22. */
 function resolveUnit(raw){
   const s = clip(raw, 60);
   if(!s) return {status:'vazia'};
@@ -518,6 +578,7 @@ const unitTxt = u => u && u.status==='ok' ? `${u.c} – ${u.n}` : '';
 
 /* ---------- Conta contábil ---------- */
 const digits = s => String(s||'').replace(/\D/g,'');
+/** Compara uma conta contábil informada com a esperada para o subelemento. */
 function checkConta(informada, item){
   const base = item && item.p ? item.p.split(/\s*[|/]\s*/).map(x=>x.trim()).filter(Boolean) : [];
   const sug = base.join(' | ');
@@ -529,26 +590,32 @@ function checkConta(informada, item){
 }
 
 /* ---------- Catálogos para o prompt ---------- */
+/** Elementos possíveis por TIPO informado na planilha (Material × Serviço). */
 const TIPO_ELEMS = {
   'Material': ['3.3.90.30','3.3.90.31','3.3.90.32','4.4.90.30','4.4.90.52'],
   'Serviço': ['3.3.90.33','3.3.90.35','3.3.90.36','3.3.90.37','3.3.90.38','3.3.90.39','3.3.90.40','4.4.90.35','4.4.90.36','4.4.90.39','4.4.90.40','4.4.90.51']
 };
+/** Texto do catálogo TCE-ES (código | título) restrito aos elementos pedidos — vai no prompt. */
 function catalogES(elems){
   const list = KB.itens.filter(i=>i.u && (!elems || elems.has(elOf(i.c))));
   return list.map(i=>`${i.c} | ${i.t}`).join('\n');
 }
+/** Texto do catálogo federal de elementos — vai no prompt fora do ES. */
 function catalogFed(tipo){
   const ok = tipo ? TIPO_ELEMS[tipo] : ELEM_OK;
   const sub = KB.federal.filter(f=>ok.includes(f.e)).map(f=>`${f.e} | ${f.n}`).join('\n');
   const els = ELEM_OK.filter(e=>ok.includes(e)).map(e=>`${e} | ${elName(e)}`).join('\n');
   return `ELEMENTOS VÁLIDOS:\n${els}\n\nSUBELEMENTOS DE REFERÊNCIA (nome, sem código; elemento | nome):\n${sub}`;
 }
+/** Elementos prováveis pela unidade (ex.: ampola → grupo fármaco → 3.3.90.30/32). */
 function unitGroupElems(u){
   if(!u || u.status!=='ok') return null;
   const g = KB.u2grp[u.c]; return g ? KB.grupos[g] : null;
 }
 
-/* ===================== CONSULTA INDIVIDUAL ===================== */
+/* ===================== 5. CONSULTA INDIVIDUAL ===================== */
+/** Monta o pedido da consulta individual: regras + catálogo (restrito ou federal) + dados do item
+    + formato JSON exigido (código, confiança, quiz, texto sugerido...). */
 function buildPrompt(st){
   const {item, ctx, forn, desp, extra, un} = st;
   const el = Object.entries(KB.elementos).map(([k,v])=>`${k} – ${v.n}: ${v.c}`).join('\n');
@@ -597,6 +664,7 @@ Responda SOMENTE com JSON:
 {"item_interpretado":"...","codigo":"x.x.90.ee","subelemento":"...","justificativa":"...","regras":["..."],"criterios":{"durabilidade":null,"fragilidade":null,"perecibilidade":null,"incorporabilidade":null,"transformabilidade":null},"confianca":"alta|média|baixa","alternativas":[{"codigo":"...","quando":"..."}],"quiz":{"pergunta":"...","opcoes":[{"texto":"...","codigo":"..."}]},"alerta_unidade":null,"texto_sugerido":null,"falta":[]}`;
 }
 
+/** Mostra os resultados mais próximos da busca local (usado quando a IA não está disponível). */
 function renderLocal(q, note){
   if(!isES()){
     const c = scoreFed(q).slice(0,6);
@@ -607,11 +675,15 @@ function renderLocal(q, note){
     c.length? c.map(i=>`<div class="cand-item"><span class="cd">${i.c}</span><span>${esc(i.t)}<small>${esc(i.k)}</small></span></div>`).join('') : '<p class="empty">Nenhum subelemento com essas palavras.</p>'}</div>`;
 }
 
+/** Quadro com a unidade reconhecida ou o aviso de unidade fora da TA22. */
 function unitBox(u){
   if(!isES() || !u || u.status==='vazia' || u.status==='ok') return '';
   return `<div class="ask" style="background:var(--bad-soft)"><p style="color:var(--bad)">Unidade fora da Tabela Auxiliar 22 (IN 68/2020, Anexo VI): ${esc(u.motivo)}</p>${u.sug&&u.sug.length?`<p>Sugestão: ${u.sug.map(x=>`<b>${x.c} – ${esc(x.n)}</b>`).join(' ou ')}</p>`:''}</div>`;
 }
 
+/** Desenha o resultado da consulta: selo, código, conta, confiança, "Melhorar o texto", quiz
+    (resolvido na própria página, sem nova chamada à IA), justificativa, critérios e alternativas.
+    Guardrail de saída: confere se o código existe na tabela antes de exibir. */
 function renderResult(r, q, st){
   const es = isES();
   const it = es ? byCode(r.codigo) : null;
@@ -669,6 +741,7 @@ function renderResult(r, q, st){
 }
 
 /* ---------- Dados guardados no navegador (com termo de aceite) ---------- */
+/** Histórico de consultas recentes (até 8). Só é gravado no navegador com aceite do termo (LGPD). */
 let HIST = [];
 const consent = () => { try{ return localStorage.getItem('cnd_consent'); }catch{ return null; } };
 function persist(){
@@ -688,6 +761,8 @@ function showHist(){
 }
 
 let busy=false;
+/** Executa a consulta individual: monta o pedido, chama a IA e mostra o resultado.
+    Sem IA disponível, mostra só a busca local. */
 async function classify(st){
   if(busy||!KB||!UF) return;
   st.u = st.un ? resolveUnit(st.un) : null;
@@ -707,6 +782,8 @@ async function classify(st){
   }finally{ busy=false; $('#go').textContent='Classificar'; gate(); }
 }
 /* Regras do botão Classificar: mínimo de 3 letras; nova classificação só após apagar ao menos 3 letras */
+/** Regras do botão Classificar (economia de tokens): exige Estado, 3+ letras e unidade válida;
+    após classificar, só libera de novo quando o texto muda (3+ letras apagadas). */
 let LAST_ITEM = null;
 let REFINE_USED = false;  /* "Nenhuma dessas" já usado: só libera de novo com o item apagado por completo */
 $('#item').addEventListener('input', ()=>{
@@ -717,6 +794,7 @@ $('#item').addEventListener('input', ()=>{
   }
 });
 const letras = s => (String(s||'').match(/[A-Za-zÀ-ÿ]/g)||[]).length;
+/** Quantas letras foram apagadas entre o texto anterior e o atual. */
 function apagadas(antes, agora){
   const a = antes, b = agora, m = a.length, n = b.length;
   if(!m) return 0;
@@ -724,6 +802,7 @@ function apagadas(antes, agora){
   for(let i=1;i<=m;i++){ for(let j=1;j<=n;j++) cur[j] = a[i-1]===b[j-1] ? prev[j-1]+1 : Math.max(prev[j], cur[j-1]); [prev,cur]=[cur,prev]; cur.fill(0); }
   return m - prev[n];
 }
+/** Decide se o botão Classificar pode ficar ativo e qual mensagem mostrar. */
 function podeClassificar(){
   if(!UF) return {ok:false, msg:'Selecione o Estado.'};
   const v = $('#item').value.trim();
@@ -732,6 +811,7 @@ function podeClassificar(){
   if(LAST_ITEM !== null && apagadas(LAST_ITEM.item, v) + apagadas(LAST_ITEM.ctx, $('#ctx').value.trim()) < 3) return {ok:false, msg:'Para uma nova classificação, apague ao menos 3 letras do item ou da finalidade, ou clique em Limpar.'};
   return {ok:true, msg:''};
 }
+/** Aplica podeClassificar() no botão. */
 function gate(){ if(busy) return; const p = podeClassificar(); $('#go').disabled = !p.ok; if(p.ok){ $('#go-hint').textContent=''; $('#go-hint').classList.remove('alerta'); } else if($('#go-hint').classList.contains('alerta')) $('#go-hint').textContent = p.msg; }
 $('#go-wrap').addEventListener('click', ()=>{
   if(busy || !$('#go').disabled) return;
@@ -744,6 +824,7 @@ $('#item').addEventListener('input', gate);
 $('#un').addEventListener('input', gate);
 $('#un').addEventListener('change', gate);
 $('#ctx').addEventListener('input', gate);
+/* Eventos da consulta individual: enviar, limpar, exemplos e histórico. */
 $('#f').addEventListener('submit', e=>{
   e.preventDefault();
   const item=$('#item').value.trim(); if(!item || !podeClassificar().ok){ gate(); return; }
@@ -761,11 +842,15 @@ $('#clear').addEventListener('click', ()=>{
 const CHIP_UN = {'Gêneros alimentícios para merenda escolar':'099 - Quilograma','Conserto de ar-condicionado':'120 - Serviço','Plano de telefonia móvel com internet':'073 - Mês'};
 document.querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>{ if(busy) return; LAST_ITEM = null; $('#item').value=c.textContent; $('#ctx').value=''; $('#un').value=CHIP_UN[c.textContent]||'131 - Unidade'; gate(); $('#f').requestSubmit(); }));
 
-/* ===================== IMPORTADOR ===================== */
+/* ===================== 6. IMPORTADOR (Pro) ===================== */
 const MODELO_B64 = 'UEsDBBQAAAAIAO2Lc11Gx01IlwAAAM0AAAAQAAAAZG9jUHJvcHMvYXBwLnhtbE2PTQvCMBBE/0ro3aS16EFiQdSj6Ml7TDc2kGSXZIX476WCH7cZhvdg9CUjQWYPRdQYUtk2EzNtlCp2gmiKRIJUY3CYo+EiMd8VOuctHNA+IiRWy7ZdK6gMaYRxQV9hM+gdUfDWsMc0nLzNWNCxOFYLQewxkmF/CyCUOBMketYgetnJlVb/4Gy5Qi5z7mX3Hj9dq9+B4QVQSwMEFAAAAAgA7YtzXVovVnv0AAAAKwIAABEAAABkb2NQcm9wcy9jb3JlLnhtbM2SQWrDMBBFrxK0t0eSqaHC8SahqxYKDbR0J6RJImJZQppi5/bFbuK0tAfodubz/huYxkRlQsLnFCImcphXo+/6rExcsyNRVADZHNHrXIaI/ei7fUheUy5DOkDU5qQPCJLzGjyStpo0TMAiLkTWNtYok1BTSBe8NQs+fqRuhlkD2KHHnjKIUgBrp8Z4HrsGboAJRph8/hqgXYjz9E/svAF2SY7ZLalhGMqhmnOScwFvT48v87mF6zPp3iBbjdkpOkdcs2vza7XZ7h5YK7msCyEKcb+TXPE7Jfj75PrD7ybsg3V794+MK6Fk/c34Ktg28Osv2k9QSwMEFAAAAAgA7YtzXZlcnCMPBgAAnCcAABMAAAB4bC90aGVtZS90aGVtZTEueG1s7Vpdc5s4FH3Pr9BoZ/ZtazDg2GlIJ/5qd5u0mcTbnT5eYxnUCIkRchL/+x2B7SDA2O06m3Q3fghB0jn3nqsrXYR9+u4hZuiOyJQK7mP7jYXfnR2dwomKSEzQQ8x4egI+jpRKTlqtNIhIDOkbkRD+ELO5kDGo9I2QYWsm4Z7yMGattmV1WjFQjhGHmPj483xOA4ImmhKfHSG05h8xEhOuUt2WtQZM3gSZ5SIS5/3ZiNmtvb7L7tNlOmAS3QHz8T3lM3E/IQ8KIwapGjDpYyv74NaGo2WQnMIJU7soC3Tj7GPSFQgyD9smnQynGz577PaOh2Vv2oY3DfDRaDQY2WXrRTgEAeFlQUUKd9y1+yUPSqANTYMnA8uz3FqaqjfOdppev9/3enU0ToXG3U7TtTruebuOxq3QeA2x6Z8PBp06Gq9C09lOMz7uddxamk6BJmKU324n0VlbTjQDcgonc8E+NLN0LcvqlrLfROmWzbLbLMS54GrHSozhm5BjwZVhnYGiHKllQuYQEB8PIJ5KCo8eZKMIFIaU+oJ0e592C6WBpIny8R8JcFwY++svD+Nxe/g2uzrOW5T/Y+kGx+q7q+txfh04+fV8/LbJyAfgYclIvze0NXZw7FqZkfPBKDPS92xvF1laIvP63b7GumPP2YVVJWzH62d2j4e5yE7HGulr73zoNnKdS5gWuSY0Jin6RO7RtYiBN7pBpvIHoZMIqAGFSMTlzDAQIxUZiE9LYI2APjFn64ukfNaIeL/4Zui5ieRC0SbExyg2EJdCsL6Qzdo/ajeK2hc83OGXXBQB1wB3jW4NSrk1WiQRiSsrz8RExJByxYArCAknCuk+cUtIE/4rpcb8XNJAilTMFfpKUR9ocyAndKrq0R9oDAyWjb5PIjAievkF9QVrNDgkdyYEeAis0Qhhxiy8h4WCuFkVxKwIuQAVNQq5WcrAmLhUSeAhYQKNZiRNG8Gf5dKQ9BEY3ZFZl2wZmxCp6G0j5AKEKEKG4nYQQZw066I8KoJ+T2+FYICuhGr2T5hrWN8LRoHvzqgvlKgf3Jz+pGFUn4y6ZyHNElqpfboeUr5XPWR0KssqXuvhi6qH55I27wvlKrgT8B+tfUNY8CvCo9fS91r6XkvfSyp9O3ek7yx4ZnHLj5HrI+LjqTHedWicU8Zu1JKRi9Ssk6lgdDamjD225u0Z3+Y8m0QDJg1ZrVrsKZyEErJGJIX6i6roJoKE+NjGJQthaviyaUWJSH1sYbNru1PlcflrLspVPsgzX0OZfKAuxSwf51j1AzOha7sld1va360SHG36UDKc4+eSYeeMB9Jhe3vq2DJv36UjbymlmX44pBwBD31sd9q5OpQGwMhMp2kpydfp/PJyPI1gRlZJbu8XVds5dHZ0/3lyFHT0nOfScYgsLwpx9xVSvx6eOs2tXWmeVZqaoqFpeW0lYRzd+7jntT2MAkh8PGegMAriZObjVBdYYCH3caBkeZnUFqH9g18K/ZaIlgJv1Q3bGvYt5S6jTWSqhpBGOXE2qhxdxmtC1fZcPSVPG6vWU6twuvbPqiK/q8lwMp+TQNVmeaGrZDrvqdvvxUIReRPN7tGULeQ1zHzs5stxRlPl4/b6RvrYc1cr1aws9TtT+XuLmg0s/+aEJRGs6mp3+36T01VXxMb/8izUSH5sLsXoqWLn/Iuxa9irX2P3vLFb7R2EE2dWCUQAMZGA9ObgYyFVJEIJSUSDsRRc1UmUQiEGSgcAMf0NvY4MuSsVzrU/OX/FLKNhpK5piCQNfawiSciVWsX7+6za7drH+mwDWxmp7JDVWOgIJTXhmZI7wiZ6M+/oacIoWhen6r5r4LckbKnZ3Fun4fh/exZ19z2LHuLwY0hwD3mGc5vOcIUHsd5zqT3ww3x7z2lre0/4MJ+AipD+4+OAyoARXJGvn9cn4poECm1efCDl49+6q6190zj1sd2tqtK2tYmf5QT8mJI1Ymqn6GW+Hink2paDbTXXDiHkCXLNq0m1mvW9X6bptrp6kR1O48JbUN1Q+WWbfgKafiOBGpI5LJhKW6tW8qAkDNa/vblIVevsaMNwdvQ3UEsDBBQAAAAIAO2Lc12ZtkBB3AIAAO0GAAAYAAAAeGwvd29ya3NoZWV0cy9zaGVldDEueG1stVVdb+M2EPwrLBPkqbA+bN81tiTAtlzUQNIzYuf6zEhriwjF1ZGrKLlfX1CSXdc5p0CLvsjk7s5wdryiogbNsy0AiL2WStuYF0TVxPNsVkAp7AAr0K+l2qEpBdkBmr1nKwMib0Gl8kLf/+SVQmqeRG1sbZIIa1JSw9owW5elMG9zUNjEPOCHwIPcF+QCXhJVYg8boMdqbbwk8o4suSxBW4maGdjFfBZM0ra+LfgqobEna+Y6eUJ8dptVHnOfO2YN7G1TKdmexQirO9jRApSK+SzkTGQkX2AtNMT8CYmwdHnOLAmCmO8MfgfdngkKMnJaqnfFHUlP6lr81uvlx3acqNP1Qfmvra9rw56EhQWqP2RORcx/4SyHnagVPWDzG/RejR1fhsq2T9Z0taMxZ1ltCcseHHBWSt39itfe4xPArX8BEPaA8AwwDC8Ahj1geAYIPl0AjHrAqHWma6X1IRUkkshgw4yrTqLMLVozuz8u5lK7kdqQ4UkkbRJRsl1tH+++RB4lkeciXtbj5h/j0uVm8bC6uQpub6fuOZ7+iGTxMcnj76t0li5ZumT3y3SVzn5Akf6T/vXZwZ7B45h0luSCxFehZC7c8FmWYa3JOX6eOkzdIpwsAt/3ObMFNqnBKsVGu9ehDax0VdM9WCv2cAwujUFzGhRKYTNXQj+3W3qrIOZKWuJJ5K6CWokgibezMPzpen4dTq7n18HIj7xjLvL+ru6S2nk4mf83tcE7teDyW0kKYp6CzYy8uQqHwfTmKgw/T7EviPmM5e+zLIcXYASGCXKJ4ZSNfJ9lwoiMwIAdHOwgeKU70HsqOMMKjCBHqsDabSH0F7P8Vgt16tfI/zcOpeEk/T8d2srqL0uWNkNVCHYvCIwUimHNNmBeeo9wcGkW+AHx82k5/7Dfs4DtPgT3wuyltkzBjmLuDz6POTPdBdhtCKu2p+4GbpcFiByMKxhztkOkw8bdMscvXPInUEsDBBQAAAAIAO2Lc12NQH1LRgMAAOYHAAAYAAAAeGwvd29ya3NoZWV0cy9zaGVldDIueG1shVVpj+I4EP0rpSChbmmWHEDTPYRIHNldpOYQR+9nkxRgjZOibadh59evbCD0rOjMl8RHvVevyi5XeCT5Q+0RNZwykaues9f68N11VbLHjKkGHTA/ZWJLMmNaNUjuXHWQyFILyoQbeN6TmzGeO1Fo1+YyCqnQguc4l6CKLGPy3wEKOvYc37kuLPhur82CG4UHtsMl6vVhLt0odEuWlGeYK045SNz2nL7/feB7BmAt3jge1acxmFA2RD/MZJz2HM8oQoGJNhQs0fwDhyiEYXJAvV9IndKnAX4eX9n/tMHPJWyYwiGJf3iq9z3n2YEUt6wQekHHv/ESUNvwJSSU/cLxbBsEDiSF0pRdwL4DGc/Pf3a6JOITwPe8LxDBBRFY4WdPVuaIaRaFko4gjXUUJmZgY7Uo3XN4bo5lqaUThVxFoY4mlKIgSBF4diCpWb0WNP1uvRYEnS5BvfYc+H4XhoIpxbc8YSlJYz1lupD4k5nxCNUBFQtdHYWuoXWTKHQlHUs1zVJN06ppfqFmSKLI/0dkcYNq3AzeCwSe22sqK4S0SiEtS9j6gnA1Xq1fZ/eEVOOmlCGkBFxj1qjQ0S51tCv5RvFyuBjXa/7LS9d82927on5DgiqR/NeDvWj8BkybjWYXWp4HCZMs0ShRVYl/KsU/VfpdT8ej/iiGUQyTeDQe9e9J/w1FzlOWIiRkzxaBwYptUDDoFycuOJMQBPAwnsLTsxt4gfcN+jmeCN7G5d1dDeM/4uVjA2KVkNgzyBkIrjRrwJU+5VuUmGuElIE+O5CoSeYM4sViBsax4LkB30rDpi25VQa7JVOhhISk5Duesqpcdspcdr68ivO7Z96pTNyEaZScCaAClig/LsdP8GBDf2zACLc8R8AM3gsmYCeLg30HbgGVN6bV7qKC8425xr0plHkMGvDGfnIybqjQkuCDCZK/JK8q/Jcy/JfKAl9YPqpg8r3bi+dVVjXUa/5zswt3auu6NXztL5cxPMSv8SSermaP143legDXRXhYrv+Kl6sLtrQZzqarvv2anWZ3MH69p9v99GibDjhhcsdzBQK3uud4jU7bAXluKueJpoPtAhvSmjI73CNLURqDtgNbIn2dmNZQtvboP1BLAwQUAAAACADti3NdgpAawPoKAAACRQAAGAAAAHhsL3dvcmtzaGVldHMvc2hlZXQzLnhtbJWcbW/bRhaF/wqhAMEusK14+c76BbAkJ3Ebd1XbzX4eSWN7UpKjkFSc9tcvKDmeqXHPpfolkYVzdWZI6iF551CnT7b9o3vUug++1VXTnU0e+37703TarR91rbof7VY33+rq3ra16rsfbfsw7batVpt9UV1NozDMprUyzeT8dP/esj0/tbu+Mo1etkG3q2vV/jnTlX06m9Dk+xs35uGxH96Ynp9u1YO+1f3v22U7PT+dvnzKxtS66Yxtglbfn00u6KcZJeFQsZd8Mvqp814Hw1xW1v4x/HG1OZuEw5B0pdf98Blq3Zuveq6ravioSdB9ef7UyYvpUOi//v7p7/azX7bBSnV6bqv/mU3/eDYpJsFG36td1d/Ypw/6eUbp8HlrW3X7f4Ong5bCSbDedb2tn4tpEtSmOfyvvj1vCa8gKUBB9FwQ7cd9MNqPcqF6dX7a2qegHdTnp+vhxX6qZ5N4EvRnE9MMu+W2byfnp6Y7P+3P52/fREQni6v3/z2d9uen0+Ht6fq5eCYX//7r1eJicRksLoPry8XV4iL419WvQVZMozAK/xNcNPqbDT5dBW/fFINJcKdWulLBxe6bqYxqgyj6999Np619eplC9DKFCPiHIXGDRvKLatdYwTB+MUQTDsOIM0Tyi3prKyU4Ji+OCXSMOUckvxAnmL7YpdAu4eyQ/GL79k2UxCeVWWvBN3vxzaBvyvki+UxVG8kwfzHMoWHGGSL5TDUb/VnalcWLZQEtc84SyWeqbSXD8sWwhIYFZ4jkM9X1b99EUX4iHUMUOrKE0LhkYYL0M9M16kGaLHk8I+RKIeuK9LPKdL1uJVeHIIIMIpZBUD+r7Frcvo5CBDFELIagfmZXphE3rwMRQRIRSyKon9kRT0cjgjgiFkdQP7NVJ3o6EhFEEbEogvqZrVdWnqnDEUEeEcsjqJ/Z3nw+4tvqsESQS8RyCernynwTp+vIRBBNxKIJ6udq2+3EU2nkuBRBLhHLJaifq7bXsqvjUgS5FLFcgvrBdbd+lHZr5F0bQTBF/MUR0s91M+A/zk9q3beiu0NUBBEVsYiC+lfuwfrtmygNT1ZGhGXkuBVBbkUst6D+9Ui+7NSmVRtxGA5lEURZxKIM6odhiJ4OZRFEWcSiDOrnuuvFo92BLIIgi1iQQf3cVKbZyMebg1gEIRaxEIP6ua23ramNvF8dySJIsoglGdTPbfN5J+/a2KEshiiLWJRB/fxwob410v6NHc1iSLOYpRnUz+1WnKsjWQxJFrMkg/qF7tZ2ZBN793oQYTF/s4f0C/2XFq8DYkerGNIqZmkF9Qt5hzowxRBMMQsmqF+Y4bIjPWllZ4enGOIpZvEE9QvbSTd9saNTDOkUs3SC+kV7mOyDFifrABVDQMUsoKB+cTgB/iVvZQeoGAIqZgEF9Zf1SlXqQddS38IRKoGEillCQf1l81VXdivt4cTxKYF8Slg+Qf1l19vPEioSR6gEEiphCQX1l73ain0hh6cE4ilh8QT171QrnuwSrxkF6ZTw3Sikf1eptW10L+5Ux6gEMiphGQX172z1KG5fR6cE0ilh6QT171rVrW0wnHnUDw+2V500AMeqBLIqYVkF9c8DsLtgaeUt7nCVQFwlLK6g/tm827bqT8naASuBwEpYYEH9wfoHNdZsTR20UgithIUW1L9X1fhNeOqwlUJspSy2oP790B28F6fruJVCbqUst6D+vXlQqz/Fgyt16EohulIWXVD/vlW1OFWHrhSiK2XRBfUf9LpXrThTr50OwZXy/XSk/2BrXU+V3MV38EohvFIWXlB/8N2IFxupY1YKmZWyzIL6g++jFTvdqeNVCnmVsryC+oNxPdzoJycSqVNHrBQSK2WJBfUf5PlmDlQZBFXKggrqB8ugPlzMftnJndnM8SqDvMpYXkH93n/fV4lP1o1Zi/6OXBkkV8aSC+oH/6mSW4iZQ1cG0ZWx6IL6q3rb6q4bP0lkjmEZZFjGMgzqf7YPoqUDWAYBlrEAg/pfTC85eiuBEF0ZvxSI9L/Ux7ToMgevDMIrY+EF9R+HvZqd1CPfJkevDNIrY+kF9R+V2KfLHLMyyKyMZRbUf1RHLA7mjlw5JFfGkgvqP6rdRpps7miVQ1rlLK2g/qNZiYTOHaFySKicJRTUfzRy1z13dMohnXKWTlB/rQYik7xPHZhyCKacBRPUX4+fd3MHpxzCKWfhBPXXIwsbucNTDvGUs3iC+ut/sJyRe7kFCKmcDy4g/cF/eFdJS925o1QOKZWzlIL662PXT3LHqxzyKmd5BfXXpnrURtzdhaNVAWmVs7SC+mtTmYeR25XCEauAxCpYYkH94FuNEKRw1CogtQqWWlB/bZpdb6UvcuG4VUBuFSy3oP7abnaVOFUHrQJCq2ChBfXXthIXZQtHrAISq2CJBfVLtZZ7OYVDVgGRVbDIgvqlquSWXeE4VUBOFSynoH6put7IXbvCy1hBRhV8yArpl/pwBhR9HZ4KiKeCxRPUL3V1WGRey/ckpWNUCRlVsIyC+qUR+wulw1MJ8VSyeIL6ZaWaI64fS0eoEhKqZAkF9cthKTAwTderSj4NlY5UJSRVyZIK6pe2PRxgR0zeMauEzCpZZkH90rZr3fQjyzmlI1cJyVWy5IL6pe3EFdjSgauE4CpZcEH93jOQu1ilY1cJ2VWy7IL6ve9I16508CohvEoWXlB/8D2iiVV6YVFIsJJPi0KCtXazE3cxhX5WFNKrBGFRVPDbzlR27BqLQi8xGiIsUchHRmHB4D0kKZLRkBSFXng0RHAiPsGOC14NYPzCnkIvUBoiTBEfbMcFr8dxxFU+hV7KNETEIj7wjgtej6S1m7FxeMnTEPGL+CQ8Lng9jq92bBheGDVESCM+GI8LXg1jpKdPoZdNDRHfiA/L44LfdqYZCcNQ6EVTQ0Q44jPzuOBGrf8QXb1waojQRnxwHhfc6LXZGt2IV83kR+dhFp5Adh4W3Oh7U4m2fnYekhCF51HBje50+3XfFEzik9aIh7ofpIfJeAJJelhwozv5HOBn6QmiD4TpYcGNFW89yQ/Tw3Q8gTQ9LLhV60f56PKoBgPyBAL1sOBWyU8r+Il6GJEnEKmHBbe6VjI9/Ew9DMkTCNXDgltd664XV33Jj9TDjDyBTD0suNWtaUYegfHQBYPyBIL1sODZeIiN3B8ZpCAva08wPE982B4XfB/JttW6WT8asetPXvKeYJSe+Og9LrjV7Vcz3hOnyH8yCAKNT+DjgtujVgrJy98TDNQTH8DHBbfD01C1CjY6UNvKrNXf7lvdXpGH5rEPJuyJT+Tjgju1GulIkRfBJ5ipJz6DjwvuVL2y8hNiHv9grp74HD4uuNPdyHQ9/MFoPfFRfFxwZ8RVL/KC+AST9cQn8XHBnW10pUa+7R77YLSe+Cg+LrhrzTjvvTQ+wXg98XF8XHC3W40c0V4Yn2C6nvg0Pi64263kpw89sMGAPfGBfFzwe2M2Snxil2L/uUcINT6SjwuejQeobfd9wI0O7nfNsS058iL7BDP4xGf2cYE3qu7IE46X5CcYzSc+yo8LPin5C++l+AnG8omP8eOCT6o9ZtN7iIP5fOLz/Ljgk5GfNSIvy08wnE98ph4XLPT6nz/dRl68n2Ben/icPS74pNuV/DCwRzwY1yc+Z48LvmM++DLeQ5t6P2gx/DrItWofTNMFlb7vzybhj8MKf3v4vY3DH73d7n8hY2X73tb7l49abXQ7CNJJcG9t//2P4WczXn725Pz/UEsDBBQAAAAIAO2Lc11YzMCxxgIAAHIMAAANAAAAeGwvc3R5bGVzLnhtbN1X246bMBD9FeQPKEloaKgAqUWNVKmtVtp96KsTDLHkC7WdLenXV4MJJLueaFt1XwpKsOf4nBmPxybJrTsJdn9gzEW9FMoW5OBc9z6O7f7AJLVvdMdUL0WjjaTOvtGmjW1nGK0tkKSIV4tFGkvKFSlzdZRb6Wy010flCrIgcZk3Ws2Wt8QbylxRyaJHKgpSUcF3hg9jqeTi5M0rMOy10CZyByZZQZZgsb88vPQ9iHLUkVxpA8bYe/Dfu3H4rGbaXUEWi+1w3RyPAlMQycWw4WHLvOFCTBNOiDeUeUedY0ZtuRADZzA+g6Kx/XDqWEFaQ0/L1Zq8mGC14DW4bKvLuS6260/rd4PMBXUSHR62zHfa1MxMsS/J2VTmgjUuLnPD2wM8ne5iAJ3TMi7zmtNWKzpM7MwYG7bM90yIe6iz782Vdt9EvmA+11ArEeTv3ORCjE0v4zugf6nmtS9k138lG3X8UbuPR+e0Gvo/jtqxO8Ma3g/9vpn8Y+rLWX3179WTV4199arqN/JOu06cPgjeKsl8VbzYYZnTMy96ZMbxPWxIpzsS/TS0e2C9O+/ivhnLZqqYoX6uanGyRnAwFeQbnHdidhftjlw4rsbegdc1U89K0pa5ozvBrvUXJKpZQ4/CPUxgQeb2V1bzo8ymUXeQgnHU3P4CW2+ZTueYLXOuatazuhq7pt1d7/rhAsJTZD77niMYx2NhBDDMDxYBxvEszM//NJ8NOh+PYbFtgsgG5WxQjmeFkGq4MT9hTpZlWXimWZYkaYpltKqCEVRY3tIUPmE1LDZgYH7A05/lGl9tvEJu1wG2prcqBJspXonYTPFcAxLOGzCyLLzamB9gYKuA1Q74D/uBmgpzkgRWFYsN28E4kmUYArUYrtE0RbKTwh1eH2yXJEmWhRHAwhEkCYbAbsQRLAKIAUMS/zv4yfsoPr+n4vlfRvkbUEsDBBQAAAAIAO2Lc12XirscwAAAABMCAAALAAAAX3JlbHMvLnJlbHOd0ktqAzEMgOGrDN53lKbQRchk1U12peQCqq15MLYlZJW6tw/JJpnQF9mLn09C2zeKaBPnMk5SmppiLp0bzWQDUPxICUvLQrmm2LMmtNKyDiDoZxwI1qvVM+h1w+22183m8CX0nyL3/eTphf1HomzfhG8mXHNAHcg6VyN8ss7vzHNbU3TNPnRO9+HRwZ2Wn7eDRIYBDcGz0oMoC6lNVC6cwP5VWcp5YgFa3w36+zhUjXKg8DsJRRaip5MIFj+wOwJQSwMEFAAAAAgA7YtzXf/EWnJhAQAAPgMAAA8AAAB4bC93b3JrYm9vay54bWy1kt9K3UAQxl8l7AO4MbZCD0mgVNoeKK3Ug/eTzcQM7u6E2YnH+kI+gU/gi5UkBAOCeOPV/FuG3/fNlkeW24b5NrsPPqbK9KrDztrkegyQTnjAeB98xxJA0wnLjU2DILSpR9TgbZHn5zYARVOX665LsduCFZ0SR1uXU+Oa8Jhe5lOZ3VGihjzpv8rMuUeTBYoU6AHbyuQmSz0ff7LQA0cFf+WEva/M6TK4RlFyr9pXE+QBmjR3FJq/oMSVOc9zk3UkSecX835wSnd4gGapRuXv5BXlAhR/CI8DxZtpja1Lu5Ex+7DGxcSdvMdG7jpyeMFuDBh18VHQT4Ax9TQkk0UIWJm9YkyTHkTdt4s2BcWNU7KjtjKyb2e8D0SJSWV8fnx+wi1R8QZR8bFEh69FsSE5e4PkbD7deq8WO4rY/oaAydalA+8uJZvC7HHx6fPpF5N1o/ffwLs/8RdDu55//br1f1BLAwQUAAAACADti3Ndu2zq7LoAAAAaAwAAGgAAAHhsL19yZWxzL3dvcmtib29rLnhtbC5yZWxzxZM9DoJAEEavQvYADIJaGKCysTVeYLMOLGH/sjNGvL1RC9jEwsZQTb4p3veKmfqMRvLgHekhUDZZ46gRmjkcAEhptJJyH9BN1nQ+WsmU+9hDkGqUPUJZFHuIS4Zo6yUzuzwC/kL0XTcoPHp1s+j4CxjuPo6kEVlkFxl75EbAZOY1wXts8skakZ2ujYin60bA2kJlIlSuL1QlQtUfhYgfBmm2+eSkfvvHetZocW5/x88yPZLdywGSV2ifUEsDBBQAAAAIAO2Lc12m/EpbIwEAAN8EAAATAAAAW0NvbnRlbnRfVHlwZXNdLnhtbM2UTU7DMBCFrxJ5W8UuRWKBmm6ALXTBBYw9aazYHsszLentUdIfCVQiqiDBxl545n1v/GQvX/cJqOiCj1SJhjndK0WmgaBJYoLYBV9jDppJYt6opE2rN6AW8/mdMhgZIpfca4jV8hFqvfVcPHUMkRzGSmTwJIqHQ2HPqoROyTuj2WFUu2i/UMojQWbwQw01LtGsC16oi4T+5HvAse9lBzk7C8VaZ37WASqhOq+I9x5Ijktc8Ih17QxYNNsAkSWlDNpSA8DBy4PobJzMDQQ4rDeT+YPMGNCiWWdMpAxmuB53iqTvLlPGBJnd+Ihnok5p8nzQp23B/pDdefWOuR3yIDVs0+/4c8Zn/St9LP6Jj9s/9PGG2P72k+t3GbSLJ74a/rXVB1BLAQIUAxQAAAAIAO2Lc11Gx01IlwAAAM0AAAAQAAAAAAAAAAAAAACAAQAAAABkb2NQcm9wcy9hcHAueG1sUEsBAhQDFAAAAAgA7YtzXVovVnv0AAAAKwIAABEAAAAAAAAAAAAAAIABxQAAAGRvY1Byb3BzL2NvcmUueG1sUEsBAhQDFAAAAAgA7YtzXZlcnCMPBgAAnCcAABMAAAAAAAAAAAAAAIAB6AEAAHhsL3RoZW1lL3RoZW1lMS54bWxQSwECFAMUAAAACADti3NdmbZAQdwCAADtBgAAGAAAAAAAAAAAAAAAgIEoCAAAeGwvd29ya3NoZWV0cy9zaGVldDEueG1sUEsBAhQDFAAAAAgA7YtzXY1AfUtGAwAA5gcAABgAAAAAAAAAAAAAAICBOgsAAHhsL3dvcmtzaGVldHMvc2hlZXQyLnhtbFBLAQIUAxQAAAAIAO2Lc12CkBrA+goAAAJFAAAYAAAAAAAAAAAAAACAgbYOAAB4bC93b3Jrc2hlZXRzL3NoZWV0My54bWxQSwECFAMUAAAACADti3NdWMzAscYCAAByDAAADQAAAAAAAAAAAAAAgAHmGQAAeGwvc3R5bGVzLnhtbFBLAQIUAxQAAAAIAO2Lc12XirscwAAAABMCAAALAAAAAAAAAAAAAACAAdccAABfcmVscy8ucmVsc1BLAQIUAxQAAAAIAO2Lc13/xFpyYQEAAD4DAAAPAAAAAAAAAAAAAACAAcAdAAB4bC93b3JrYm9vay54bWxQSwECFAMUAAAACADti3Ndu2zq7LoAAAAaAwAAGgAAAAAAAAAAAAAAgAFOHwAAeGwvX3JlbHMvd29ya2Jvb2sueG1sLnJlbHNQSwECFAMUAAAACADti3NdpvxKWyMBAADfBAAAEwAAAAAAAAAAAAAAgAFAIAAAW0NvbnRlbnRfVHlwZXNdLnhtbFBLBQYAAAAACwALAMoCAACUIQAAAAA=';
+/** IMP: estado do importador (linhas, grupos, Estado do arquivo). abortCtl: interromper a
+    classificação. FILTER: filtro ativo da tabela. MAXROWS: limite por arquivo. BATCH: itens por lote
+    enviado à IA. DMAX: tamanho máximo da descrição. */
 let IMP = null, abortCtl = null, FILTER = 'all';
 const MAXROWS = 500, BATCH = 15, DMAX = 400;
 
+/** Alterna as abas pela âncora da URL (#importar). */
 function route(){
   const imp = location.hash === '#importar';
   $('#view-single').hidden = imp; $('#view-import').hidden = !imp;
@@ -774,17 +859,20 @@ function route(){
 }
 window.addEventListener('hashchange', route);
 
+/** Baixa um arquivo (modelo ou resultado) pela capacidade de download disponível. */
 async function saveFile(filename, data, msgEl){
   if(!downloads){ msgEl.textContent = 'O download não está disponível nesta visualização. Abra a página em claude.ai.'; return; }
   try{ await downloads.save({filename, data}); msgEl.textContent = ''; }
   catch(e){ msgEl.textContent = e && e.code==='declined' ? 'Download cancelado.' : e && e.code==='rate_limited' ? 'Já há um download aguardando confirmação.' : 'Não foi possível baixar o arquivo.'; }
 }
+/* Eventos do importador: baixar modelo, enviar arquivo, corrigir, filtrar, classificar, exportar. */
 $('#dl-model').addEventListener('click', async ()=>{
   try{ const b = new Blob([Uint8Array.from(atob(MODELO_B64), c => c.charCodeAt(0))]); await saveFile('modelo_importacao_classificador.xlsx', b, $('#dl-msg')); }
   catch{ $('#dl-msg').textContent='Não foi possível gerar o modelo.'; }
 });
 
 /* Unidade conforme TCE (Tabela Auxiliar 22): aceita só código ou nome exato da tabela */
+/** Unidade conforme a Tabela Auxiliar 22: aceita só o código ou o nome exato. */
 function unitTA22(raw){
   const s = clip(raw, 60); if(!s) return null;
   const m = s.match(/^(\d{1,3})(\s|-|$)/);
@@ -793,6 +881,8 @@ function unitTA22(raw){
   return KB.ta22.find(x=>norm(x.n)===ns) || null;
 }
 
+/** Converte as linhas da planilha em itens e marca ERRO (campo vazio, TIPO inválido ou unidade
+    fora da TA22 no ES). É o primeiro guardrail de entrada do importador. */
 function parseRows(rows){
   if(!rows.length) return {errs:['A planilha está vazia.']};
   const head = rows[0].map(h => norm(h).trim());
@@ -820,6 +910,8 @@ function parseRows(rows){
   return {errs, linhas, grupos};
 }
 /* TIPO incoerente com a unidade (ex.: ampola/comprimido marcado como Serviço) */
+/** Detecta TIPO incoerente com a unidade antes da IA (ex.: ampola marcada como Serviço).
+    Esses itens não são enviados à IA até o usuário corrigir o TIPO. */
 function tipoPelaUnidade(g){
   const cod = (g.u && g.u.c) || (KB.siglas||{})[String(g.un||'').trim().toUpperCase()] || ((g.un && unitTA22(g.un)) || {}).c;
   const grp = cod ? KB.u2grp[cod] : null;
@@ -828,15 +920,20 @@ function tipoPelaUnidade(g){
   return '';
 }
 /* Candidatos a distribuição gratuita (3.3.90.32): medicamentos e itens típicos de entrega à população */
+/** Palavras de itens típicos de entrega à população (candidatos a 3.3.90.32). */
 const RX_DISTRIB = /\b(cesta|kit|fralda|leite|uniforme|didatic|escolar|enxoval|ortese|protese|cadeira de rodas|muleta|oculos|absorvente|cobertor|agasalho|semente|muda|insumo agricola|livro)/;
+/** Item candidato a distribuição gratuita: medicamento (pela unidade) ou palavra típica. */
 function candDistrib(g){
   if(g.tipo !== 'Material') return false;
   const cod = (g.u && g.u.c) || (KB.siglas||{})[String(g.un||'').trim().toUpperCase()] || ((g.un && unitTA22(g.un)) || {}).c;
   if(cod && KB.u2grp[cod] === 'farmaco') return true;
   return RX_DISTRIB.test(norm([g.tit, g.des].join(' ')));
 }
+/** Grupo ao qual a linha pertence (classificado ou não). */
 function grpDe(l){ return IMP && IMP.grupos.find(x=>x.linhas.includes(l)); }
+/** TIPO sugerido para o grupo: pela IA (após classificar) ou pela unidade (antes). */
 function sugTipo(g){ return g ? ((g.res && g.res.tipoSug) || (!g.res && g.tipoLocal) || '') : ''; }
+/** Agrupa linhas idênticas (título + descrição + unidade + tipo): cada grupo vai à IA uma vez só. */
 function addToGroup(grupos, l){
   const k = [norm(l.tit), norm(l.des), l.u.c || norm(l.un), l.tipo].join('|').replace(/\s+/g,' ');
   let g = grupos.find(x=>x.k===k);
@@ -844,11 +941,13 @@ function addToGroup(grupos, l){
   g.linhas.push(l);
 }
 /* Sugestão de unidade (TA 22) para linhas com unidade fora da tabela */
+/** Sugestões de unidade da TA22 para uma linha com unidade fora da tabela (só ES). */
 function unitSug(l){
   if(IMP.uf !== 'ES' || !l.un || l.u) return null;
   const r = resolveUnit(l.un);
   return {status:r.status, sug:(r.sug||[]).filter(Boolean)};
 }
+/** Aplica a unidade escolhida pelo usuário e devolve a linha para a fila de classificação. */
 function corrigirUnidade(l, codigo){
   const u = KB.ta22.find(x=>x.c===codigo); if(!u) return;
   l.un = u.n; l.u = u;
@@ -857,6 +956,7 @@ function corrigirUnidade(l, codigo){
 }
 function stat(n, label, cls=''){ return `<div class="stat ${cls}"><b>${n}</b><span>${label}</span></div>`; }
 
+/** Lê o .xlsx/.csv no navegador (SheetJS), valida as linhas, agrupa e mostra o resumo. */
 async function loadFile(file){
   if(!PRO){ $('#file-msg').innerHTML = '<div class="warnbox">Recurso do plano Pro. Informe sua chave no topo da página.</div>'; return; }
   const msg = $('#file-msg'); msg.innerHTML = ''; $('#run-panel').hidden = true; $('#res-panel').hidden = true;
@@ -889,6 +989,8 @@ const drop = $('#drop');
 ['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
 drop.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if(f) loadFile(f); });
 
+/** Monta o pedido de um lote (até 15 itens do mesmo TIPO): regras + catálogo restrito (RAG) +
+    itens com finalidade informada + contas contábeis + formato JSON. full=true usa o catálogo completo. */
 function batchPrompt(gs, full){
   const es = IMP.uf === 'ES';
   const tipo = gs[0].tipo, okEl = new Set(TIPO_ELEMS[tipo]);
@@ -933,6 +1035,7 @@ Responda SOMENTE com um array JSON, um objeto por item, na mesma ordem:
 ${es?'[{"n":1,"codigo":"x.x.90.xx.xx","conta":"x.x.x.x.x.xx.xx","titulo_sugerido":null,"descricao_sugerida":null,"falta":[]}]':'[{"n":1,"codigo":"x.x.90.ee","subelemento":"nome de referência ou vazio","conta":"x.x.x.x.x.xx.xx","titulo_sugerido":null,"descricao_sugerida":null,"falta":[]}]'}`;
 }
 
+/** Extrai do retorno da IA o título/descrição sugeridos e as especificações que faltam. */
 function txtDe(r, g){
   const lim = v => v ? String(v).trim() : '';
   const tit = lim(r.titulo_sugerido), des = lim(r.descricao_sugerida).slice(0, DMAX);
@@ -940,6 +1043,7 @@ function txtDe(r, g){
   const t = {tit: tit && tit !== g.tit ? tit : '', des: des && des !== g.des ? des : '', falta, ok:false};
   return (t.tit || t.des || t.falta.length) ? t : null;
 }
+/** Aplica o texto sugerido em todas as linhas do grupo, guardando o original. */
 function aceitarTexto(g){
   const t = g && g.res && g.res.txt; if(!t || t.ok) return;
   for(const l of g.linhas){
@@ -949,7 +1053,10 @@ function aceitarTexto(g){
   if(t.tit) g.tit = t.tit; if(t.des) g.des = t.des;
   t.ok = true;
 }
+/** Pausa global quando a IA responde "limite atingido": os dois trabalhadores esperam juntos. */
 let PAUSA_ATE = 0;
+/** Classifica um lote: chama a IA (com novas tentativas e espera no limite), lê o JSON, marca TIPO
+    sugerido e reenvia com o catálogo completo o que voltou fora_do_catalogo. */
 async function runBatch(gs, signal, full){
   const call = () => sample.json(batchPrompt(gs, full), {modelTier:'default', signal});
   let arr;
@@ -976,7 +1083,9 @@ async function runBatch(gs, signal, full){
 }
 
 /* Saída: Título, Descrição, Classe (Elemento), Sub Elemento (Sugestão), Conta Contábil */
+/** Nome completo de uma conta contábil (almoxarifado ou bens móveis). */
 const CONTA_NOME = c => { const x = (KB.almox.find(a=>a.c===c) || KB.bensmoveis.find(a=>a.c===c)); return x ? `${x.c} – ${x.n}` : ''; };
+/** Conta contábil final do item: a indicada pela IA, validada nas listas do PCASP. */
 function contaDe(it, r, tipo){
   if(tipo === 'Serviço') return 'Não se aplica (serviço)';
   const el = (r.codigo||'').split('.')[3];
@@ -986,6 +1095,7 @@ function contaDe(it, r, tipo){
   if(['30','32','52'].includes(el)) return '';
   return 'Não se aplica (serviço)';
 }
+/** Texto final de cada linha (classe, subelemento, conta) — usado na tabela e na exportação. */
 function saida(l){
   const es = IMP.uf === 'ES';
   if(l.erro) return {classe:'ERRO', sub:'ERRO', conta:'ERRO'};
@@ -1000,6 +1110,7 @@ function saida(l){
   return {classe:`${r.codigo} – ${elName(r.codigo)}`, sub: r.sub || '', conta: contaDe(null, r, g.tipo)};
 }
 
+/** Resumo antes de classificar: linhas, itens distintos, ERROs e TIPOs a corrigir. */
 function preStats(){
   const p = IMP, nErro = p.linhas.filter(l=>l.erro).length;
   $('#pre-stats').innerHTML = stat(p.linhas.length,'linhas') + stat(p.grupos.length,'itens distintos a classificar') + stat(nErro,'linhas com ERRO', nErro?'bad':'')
@@ -1008,12 +1119,14 @@ function preStats(){
   if(nTL) $('#pre-stats').insertAdjacentHTML('beforeend', `<div class="warnbox">${nTL} item(ns) com TIPO provavelmente errado pela unidade de medida (ex.: ampola ou comprimido marcado como Serviço). Eles não serão enviados à IA até o TIPO ser corrigido: use Corrigir tipo na tabela ou Corrigir todos os TIPOS sugeridos.</div>`);
   if(!sample) $('#pre-stats').insertAdjacentHTML('beforeend','<div class="warnbox">A classificação com IA não está disponível nesta visualização.</div>');
 }
+/** Resumo depois de classificar e botões em massa (corrigir unidades, textos, TIPOs). */
 function postStats(){
   const nErro = IMP.linhas.filter(l=>l.erro).length;
   const ok = IMP.linhas.filter(l=>!l.erro && saida(l).classe).length;
   $('#post-stats').innerHTML = stat(ok,'linhas classificadas') + stat(nErro,'linhas com ERRO', nErro?'bad':'');
 }
 /* Filtros da tabela do importador */
+/** Regra de cada filtro da tabela: todos, com ERRO, TIPO a corrigir, texto sugerido, não classificados. */
 function passaFiltro(l, f){
   if(f === 'all') return true;
   if(f === 'rev') return !!l.erro;
@@ -1024,6 +1137,7 @@ function passaFiltro(l, f){
   if(f === 'nc') return !!(g && g.res && g.res.falha);
   return true;
 }
+/** Atualiza as contagens dos filtros e esconde os que estão vazios. */
 function atualizaFiltros(){
   const conta = f => IMP ? IMP.linhas.filter(l => passaFiltro(l, f)).length : 0;
   const nomes = {rev:'Com ERRO', tipo:'TIPO a corrigir', txt:'Texto sugerido', nc:'Não classificados'};
@@ -1037,6 +1151,7 @@ function atualizaFiltros(){
     document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', x.dataset.f === 'all'));
   }
 }
+/** Desenha a tabela do importador com sugestões e botões por linha. */
 function renderTable(){
   atualizaFiltros();
   const rows = [];
@@ -1080,6 +1195,7 @@ function renderTable(){
   $('#tipo-all').hidden = !nTp; $('#tipo-all').textContent = `Corrigir todos os TIPOS sugeridos (${nTp})`;
   atualizaFiltros();
 }
+/** Depois de uma correção, avisa os itens pendentes e desabilita o download até reclassificar. */
 function aposCorrecao(){
   const pend = IMP.grupos.filter(g=>!g.res).length;
   if(pend){ IMP.classificado = false; gateDownload(); $('#prog').hidden = false; $('#prog-txt').textContent = `${pend} item(ns) corrigido(s) aguardando classificação. Clique em Classificar itens pendentes.`; $('#run').textContent = 'Classificar itens pendentes'; }
@@ -1111,6 +1227,7 @@ $('#tb').addEventListener('click', e => {
   const sel = $('#tb').querySelector(`.sug-sel[data-l="${b.dataset.l}"]`);
   if(l && sel && sel.value){ corrigirUnidade(l, sel.value); aposCorrecao(); }
 });
+/** Troca o TIPO de um grupo para o sugerido e o devolve para a fila (decisão do usuário). */
 function corrigirTipoGrupo(g){
   const novo = sugTipo(g); if(!novo) return;
   IMP.grupos = IMP.grupos.filter(x=>x!==g);
@@ -1134,6 +1251,8 @@ document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click'
   FILTER = b.dataset.f; document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', x===b)); renderTable();
 }));
 
+/** Etapa de desambiguação (human-in-the-loop): antes da IA, pergunta se há itens de distribuição
+    gratuita (Não / Sim, todos / Sim, alguns). Devolve o conjunto marcado, ou null se cancelar. */
 function perguntaDistrib(cands){
   return new Promise(resolve => {
     const dg = $('#dg'), sel = $('#dg-sel'), list = $('#dg-list'), acoes = $('#dg-acoes');
@@ -1159,6 +1278,9 @@ function perguntaDistrib(cands){
     passo1(); dg.hidden = false;
   });
 }
+/** Classificar itens: (1) pergunta de distribuição gratuita, se houver candidatos; (2) monta lotes
+    por TIPO sem os itens com TIPO a corrigir; (3) dois trabalhadores processam os lotes em paralelo;
+    (4) mostra o andamento e o motivo de eventuais falhas. */
 $('#run').addEventListener('click', async () => {
   if(!IMP || !sample || busy || !PRO) return;
   if(!UF){ $('#prog').hidden=false; $('#prog-txt').textContent = 'Selecione o Estado no topo da página.'; return; }
@@ -1195,6 +1317,7 @@ $('#run').addEventListener('click', async () => {
 });
 $('#stop').addEventListener('click', () => abortCtl && abortCtl.abort());
 
+/** Exporta o resultado em .xlsx com unidade, TIPO, finalidade e textos já corrigidos. */
 $('#dl-res').addEventListener('click', async () => {
   if(!IMP || !PRO || !IMP.classificado || busy) return;
   const out = [['TITULO','DESCRIÇÃO','UNIDADE DE MEDIDA','TIPO','FINALIDADE','CLASSE (ELEMENTO)','SUB ELEMENTO (SUGESTÃO)','CONTA CONTÁBIL']];
@@ -1206,19 +1329,23 @@ $('#dl-res').addEventListener('click', async () => {
   await saveFile(IMP.nome.replace(/\.(xlsx|csv)$/i,'') + '_classificado.xlsx', new Blob([data]), $('#dlres-msg'));
 });
 
+/* Termo de aceite (LGPD): aceitar grava as preferências no navegador; recusar não grava nada. */
 $('#termo-ok').addEventListener('click', ()=>{ try{ localStorage.setItem('cnd_consent','sim'); }catch{} persist(); $('#termo').hidden = true; });
 $('#termo-no').addEventListener('click', ()=>{ try{ localStorage.setItem('cnd_consent','nao'); }catch{} apagarDadosSalvos(); $('#termo').hidden = true; });
 $('#prefs').addEventListener('click', ()=>{ $('#termo').hidden = false; $('#termo-ok').focus(); });
 
-/* ===================== PLANO PRO (chave de licença) ===================== */
+/* ===================== 7. PLANO PRO (chave de licença) ===================== */
+/** PRO: licença ativa (município, validade). db: banco de licenças (Claude ou servidor próprio). */
 let PRO = null, db = null;
 const normChave = k => String(k||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+/** SHA-256 da chave normalizada — é por esse código que a licença é procurada (a chave nunca é gravada). */
 async function hashChave(k){
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('qw-classificador:' + normChave(k)));
   return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 /* Os dados da licença (município, validade) ficam cifrados com a própria chave:
    quem lista a coleção vê só códigos opacos, e só quem tem a chave lê o conteúdo. */
+/** Decifra os dados da licença (AES-GCM) usando a própria chave como segredo. */
 async function abrirLicenca(chave, e){
   const raw = Uint8Array.from(atob(e), c => c.charCodeAt(0));
   const kbuf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('qw-classificador-enc:' + normChave(chave)));
@@ -1227,11 +1354,13 @@ async function abrirLicenca(chave, e){
   return JSON.parse(new TextDecoder().decode(pt));
 }
 /* Baixar resultado: só depois de clicar em Classificar itens e a classificação terminar */
+/** Libera "Baixar resultado" só depois que Classificar itens terminou. */
 function gateDownload(){
   const ok = !!PRO && !busy && !!IMP && !!IMP.classificado;
   const b = $('#dl-res'); b.disabled = !ok;
   b.title = ok ? '' : 'Clique em Classificar itens antes de baixar o resultado';
 }
+/** Liga/desliga os recursos Pro na tela conforme a licença. */
 function aplicarPlano(){
   const on = !!PRO;
   $('#pro-status').textContent = on ? `Plano Pro · ${PRO.municipio||''}${PRO.validade?' · até '+PRO.validade.split('-').reverse().join('/'):''}` : 'Plano gratuito';
@@ -1243,6 +1372,7 @@ function aplicarPlano(){
   gateDownload();
   $('#run').disabled = !on || busy;
 }
+/** Confere a chave: hash → busca a licença → decifra → checa ativa e validade. */
 async function validarChave(chave, silencioso){
   if(!db){ if(!silencioso) $('#pro-status').textContent = (window.claude ? 'Entre na sua conta Claude para ativar a chave' : 'Servidor não configurado'); return false; }
   try{
@@ -1258,6 +1388,7 @@ async function validarChave(chave, silencioso){
     aplicarPlano(); return true;
   }catch(e){ if(!silencioso) $('#pro-status').textContent = 'Não foi possível verificar a chave agora'; return false; }
 }
+/** Ativar ou sair do plano Pro. */
 $('#pro-form').addEventListener('submit', async e=>{
   e.preventDefault();
   if(PRO){ PRO = null; CHAVE_ATUAL = ''; try{ localStorage.removeItem('cnd_chave'); }catch{} $('#chave').value=''; aplicarPlano(); return; }
@@ -1267,7 +1398,9 @@ $('#pro-form').addEventListener('submit', async e=>{
   if(!ok){ $('#pro-status').classList.remove('pro-on'); }
 });
 
-/* ===================== INÍCIO ===================== */
+/* ===================== 8. INÍCIO =====================
+   Carrega o kb.json, escolhe o caminho (Claude ou servidor próprio), revalida a chave salva
+   e liga o seletor de Estado. */
 (async()=>{
   route();
   const sel = $('#uf');

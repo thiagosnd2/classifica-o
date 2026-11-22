@@ -35,6 +35,17 @@ Contas contábeis: PCASP 2027 (Portaria STN/MF nº 2.520, de 21/08/2026).
 
 A página pode rodar no GitHub Pages, sem depender do claude.ai. A IA e a validação das chaves Pro passam por um servidor próprio em `servidor/worker.js` (Cloudflare Workers), que guarda a chave da API da Anthropic e confere as chaves Pro no servidor. O passo a passo completo está em [`servidor/PUBLICAR.md`](servidor/PUBLICAR.md).
 
+## Guia para desenvolvedores
+
+O código é comentado em português para leitura por pessoas e agentes:
+
+- `index.html` — aplicação inteira. O script principal começa com um **mapa do arquivo** e está dividido em seções numeradas (1. Infraestrutura · 2. Utilitários · 3. Estado · 4. Regras e busca local · 5. Consulta individual · 6. Importador · 7. Plano Pro · 8. Início). Cada função tem um comentário dizendo o que faz e por quê.
+- `servidor/worker.js` — servidor no Cloudflare: rotas `/classificar`, `/lote`, `/licenca`, anti-robô, teto diário e chamada à IA.
+- `servidor/chave_pro.mjs` e `servidor/lacrar_licenca.mjs` — geração de chaves Pro (KV do Cloudflare e banco do Claude).
+- `scripts/*.py` — montagem da base `kb.json` a partir das tabelas oficiais.
+
+Princípio de projeto: **a IA só sugere; o código valida antes e confere depois; o usuário decide.** O fluxo completo está desenhado na documentação do sistema (seção "Fluxo do sistema").
+
 ## Segurança
 
 - Respostas da IA sempre escapadas antes de aparecer na tela.

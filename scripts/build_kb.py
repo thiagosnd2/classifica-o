@@ -1,3 +1,4 @@
+"""Monta a base federal de referência (itens por elemento, com exemplos da Portaria 448 e contas do PCASP)."""
 import json, re
 
 chunks = json.load(open('/home/claude/kb/p448_chunks.json'))
