@@ -152,6 +152,14 @@ td.j{color:var(--muted);min-width:260px}
 .quiz .chip:hover{border-color:var(--accent)}
 .quiz .chip:disabled{opacity:.45;cursor:not-allowed;border-color:var(--line)}
 .termo{position:fixed;inset:auto 0 0 0;z-index:50;padding:16px;display:flex;justify-content:center}
+.dg{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px}
+.dg[hidden]{display:none}
+.dg-box{background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:18px 20px;max-width:760px;width:100%;max-height:86vh;display:grid;gap:10px;grid-template-rows:auto auto 1fr auto}
+.dg-box h3{margin:0;font:600 16px var(--body)}
+.dg-list{overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px 10px;display:grid;gap:4px;max-height:46vh}
+.dg-list label{display:flex;gap:8px;align-items:flex-start;font-size:13px;cursor:pointer}
+.dg-list input{width:auto;margin-top:2px}
+#dg-sel:not([hidden]){display:grid;gap:8px;min-height:0}
 .termo-box{background:var(--surface);border:1px solid var(--accent);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.35);padding:18px 20px;max-width:720px;display:grid;gap:8px}
 .termo-box h3{margin:0;font:600 16px var(--body)}
 .termo-box p,.termo-box ul{margin:0;font-size:13.5px}
@@ -301,6 +309,17 @@ footer{padding:0 24px 24px;color:var(--muted);font-size:12px;max-width:110ch}
     <div id="dlres-msg" class="empty" style="font-size:13px"></div>
     <div class="tbl-wrap"><table><thead><tr><th>Linha</th><th>Título</th><th>Descrição</th><th>Unidade de Medida</th><th>Sugestão</th><th>Classe (Elemento)</th><th>Sub Elemento (Sugestão)</th><th>Conta Contábil</th></tr></thead><tbody id="tb"></tbody></table></div>
   </section>
+</div>
+<div id="dg" class="dg" role="dialog" aria-modal="true" aria-labelledby="dg-h" hidden>
+  <div class="dg-box">
+    <h3 id="dg-h">Distribuição gratuita</h3>
+    <p id="dg-txt" style="margin:0;font-size:13.5px"></p>
+    <div id="dg-sel" hidden>
+      <div class="toolbar" style="gap:8px;align-items:center"><input id="dg-busca" placeholder="Filtrar itens" aria-label="Filtrar itens" style="flex:1"><button class="ghost" type="button" id="dg-todos" style="padding:7px 10px">Marcar todos</button><button class="ghost" type="button" id="dg-nenhum" style="padding:7px 10px">Desmarcar todos</button></div>
+      <div class="dg-list" id="dg-list"></div>
+    </div>
+    <div class="toolbar" id="dg-acoes" style="gap:8px;justify-content:flex-end;flex-wrap:wrap"></div>
+  </div>
 </div>
 <div id="termo" class="termo" role="dialog" aria-labelledby="termo-h" hidden>
   <div class="termo-box">
@@ -808,6 +827,14 @@ function tipoPelaUnidade(g){
   if(g.tipo === 'Material' && (grp === 'servico' || grp === 'maodeobra')) return 'Serviço';
   return '';
 }
+/* Candidatos a distribuição gratuita (3.3.90.32): medicamentos e itens típicos de entrega à população */
+const RX_DISTRIB = /\b(cesta|kit|fralda|leite|uniforme|didatic|escolar|enxoval|ortese|protese|cadeira de rodas|muleta|oculos|absorvente|cobertor|agasalho|semente|muda|insumo agricola|livro)/;
+function candDistrib(g){
+  if(g.tipo !== 'Material') return false;
+  const cod = (g.u && g.u.c) || (KB.siglas||{})[String(g.un||'').trim().toUpperCase()] || ((g.un && unitTA22(g.un)) || {}).c;
+  if(cod && KB.u2grp[cod] === 'farmaco') return true;
+  return RX_DISTRIB.test(norm([g.tit, g.des].join(' ')));
+}
 function grpDe(l){ return IMP && IMP.grupos.find(x=>x.linhas.includes(l)); }
 function sugTipo(g){ return g ? ((g.res && g.res.tipoSug) || (!g.res && g.tipoLocal) || '') : ''; }
 function addToGroup(grupos, l){
@@ -878,7 +905,8 @@ function batchPrompt(gs, full){
   }
   const restrito = elems.size < okEl.size;
   const elTxt = Object.entries(KB.elementos).filter(([k])=>[...elems].some(e=>e.endsWith('.'+k))).map(([k,v])=>`${k} – ${v.n}: ${v.c.slice(0,350)}`).join('\n');
-  const itens = gs.map((g,n)=>`${n+1} | ${g.tit} | ${g.des} | unidade: ${g.u.c?g.u.c+' ':''}${g.u.n}`).join('\n');
+  const itens = gs.map((g,n)=>`${n+1} | ${g.tit} | ${g.des} | unidade: ${g.u&&g.u.c?g.u.c+' ':''}${g.u?g.u.n:(g.un||'')}${g.finalidade?` | finalidade informada pelo usuário: ${g.finalidade==='Distribuição gratuita'?'DISTRIBUIÇÃO GRATUITA à população':'USO INTERNO do órgão'}`:''}`).join('\n');
+  const temFin = gs.some(g=>g.finalidade);
   const comPerm = elems.has('4.4.90.52');
   const contas = tipo !== 'Material' ? '' : 'CONTAS CONTÁBEIS (PCASP 2027) – material de consumo (estoque/almoxarifado):\n' + KB.almox.map(c=>`${c.c} ${c.n}`).join('\n')
     + (comPerm ? '\n\nCONTAS CONTÁBEIS (PCASP 2027) – material permanente (bens móveis):\n' + KB.bensmoveis.map(c=>`${c.c} ${c.n}`).join('\n') : '');
@@ -898,7 +926,7 @@ ${itens}
 
 ${contas}
 
-Para cada item, escolha ${es?'um código do catálogo':'um elemento válido'}; nunca invente código.${es&&restrito?' Se nenhum código do catálogo servir, responda "fora_do_catalogo": true.':''}${tipo==='Material'?' Identifique pelo título se o item é material de consumo ou permanente e escolha a conta contábil na lista correspondente (prefira a conta analítica mais específica).':' Itens de serviço: "conta" vazia.'}
+Para cada item, escolha ${es?'um código do catálogo':'um elemento válido'}; nunca invente código.${temFin?' Quando a finalidade vier informada pelo usuário, ela é obrigatória: DISTRIBUIÇÃO GRATUITA → elemento 3.3.90.32; USO INTERNO → não use 3.3.90.32.':''}${es&&restrito?' Se nenhum código do catálogo servir, responda "fora_do_catalogo": true.':''}${tipo==='Material'?' Identifique pelo título se o item é material de consumo ou permanente e escolha a conta contábil na lista correspondente (prefira a conta analítica mais específica).':' Itens de serviço: "conta" vazia.'}
 ${TEXT_RULE} No lote, use "titulo_sugerido" e "descricao_sugerida" (até 400 caracteres) para o título e a descrição de cada item.
 Se um item claramente for ${tipo==='Material'?'SERVIÇO':'MATERIAL'} e não ${tipo.toUpperCase()} (o TIPO informado está errado), NÃO o classifique: responda "codigo": null e "tipo_sugerido": "${tipo==='Material'?'Serviço':'Material'}" (mantenha os campos de texto). Na dúvida, classifique normalmente.
 Responda SOMENTE com um array JSON, um objeto por item, na mesma ordem:
@@ -1033,6 +1061,7 @@ function renderTable(){
     if(tx && tx.ok && (l.titOrig || l.desOrig)) sugCell += `<small class="empty">Texto revisado${l.titOrig?` (título era "${esc(l.titOrig)}")`:''}${l.desOrig?` (descrição era "${esc(l.desOrig.slice(0,60))}${l.desOrig.length>60?'…':''}")`:''}</small><br>`;
     if(tx && tx.falta.length) sugCell += `<small class="ubad">Descrição vaga: informe ${esc(tx.falta.join(', '))}</small><br>`;
     const gt = !l.erro && grpDe(l), st2 = sugTipo(gt);
+    if(gt && gt.finalidade) sugCell += `<small class="empty">Finalidade: ${esc(gt.finalidade)}</small><br>`;
     if(st2){
       const porque = gt.res ? `parece ${esc(st2)}` : `a unidade indica ${esc(st2)}`;
       sugCell += `<div><span class="ubad">TIPO informado: ${esc(l.tipo)} — ${porque}</span><br><button class="ghost fix-tipo" type="button" data-l="${l.linha}" style="padding:5px 10px;margin-top:6px">Corrigir tipo para ${esc(st2)}</button></div>`;
@@ -1105,10 +1134,41 @@ document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click'
   FILTER = b.dataset.f; document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', x===b)); renderTable();
 }));
 
+function perguntaDistrib(cands){
+  return new Promise(resolve => {
+    const dg = $('#dg'), sel = $('#dg-sel'), list = $('#dg-list'), acoes = $('#dg-acoes');
+    const fechar = r => { dg.hidden = true; resolve(r); };
+    const btn = (txt, cls, fn) => { const b = document.createElement('button'); b.type = 'button'; b.className = cls; b.style.cssText = 'width:auto;padding:9px 14px'; b.textContent = txt; b.onclick = fn; return b; };
+    $('#dg-txt').innerHTML = `Encontramos <b>${cands.length}</b> ite${cands.length>1?'ns':'m'} que pode${cands.length>1?'m':''} ser de <b>distribuição gratuita</b> (entregues à população, como farmácia básica) — elemento 3.3.90.32. Os demais serão tratados como <b>uso interno</b> (3.3.90.30). Algum desses itens é de distribuição gratuita?`;
+    sel.hidden = true; list.innerHTML = ''; acoes.innerHTML = '';
+    const passo1 = () => {
+      sel.hidden = true; acoes.innerHTML = '';
+      acoes.append(btn('Cancelar', 'ghost', () => fechar(null)), btn('Não, nenhum', 'ghost', () => fechar(new Set())), btn('Sim, todos', 'ghost', () => fechar(new Set(cands))), btn('Sim, alguns…', 'primary', passo2));
+    };
+    const passo2 = () => {
+      sel.hidden = false; $('#dg-busca').value = '';
+      list.innerHTML = cands.map((g,i) => `<label data-t="${esc(norm(g.tit+' '+g.des))}"><input type="checkbox" data-i="${i}"><span><b>${esc(g.tit)}</b> · ${esc(g.des)} <small class="empty">(${g.linhas.length} linha${g.linhas.length>1?'s':''})</small></span></label>`).join('');
+      acoes.innerHTML = '';
+      acoes.append(btn('Voltar', 'ghost', passo1), btn('Confirmar e classificar', 'primary', () => {
+        const marc = new Set([...list.querySelectorAll('input:checked')].map(x => cands[Number(x.dataset.i)])); fechar(marc);
+      }));
+    };
+    $('#dg-busca').oninput = e => { const q = norm(e.target.value); list.querySelectorAll('label').forEach(l => l.hidden = q && !l.dataset.t.includes(q)); };
+    $('#dg-todos').onclick = () => list.querySelectorAll('label:not([hidden]) input').forEach(x => x.checked = true);
+    $('#dg-nenhum').onclick = () => list.querySelectorAll('label:not([hidden]) input').forEach(x => x.checked = false);
+    passo1(); dg.hidden = false;
+  });
+}
 $('#run').addEventListener('click', async () => {
   if(!IMP || !sample || busy || !PRO) return;
   if(!UF){ $('#prog').hidden=false; $('#prog-txt').textContent = 'Selecione o Estado no topo da página.'; return; }
   if(IMP.uf !== UF){ $('#prog').hidden=false; $('#prog-txt').textContent = `O estado foi alterado para ${UFS[UF]}. Envie o arquivo de novo para aplicar a regra desse estado.`; return; }
+  const cands = IMP.grupos.filter(g => (!g.res || g.res.falha) && !g.tipoLocal && !g.finalidade && candDistrib(g));
+  if(cands.length){
+    const marc = await perguntaDistrib(cands);
+    if(!marc) return;
+    cands.forEach(g => g.finalidade = marc.has(g) ? 'Distribuição gratuita' : 'Uso interno');
+  }
   busy = true; abortCtl = new AbortController(); gateDownload();
   $('#run').disabled = true; $('#stop').hidden = false; $('#prog').hidden = false; $('#res-panel').hidden = false;
   const pend = IMP.grupos.filter(g => (!g.res || g.res.falha) && !g.tipoLocal);
@@ -1137,10 +1197,10 @@ $('#stop').addEventListener('click', () => abortCtl && abortCtl.abort());
 
 $('#dl-res').addEventListener('click', async () => {
   if(!IMP || !PRO || !IMP.classificado || busy) return;
-  const out = [['TITULO','DESCRIÇÃO','UNIDADE DE MEDIDA','TIPO','CLASSE (ELEMENTO)','SUB ELEMENTO (SUGESTÃO)','CONTA CONTÁBIL']];
-  for(const l of IMP.linhas){ const s = saida(l); out.push([l.tit, l.des, l.un, l.tipo || '', s.classe, s.sub, s.conta]); }
+  const out = [['TITULO','DESCRIÇÃO','UNIDADE DE MEDIDA','TIPO','FINALIDADE','CLASSE (ELEMENTO)','SUB ELEMENTO (SUGESTÃO)','CONTA CONTÁBIL']];
+  for(const l of IMP.linhas){ const s = saida(l), g = !l.erro && grpDe(l); out.push([l.tit, l.des, l.un, l.tipo || '', (g && g.finalidade) || '', s.classe, s.sub, s.conta]); }
   const ws = XLSX.utils.aoa_to_sheet(out);
-  ws['!cols'] = [40,70,24,12,40,55,34].map(w=>({wch:w}));
+  ws['!cols'] = [40,70,24,12,22,40,55,34].map(w=>({wch:w}));
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Classificação');
   const data = XLSX.write(wb, {bookType:'xlsx', type:'array'});
   await saveFile(IMP.nome.replace(/\.(xlsx|csv)$/i,'') + '_classificado.xlsx', new Blob([data]), $('#dlres-msg'));
