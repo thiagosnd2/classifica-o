@@ -1137,10 +1137,10 @@ $('#stop').addEventListener('click', () => abortCtl && abortCtl.abort());
 
 $('#dl-res').addEventListener('click', async () => {
   if(!IMP || !PRO || !IMP.classificado || busy) return;
-  const out = [['TITULO','DESCRIÇÃO','UNIDADE DE MEDIDA','CLASSE (ELEMENTO)','SUB ELEMENTO (SUGESTÃO)','CONTA CONTÁBIL']];
-  for(const l of IMP.linhas){ const s = saida(l); out.push([l.tit, l.des, l.un, s.classe, s.sub, s.conta]); }
+  const out = [['TITULO','DESCRIÇÃO','UNIDADE DE MEDIDA','TIPO','CLASSE (ELEMENTO)','SUB ELEMENTO (SUGESTÃO)','CONTA CONTÁBIL']];
+  for(const l of IMP.linhas){ const s = saida(l); out.push([l.tit, l.des, l.un, l.tipo || '', s.classe, s.sub, s.conta]); }
   const ws = XLSX.utils.aoa_to_sheet(out);
-  ws['!cols'] = [40,70,24,40,55,34].map(w=>({wch:w}));
+  ws['!cols'] = [40,70,24,12,40,55,34].map(w=>({wch:w}));
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Classificação');
   const data = XLSX.write(wb, {bookType:'xlsx', type:'array'});
   await saveFile(IMP.nome.replace(/\.(xlsx|csv)$/i,'') + '_classificado.xlsx', new Blob([data]), $('#dlres-msg'));
