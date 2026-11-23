@@ -32,7 +32,7 @@ Contas contábeis: PCASP 2027 (Portaria STN/MF nº 2.520, de 21/08/2026).
 - No topo da página, o campo **Chave Pro** ativa o plano Pro. Sem chave válida, a Consulta individual funciona normalmente, mas **importar** e **exportar** planilhas ficam desativados.
 - As chaves têm o formato `QW-ES-XXXX-XXXX-XXXX`. O banco de dados da página guarda só o hash SHA-256 de cada chave (coleção `licencas/<hash>`), com município, UF, validade e situação (`ativa`). Só o dono do artefato grava nessa coleção.
 - Com o termo de aceite, a chave fica salva no navegador e é revalidada a cada acesso.
-- **Onde a trava vale:** no Projeto 1 (claude.ai) a verificação é feita no navegador, então é uma trava leve, e o uso da IA conta no plano de quem usa. No Projeto 2 (classificabr.com) a chave é conferida no servidor a cada lote; com `PRO_OBRIGATORIO=true`, sem chave válida o servidor recusa o lote.
+- **Onde a trava vale:** no Projeto 1 (claude.ai) a importação está desligada desde 23/11/2026 (só consulta individual). No Projeto 2 (classificabr.com) a chave é conferida no servidor a cada lote; com `PRO_OBRIGATORIO=true`, sem chave válida o servidor recusa o lote.
 
 ## Publicação fora do Claude (GitHub Pages + Cloudflare Workers)
 
@@ -78,7 +78,7 @@ Princípio de projeto: **a IA só sugere; o código valida antes e confere depoi
 ## Limitações atuais
 
 - A mesma página roda nos dois projetos: no claude.ai usa os recursos do Claude (`sample`, `db`, `downloads`); em https://classificabr.com usa o servidor próprio (`servidor/worker.js`). Sem nenhum dos dois, faz só a busca local por palavra-chave.
-- No Projeto 1 (claude.ai), a IA só funciona para quem está logado no Claude, a trava Pro é só no navegador, a biblioteca de planilhas é a 0.18.5 e a correção ortográfica fica desligada (o dicionário não é publicado no artefato).
+- No Projeto 1 (claude.ai), a IA só funciona para quem está logado no Claude e a correção ortográfica fica desligada (o dicionário não é publicado no artefato). Desde 23/11/2026 a importação de planilhas também fica desligada ali: a aba Importar mostra um aviso com o link para https://classificabr.com, onde o limite diário é contado no servidor.
 - Fora do Espírito Santo, a classificação vai até o elemento (base federal) e a unidade de medida não é conferida.
 
 ## Custos, escala e métricas
