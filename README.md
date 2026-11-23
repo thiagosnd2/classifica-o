@@ -7,7 +7,7 @@ Sistema que classifica materiais e serviços de compras públicas municipais na 
 | Estado | Natureza da despesa | Unidades de medida |
 |---|---|---|
 | Espírito Santo | Tabela de Natureza da Despesa TCE-ES 2027 (2ª consulta pública, PCM/2027), até o subelemento | Tabela Auxiliar 22 – IN 68/2020, Anexo VI (alterada pela Portaria 92/2025). Unidade fora da tabela retorna **ERRO** |
-| Demais estados | Base federal de referência (Portaria STN 448/2002 e MCASP 11ª ed.), até o elemento; subelemento indicado só pelo nome | Não validadas |
+| Demais estados | Base federal de referência (Portaria STN 448/2002 e MCASP 11ª ed.), até o elemento; subelemento indicado só pelo nome | Livres; a Tabela Auxiliar 22 aparece só como referência opcional |
 
 Contas contábeis: PCASP 2027 (Portaria STN/MF nº 2.520, de 21/08/2026).
 - Material de consumo: contas de almoxarifado (1.1.5.6.1.xx e 1.1.5.8.1.00).
@@ -86,7 +86,7 @@ Princípio de projeto: **a IA só sugere; o código valida antes e confere depoi
 
 - A mesma página roda nos dois projetos: no claude.ai usa os recursos do Claude (`sample`, `db`, `downloads`); em https://classificabr.com usa o servidor próprio (`servidor/worker.js`). Sem nenhum dos dois, faz só a busca local por palavra-chave.
 - No Projeto 1 (claude.ai), a IA só funciona para quem está logado no Claude e a correção ortográfica fica desligada (o dicionário não é publicado no artefato). Desde 23/11/2026 a importação de planilhas também fica desligada ali: a aba Importar mostra um aviso com o link para https://classificabr.com, onde o limite diário é contado no servidor.
-- Fora do Espírito Santo, a classificação vai até o elemento (base federal) e a unidade de medida não é conferida.
+- Fora do Espírito Santo, a classificação vai até o elemento (base federal) e a unidade de medida é livre: a Tabela Auxiliar 22 (do TCE-ES) aparece só como referência, na consulta e no importador.
 
 ## Custos, escala e métricas
 

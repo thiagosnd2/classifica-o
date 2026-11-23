@@ -300,7 +300,7 @@ footer .marca{flex-basis:100%;text-align:center;font-size:11px;letter-spacing:.1
     <section class="panel">
       <div class="step-n">Passo 1</div>
       <h3>Baixe o modelo</h3>
-      <p id="step1-txt">Colunas: TITULO, DESCRIÇÃO (até 400 caracteres), UNIDADE DE MEDIDA. Unidade fora da tabela retorna ERRO.</p>
+      <p id="step1-txt">Colunas: TITULO, DESCRIÇÃO (até 400 caracteres), UNIDADE DE MEDIDA e TIPO (Material ou Serviço).</p>
       <button class="ghost" type="button" id="dl-model" style="padding:9px 14px">Baixar modelo (.xlsx)</button>
       <div id="dl-msg" class="empty" style="font-size:13px;margin-top:8px"></div>
     </section>
@@ -610,6 +610,9 @@ function setUF(v){
     ? 'Colunas: TITULO, DESCRIÇÃO (até 400 caracteres), UNIDADE DE MEDIDA conforme a Tabela Auxiliar 22 (IN 68/2020, Anexo VI) e TIPO (Material ou Serviço). Unidade fora da tabela retorna ERRO.'
     : 'Colunas: TITULO, DESCRIÇÃO (até 400 caracteres), UNIDADE DE MEDIDA e TIPO (Material ou Serviço).';
   if(v) $('#uf').classList.remove('uf-alerta');
+  /* Dica do campo Unidade: obrigatória da TA22 no ES; nos demais estados, lista só como referência */
+  $('#un-hint').textContent = !v || v === 'ES' ? '(escolha na lista)' : '(digite ou escolha na lista de referência)';
+  if($('#un-sug')) $('#un-sug').hidden = true;
   if(typeof gate === 'function') gate();
   if(!v){
     $('#upd').innerHTML = `<h2 id="upd-h">Última atualização</h2><p style="margin:0;color:var(--yellow);font-weight:500">Selecione o Estado no topo da página para carregar o regulamento aplicável.</p>`;
@@ -930,7 +933,7 @@ async function classify(st){
   }finally{ busy=false; $('#go').textContent='Classificar'; gate(); }
 }
 /* Regras do botão Classificar: mínimo de 3 letras ou números; nova classificação só após apagar ao menos 3 caracteres */
-/** Regras do botão Classificar (economia de tokens): exige Estado, 3+ letras ou números e unidade válida;
+/** Regras do botão Classificar (economia de tokens): exige Estado, 3+ letras ou números e unidade (da TA22 no ES; qualquer texto nos demais estados);
     após classificar, só libera de novo quando o texto muda (3+ letras apagadas). */
 let LAST_ITEM = null;
 let REFINE_USED = false;  /* "Nenhuma dessas" já usado: só libera de novo com o item apagado por completo */
@@ -956,7 +959,10 @@ function podeClassificar(){
   if(!UF) return {ok:false, msg:'Selecione o Estado.'};
   const v = $('#item').value.trim();
   if(alfanum(v) < 3) return {ok:false, msg:'Digite ao menos 3 letras ou números em "Nome ou descrição do item".'};
-  if(!KB || resolveUnit($('#un').value).status !== 'ok') return {ok:false, msg:'Escolha a unidade de medida na lista.'};
+  /* No ES a unidade tem de ser da Tabela Auxiliar 22 (TCE-ES, IN 68/2020); nos demais estados a TA22 é só
+     referência: qualquer unidade digitada libera a consulta (igual ao importador). */
+  if(!KB) return {ok:false, msg:'Carregando a base…'};
+  if(isES() ? resolveUnit($('#un').value).status !== 'ok' : !$('#un').value.trim()) return {ok:false, msg: isES() ? 'Escolha a unidade de medida na lista.' : 'Informe a unidade de medida.'};
   if(LAST_ITEM !== null && apagadas(LAST_ITEM.item, v) + apagadas(LAST_ITEM.ctx, $('#ctx').value.trim()) < 3) return {ok:false, msg:'Para uma nova classificação, apague ao menos 3 letras do item ou da finalidade, ou clique em Limpar.'};
   return {ok:true, msg:''};
 }
@@ -978,7 +984,11 @@ function ajudaUnidade(){
   const u = resolveUnit(raw);
   if(u.status === 'ok'){ box.hidden = true; return; }
   const sug = (u.sug||[]).filter(Boolean);
-  box.innerHTML = sug.length
+  /* Fora do ES a TA22 é só referência: o aviso é uma sugestão opcional e a consulta segue com o texto digitado */
+  if(!isES() && !sug.length){ box.hidden = true; return; }
+  box.innerHTML = !isES()
+    ? `<span>Opcional: "${esc(raw)}" corresponde a</span> ${sug.map(x=>`<button type="button" class="chip un-op" data-v="${esc(x.c+' - '+x.n)}">${esc(x.c)} – ${esc(x.n)}</button>`).join(' ')} <span>na Tabela Auxiliar 22 (referência). Pode manter como digitou.</span>`
+    : sug.length
     ? `<span>"${esc(raw)}" não consta da Tabela Auxiliar 22. Você quis dizer:</span> ${sug.map(x=>`<button type="button" class="chip un-op" data-v="${esc(x.c+' - '+x.n)}">${esc(x.c)} – ${esc(x.n)}</button>`).join(' ')}`
     : `<span>"${esc(raw)}" não consta da Tabela Auxiliar 22. Digite parte do nome (ex.: Mês, Unidade, Caixa) e escolha na lista.</span>`;
   box.querySelectorAll('.un-op').forEach(b => b.onclick = () => { $('#un').value = b.dataset.v; box.hidden = true; gate(); });
