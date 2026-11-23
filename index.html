@@ -786,7 +786,7 @@ function renderResult(r, q, st){
   const txtSug = r.texto_sugerido && String(r.texto_sugerido).trim() && String(r.texto_sugerido).trim() !== String(q).trim() ? String(r.texto_sugerido).trim() : '';
   const falta = Array.isArray(r.falta) ? r.falta.filter(Boolean).slice(0,4) : [];
   if(txtSug || falta.length){
-    h += `<div class="ask"><p><b>Melhorar o texto</b></p>${txtSug?`<p style="margin:4px 0">Sugestão: <b>${esc(txtSug)}</b></p><button class="ghost" type="button" id="usar-txt" style="width:auto">Usar este texto</button>`:''}${falta.length?`<p class="empty" style="margin:6px 0 0">Descrição vaga. Para uma compra pública, informe também: ${esc(falta.join(', '))}.</p>`:''}</div>`;
+    h += `<div class="ask"><p><b>Melhorar o texto</b></p>${txtSug?`<p style="margin:4px 0">Sugestão: <b>${esc(txtSug)}</b></p>`:''}${falta.length?`<p class="empty" style="margin:6px 0 0">Descrição vaga. Para uma compra pública, informe também: ${esc(falta.join(', '))}.</p>`:''}</div>`;
   }
   const quiz = r.quiz && r.quiz.pergunta && Array.isArray(r.quiz.opcoes) && !conf.startsWith('alta') ? r.quiz : null;
   if(quiz){
@@ -801,7 +801,7 @@ function renderResult(r, q, st){
   if(it && (it.d||it.x)) h += `<details><summary style="cursor:pointer;font-weight:600">Ementa do subelemento</summary><p class="just">${esc(it.d)}</p>${it.x?`<p class="just"><b>Exemplos:</b> ${esc(it.x)}</p>`:''}</details>`;
   h += renderLocal([q,st.ctx].join(' '));
   $('#res').innerHTML = h;
-  $('#usar-txt')?.addEventListener('click', e => { $('#item').value = txtSug.slice(0, 400); e.target.textContent = 'Texto aplicado no campo'; e.target.disabled = true; });
+  /* Consulta individual: a sugestão de texto é só informativa (sem botão de aplicar); no importador continua Aceitar texto. */
   $('#copy')?.addEventListener('click', async e=>{ try{ await navigator.clipboard.writeText(r.codigo); e.target.textContent='Copiado'; }catch{ e.target.textContent='Selecione e copie'; } });
   $('#refine')?.addEventListener('click', ()=>{ const a=$('#ans').value.trim(); const q=(quiz&&quiz.pergunta)||r.pergunta||''; if(a && !REFINE_USED) classify({...st, refino:true, extra:[st.extra,q+' → '+a].filter(Boolean).join(' | ')}); });
   document.querySelectorAll('.quiz-op').forEach(b=>b.addEventListener('click', ()=>{
