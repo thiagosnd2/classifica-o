@@ -210,9 +210,11 @@ async function gravarCache(env, chave, resultado) {
 }
 
 /* Chama a API da Anthropic com a chave secreta, detecta resposta cortada e extrai o JSON.
-   temperature: 0 deixa a IA mais estável: o mesmo pedido tende a voltar com o mesmo código. */
+   temperature 0 deixa a IA mais estável (o mesmo pedido tende a voltar com o mesmo código). Se o modelo
+   recusar o parâmetro (erro 400 que cita "temperature"), repete uma vez sem ele, para nunca quebrar a consulta.
+   Em erro, o motivo leva o status e o tipo/mensagem curta da Anthropic (sem dados do pedido). */
 async function chamarIA(env, prompt, maxTokens) {
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
+  const pedir = (comTemperatura) => fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'x-api-key': env.ANTHROPIC_API_KEY,
@@ -222,12 +224,18 @@ async function chamarIA(env, prompt, maxTokens) {
     body: JSON.stringify({
       model: env.MODEL || 'claude-haiku-5-5',
       max_tokens: maxTokens,
-      temperature: 0,
+      ...(comTemperatura ? { temperature: 0 } : {}),
       system: SISTEMA,
       messages: [{ role: 'user', content: prompt }],
     }),
   });
-  if (!r.ok) throw { status: r.status, motivo: r.status === 529 ? 'IA sobrecarregada, tente de novo' : `a IA respondeu ${r.status}` };
+  let r = await pedir(true);
+  let erro = '';
+  if (!r.ok) {
+    try { const e = await r.json(); erro = String((e.error && (e.error.message || e.error.type)) || '').slice(0, 160); } catch {}
+    if (r.status === 400 && /temperature/i.test(erro)) { r = await pedir(false); erro = ''; if (!r.ok) { try { const e = await r.json(); erro = String((e.error && (e.error.message || e.error.type)) || '').slice(0, 160); } catch {} } }
+  }
+  if (!r.ok) throw { status: r.status, motivo: r.status === 529 ? 'IA sobrecarregada, tente de novo' : `a IA respondeu ${r.status}${erro ? ': ' + erro : ''}` };
   const j = await r.json();
   const texto = (j.content || []).filter(c => c.type === 'text').map(c => c.text).join('');
   if (j.stop_reason === 'max_tokens') throw { status: 502, motivo: 'resposta da IA cortada por tamanho' };
