@@ -1336,7 +1336,9 @@ function renderTable(){
     if(gt && gt.finalidade) sugCell += `<small class="empty">Finalidade: ${esc(gt.finalidade)}</small><br>`;
     if(st2){
       const porque = gt.res ? `parece ${esc(st2)}` : `a unidade indica ${esc(st2)}`;
-      sugCell += `<div><span class="ubad">TIPO informado: ${esc(l.tipo)} — ${porque}</span><br><button class="ghost fix-tipo" type="button" data-l="${l.linha}" style="padding:5px 10px;margin-top:6px">Corrigir tipo para ${esc(st2)}</button></div>`;
+      /* O botão Corrigir tipo só aparece com a classificação parada: corrigir no meio do processamento
+         mexeria nos grupos que os lotes ainda estão enviando à IA. */
+      sugCell += `<div><span class="ubad">TIPO informado: ${esc(l.tipo)} — ${porque}</span>${busy ? '' : `<br><button class="ghost fix-tipo" type="button" data-l="${l.linha}" style="padding:5px 10px;margin-top:6px">Corrigir tipo para ${esc(st2)}</button>`}</div>`;
     }
     if(l.erro) sugCell += `<div style="margin-top:6px"><button class="ghost rm-one" type="button" data-l="${l.linha}" aria-label="Remover a linha ${l.linha}" style="padding:5px 10px">Remover linha</button></div>`;
     const unBad = IMP.uf==='ES' && l.un && !l.u;
@@ -1349,7 +1351,7 @@ function renderTable(){
   const nTxt = IMP.grupos.filter(g=>g.res && g.res.txt && !g.res.txt.ok && (g.res.txt.tit || g.res.txt.des)).length;
   $('#txt-all').hidden = !nTxt; $('#txt-all').textContent = `Aceitar todos os textos sugeridos (${nTxt})`;
   const nTp = IMP.grupos.filter(g=>sugTipo(g)).length;
-  $('#tipo-all').hidden = !nTp; $('#tipo-all').textContent = `Corrigir todos os TIPOS sugeridos (${nTp})`;
+  $('#tipo-all').hidden = !nTp || busy; /* idem: só depois que a classificação termina */ $('#tipo-all').textContent = `Corrigir todos os TIPOS sugeridos (${nTp})`;
   atualizaFiltros();
 }
 /** Depois de uma correção, avisa os itens pendentes e desabilita o download até reclassificar. */
