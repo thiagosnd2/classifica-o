@@ -1534,7 +1534,8 @@ function gateDownload(){
 function aplicarPlano(){
   const on = proAtivo();
   if(PRO_SUSPENSO && !PRO){
-    $('#pro-status').textContent = window.claude ? 'Importação gratuita' : 'Importação gratuita · até 5 por dia';
+    /* Selo do topo com o Pro suspenso: no claude.ai não há limite (a IA usa o plano Claude de cada um) */
+    $('#pro-status').textContent = window.claude ? 'Importação gratuita' : 'Limite diário de importação';
     $('#pro-status').classList.add('pro-on');
     $('#chave').hidden = true; $('#pro-btn').hidden = true;
     document.querySelector('#t-importar .pro').hidden = true;
