@@ -199,7 +199,9 @@ td.j{color:var(--muted);min-width:260px}
 .pill.pro-on{background:var(--accent);color:var(--surface);border-color:var(--accent)}
 .drop.locked{opacity:.45;pointer-events:none}
 #pro-msg{font-size:12px}
-footer{padding:0 24px 24px;color:var(--muted);font-size:12px;max-width:110ch}
+footer{padding:0 24px 24px;color:var(--muted);font-size:12px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px 24px}
+footer .foot-esq{max-width:110ch}
+#contato{color:var(--accent);font-weight:600;text-decoration:none;white-space:nowrap}#contato:hover{text-decoration:underline}
 </style>
 </head>
 <body>
@@ -369,7 +371,7 @@ footer{padding:0 24px 24px;color:var(--muted);font-size:12px;max-width:110ch}
   </div>
 </div>
 <!-- Rodapé: aviso de responsabilidade e botão Preferências de dados. -->
-<footer id="foot"><button class="ghost" type="button" id="prefs" style="padding:2px 8px;font-size:12px;margin-right:8px">Preferências de dados</button>Ferramenta de apoio. A classificação final é responsabilidade do setor de contabilidade/orçamento do ente.</footer>
+<footer id="foot"><span class="foot-esq"><button class="ghost" type="button" id="prefs" style="padding:2px 8px;font-size:12px;margin-right:8px">Preferências de dados</button>Ferramenta de apoio. A classificação final é responsabilidade do setor de contabilidade/orçamento do ente.</span><a id="contato" href="mailto:mversobr@gmail.com?subject=Classificador%20%E2%80%93%20contato">✉ Reportar problema ou falar conosco</a></footer>
 
 <!-- SheetJS 0.20.3 servido pelo próprio site, com verificação de integridade.
      Onde o arquivo não existe (claude.ai), cai para a versão do cdnjs. -->
@@ -1497,6 +1499,18 @@ $('#dl-res').addEventListener('click', async () => {
 /* Termo de aceite (LGPD): aceitar grava as preferências no navegador; recusar não grava nada. */
 $('#termo-ok').addEventListener('click', ()=>{ try{ localStorage.setItem('cnd_consent','sim'); }catch{} persist(); $('#termo').hidden = true; });
 $('#termo-no').addEventListener('click', ()=>{ try{ localStorage.setItem('cnd_consent','nao'); }catch{} apagarDadosSalvos(); $('#termo').hidden = true; });
+/* Contato (rodapé): abre o e-mail já com assunto e um roteiro; inclui estado, versão (site ou Claude)
+   e aba aberta para ajudar a reproduzir o problema. Nada é enviado sem a pessoa mandar o e-mail. */
+const EMAIL_CONTATO = 'mversobr@gmail.com';
+if(window.claude){ $('#contato').target = '_blank'; $('#contato').rel = 'noopener'; } /* no Claude a página roda num quadro: abre fora dele */
+$('#contato').addEventListener('click', ()=>{
+  const corpo = ['O que aconteceu (ou sua mensagem):', '', '', 'Item ou planilha usada:', '', '',
+    '— Informações para o suporte —',
+    `Estado: ${UF ? UFS[UF] : 'não selecionado'}`,
+    `Versão: ${window.claude ? 'link do Claude' : location.host || 'site'}`,
+    `Aba: ${location.hash === '#importar' ? 'Importar planilha' : 'Consulta individual'}`].join('\n');
+  $('#contato').href = `mailto:${EMAIL_CONTATO}?subject=${encodeURIComponent('Classificador – contato')}&body=${encodeURIComponent(corpo)}`;
+});
 $('#prefs').addEventListener('click', ()=>{ $('#termo').hidden = false; $('#termo-ok').focus(); });
 
 /* ===================== 7. PLANO PRO (chave de licença) ===================== */

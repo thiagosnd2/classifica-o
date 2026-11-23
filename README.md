@@ -61,6 +61,9 @@ Princípio de projeto: **a IA só sugere; o código valida antes e confere depoi
 
 ## Funcionalidades
 
+**Rodapé**
+- À direita, "Reportar problema ou falar conosco" abre o e-mail (mversobr@gmail.com) com assunto, roteiro e o estado, a versão e a aba usados.
+
 **Consulta individual**
 - Botão Classificar habilitado só com Estado selecionado, ao menos 3 letras ou números no item (ex.: "WD40") e unidade de medida escolhida na lista. Para nova classificação é preciso apagar ao menos 3 letras ou usar Limpar.
 - Resultado com código, justificativa, critérios de consumo × permanente (Portaria 448, art. 3º), regras aplicadas e alternativas.
