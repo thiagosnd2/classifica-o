@@ -71,13 +71,14 @@ Princípio de projeto: **a IA só sugere; o código valida antes e confere depoi
 - Quiz quando a confiança é média ou baixa: as opções já vêm ligadas a um código e o clique resolve sem nova chamada à IA.
 - Correção ortográfica local, sem IA: palavra do título que não existe na base nem no dicionário e está a 1 letra (2 se tiver 10+) de uma conhecida → "Você quis dizer…?" com Usar sugestão / Manter como escrevi. Palavras com acento, siglas curtas, flexões e termos técnicos ficam de fora; palavra desconhecida sem parecida (ex.: "HD") segue direto para a IA.
 - Em falha, mostra o motivo enviado pelo servidor (ex.: resposta da IA cortada por tamanho).
+- **Em teste (23/11/2026):** para material permanente, o quadro "Registro patrimonial" mostra a conta do bem e a conta de depreciação acumulada (ex.: 1.2.3.1.1.03.02 → 1.2.3.8.1.01.03). A ligação fica em `kb.json` → `depreciacao` (por grupo 1.2.3.1.1.GG; contas de bens seguem o PCASP 2027). Para tirar: `git revert` do commit ou voltar à tag `antes-depreciacao`.
 
 **Importar planilha (Pro; suspenso desde 22/11/2026: gratuito, até 5 importações por dia por IP)**
 - Upload de .xlsx ou .csv no padrão do modelo.
 - Unidade fora da TA 22 → ERRO, com coluna Sugestão e botões para corrigir (individual ou em lote).
 - Títulos com provável erro de digitação listados antes de classificar, com Corrigir, Corrigir todos e Ignorar (o original fica guardado).
 - Itens repetidos classificados uma vez só; lotes de 30 itens separados por tipo; catálogo restrito aos elementos prováveis para economizar tokens.
-- Exportação: TITULO, DESCRIÇÃO, UNIDADE DE MEDIDA, CLASSE (ELEMENTO), SUB ELEMENTO (SUGESTÃO), CONTA CONTÁBIL.
+- Exportação: TITULO, DESCRIÇÃO, UNIDADE DE MEDIDA, TIPO, FINALIDADE, CLASSE (ELEMENTO), SUB ELEMENTO (SUGESTÃO), CONTA CONTÁBIL e, em teste, CONTA DE DEPRECIAÇÃO (TESTE).
 
 ## Limitações atuais
 

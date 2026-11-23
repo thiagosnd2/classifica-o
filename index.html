@@ -844,6 +844,10 @@ function renderResult(r, q, st){
     r._ops = ops;
   } else if(r.pergunta && !REFINE_USED) h += `<div class="ask"><p>${esc(r.pergunta)}</p><div class="row"><input id="ans" aria-label="Resposta" placeholder="Responda para refinar"><button class="ghost" type="button" id="refine">Refinar</button></div></div>`;
   h += `<div><h2>Justificativa</h2><p class="just">${esc(r.justificativa)}</p></div>`;
+  /* Registro patrimonial (em teste): material permanente tem conta do bem e conta de depreciação acumulada.
+     Reforça a decisão consumo × permanente; não aparece para consumo nem serviço. */
+  const contaBem = contaDe(it, r, 'Material'), contaDep = depreciacaoDe(contaBem);
+  if(contaDep) h += `<div class="ask"><p><b>Registro patrimonial</b> <span class="pill">em teste</span></p><p style="margin:4px 0">Material permanente: registrado em <b>${esc(contaBem)}</b> e depreciado em <b>${esc(contaDep)}</b>.</p></div>`;
   if(hasCr) h += `<div><h2>Critérios de consumo (Portaria 448, art. 3º)</h2><div class="tests">${keys.map(k=>`<div class="test"><b>${k[0].toUpperCase()+k.slice(1)}</b><span class="${cr[k]?'y':'n'}">${cr[k]===true?'atende':cr[k]===false?'não atende':'—'}</span></div>`).join('')}</div></div>`;
   if((r.regras||[]).length) h += `<div><h2>Regras aplicadas</h2><ul class="rules">${r.regras.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`;
   if(alts.length) h += `<div><h2>Alternativas</h2><div style="display:grid;gap:8px">${alts.map(a=>{const ai=es?byCode(a.codigo):null;const nm=es?(ai?ai.t:'(código não encontrado)'):elName(a.codigo);return `<div class="alt"><span class="cd">${esc(a.codigo)}</span><span>${esc(nm)}</span><small class="empty">${esc(a.quando)}</small></div>`}).join('')}</div></div>`;
@@ -1236,6 +1240,13 @@ async function runBatch(gs, signal, full){
 /* Saída: Título, Descrição, Classe (Elemento), Sub Elemento (Sugestão), Conta Contábil */
 /** Nome completo de uma conta contábil (almoxarifado ou bens móveis). */
 const CONTA_NOME = c => { const x = (KB.almox.find(a=>a.c===c) || KB.bensmoveis.find(a=>a.c===c)); return x ? `${x.c} – ${x.n}` : ''; };
+/** Conta de depreciação acumulada de uma conta de bens móveis (em teste desde 23/11/2026): ligação por grupo
+    1.2.3.1.1.GG → KB.depreciacao.grupos (planilha fornecida por Sanada, ligada ao PCASP 2027).
+    Aceita o texto "código – nome"; devolve "código – nome" da depreciação ou '' (consumo, serviço, grupo sem conta). */
+function depreciacaoDe(conta){
+  const c = (String(conta||'').match(/1\.2\.3\.1\.1\.\d{2}\.\d{2}/)||[])[0]; if(!c || !KB.depreciacao) return '';
+  const d = KB.depreciacao.grupos[c.slice(0,12)]; return d ? `${d.c} – ${d.n}` : '';
+}
 /** Conta contábil final do item: a indicada pela IA, validada nas listas do PCASP. */
 function contaDe(it, r, tipo){
   if(tipo === 'Serviço') return 'Não se aplica (serviço)';
@@ -1256,9 +1267,11 @@ function saida(l){
   if(r.tipoPend) return {classe:'Corrigir o TIPO', sub:`TIPO informado: ${g.tipo}; parece ${r.tipoSug}`, conta:''};
   if(es){
     const it = byCode(r.codigo); const el = elOf(r.codigo);
-    return {classe:`${el} – ${elName(el)}`, sub: it ? `${it.c} – ${it.t}` : `${r.codigo} – código não encontrado na tabela`, conta: contaDe(it, r, g.tipo)};
+    const conta = contaDe(it, r, g.tipo);
+    return {classe:`${el} – ${elName(el)}`, sub: it ? `${it.c} – ${it.t}` : `${r.codigo} – código não encontrado na tabela`, conta, dep: depreciacaoDe(conta)};
   }
-  return {classe:`${r.codigo} – ${elName(r.codigo)}`, sub: r.sub || '', conta: contaDe(null, r, g.tipo)};
+  const conta = contaDe(null, r, g.tipo);
+  return {classe:`${r.codigo} – ${elName(r.codigo)}`, sub: r.sub || '', conta, dep: depreciacaoDe(conta)};
 }
 
 /** Resumo antes de classificar: linhas, itens distintos, ERROs e TIPOs a corrigir. */
@@ -1369,7 +1382,7 @@ function renderTable(){
     if(l.erro) sugCell += `<div style="margin-top:6px"><button class="ghost rm-one" type="button" data-l="${l.linha}" aria-label="Remover a linha ${l.linha}" style="padding:5px 10px">Remover linha</button></div>`;
     const unBad = IMP.uf==='ES' && l.un && !l.u;
     const unCell = `${unBad?`<span class="ubad">${esc(l.un)}</span>`:esc(l.un)}${l.unOrig!==l.un?`<br><small class="empty">corrigida (era "${esc(l.unOrig)}")</small>`:''}`;
-    rows.push(`<tr><td>${l.linha}</td><td><b>${esc(l.tit)}</b></td><td class="j">${esc(l.des)}</td><td>${unCell}</td><td>${sugCell}</td><td class="${l.erro?'ubad':''}">${!l.erro && g0(l) ? badgeTipo(g0(l).res.codigo, false) + '<br>' : ''}${esc(s.classe)}</td><td class="${l.erro?'ubad':''}">${esc(s.sub)}</td><td class="${l.erro?'ubad':''}">${esc(s.conta)}</td></tr>`);
+    rows.push(`<tr><td>${l.linha}</td><td><b>${esc(l.tit)}</b></td><td class="j">${esc(l.des)}</td><td>${unCell}</td><td>${sugCell}</td><td class="${l.erro?'ubad':''}">${!l.erro && g0(l) ? badgeTipo(g0(l).res.codigo, false) + '<br>' : ''}${esc(s.classe)}</td><td class="${l.erro?'ubad':''}">${esc(s.sub)}</td><td class="${l.erro?'ubad':''}">${esc(s.conta)}${s.dep?`<br><small class="empty">Depreciação: ${esc(s.dep)}</small>`:''}</td></tr>`);
   }
   $('#tb').innerHTML = rows.join('') || '<tr><td colspan="8" class="empty">Nenhuma linha neste filtro.</td></tr>';
   const nFix = IMP.linhas.filter(l=>{ const u = unitSug(l); return u && u.sug.length===1; }).length;
@@ -1509,10 +1522,10 @@ $('#stop').addEventListener('click', () => abortCtl && abortCtl.abort());
 /** Exporta o resultado em .xlsx com unidade, TIPO, finalidade e textos já corrigidos. */
 $('#dl-res').addEventListener('click', async () => {
   if(!IMP || !proAtivo() || !IMP.classificado || busy) return;
-  const out = [['TITULO','DESCRIÇÃO','UNIDADE DE MEDIDA','TIPO','FINALIDADE','CLASSE (ELEMENTO)','SUB ELEMENTO (SUGESTÃO)','CONTA CONTÁBIL']];
-  for(const l of IMP.linhas){ const s = saida(l), g = !l.erro && grpDe(l); out.push([l.tit, l.des, l.un, l.tipo || '', (g && g.finalidade) || '', s.classe, s.sub, s.conta]); }
+  const out = [['TITULO','DESCRIÇÃO','UNIDADE DE MEDIDA','TIPO','FINALIDADE','CLASSE (ELEMENTO)','SUB ELEMENTO (SUGESTÃO)','CONTA CONTÁBIL','CONTA DE DEPRECIAÇÃO (TESTE)']];
+  for(const l of IMP.linhas){ const s = saida(l), g = !l.erro && grpDe(l); out.push([l.tit, l.des, l.un, l.tipo || '', (g && g.finalidade) || '', s.classe, s.sub, s.conta, s.dep || '']); }
   const ws = XLSX.utils.aoa_to_sheet(out);
-  ws['!cols'] = [40,70,24,12,22,40,55,34].map(w=>({wch:w}));
+  ws['!cols'] = [40,70,24,12,22,40,55,34,40].map(w=>({wch:w}));
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Classificação');
   const data = XLSX.write(wb, {bookType:'xlsx', type:'array'});
   await saveFile(IMP.nome.replace(/\.(xlsx|csv)$/i,'') + '_classificado.xlsx', new Blob([data]), $('#dlres-msg'));
