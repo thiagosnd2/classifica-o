@@ -1324,7 +1324,7 @@ function renderTable(){
     } else if(l.falta.length){
       sugCell = `<span class="ubad">Preencha ${esc(l.falta.join(', '))} no arquivo</span>`;
     }
-    if(l.tipoOrig && l.tipoOrig !== l.tipo) sugCell += `<small class="empty">TIPO corrigido para ${esc(l.tipo)} (era ${esc(l.tipoOrig)})</small>`;
+    if(l.tipoOrig && l.tipoOrig !== l.tipo) sugCell += `<small class="empty">TIPO corrigido para ${esc(l.tipo)} (era ${esc(l.tipoOrig)})</small><br>`; /* <br>: cada aviso da coluna Sugestão em sua própria linha */
     const gr = !l.erro && g0(l);
     const tx = gr && gr.res && gr.res.txt;
     if(tx && !tx.ok && (tx.tit || tx.des)){
