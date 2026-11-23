@@ -496,7 +496,11 @@ const clip = (v, n) => String(v ?? '').replace(/\s+/g,' ').trim().slice(0, n);
 let VOC=null, DIC=null, DIC_PROMESSA=null;
 /* Termos técnicos comuns em compras públicas que faltam no dicionário (sais de fármacos etc.) */
 const ORTO_EXTRA = new Set('sodico sodica potassico potassica calcico calcica magnesico cloridrato maleato besilato succinato mesilato fumarato citrato tartarato acetato fosfato sulfato monoidratado diidratado triidratado heptaidratado esfigmomanometro hipodermico hipodermica descartavel micropore esparadrapo multiuso antiderrapante'.split(' '));
+/** Monta o dicionário a partir do texto de vendor/palavras.txt: mapa palavra sem acento → posição
+    (frequência), índice por letra das 25 mil mais comuns (candidatas a sugestão) e a grafia com acento. */
 function setDic(t){ const l=t.split('\n'); DIC=new Map(); const pl={}, orig=new Map(); l.forEach((o,i)=>{ const w=norm(o); DIC.set(w,i); if(i<25000){ (pl[w[0]]=pl[w[0]]||[]).push(w); orig.set(w,o); } }); DIC.porLetra=pl; DIC.orig=orig; }
+/** Monta o vocabulário da base (títulos, descrições e exemplos do catálogo TCE-ES e da base federal,
+    unidades da TA22 e conceitos dos elementos), com frequência e índice por primeira letra. */
 function montarVocab(KB){
   const freq=new Map(), orig=new Map();
   const add = s => { for(const w of String(s||'').match(/[A-Za-zÀ-ÿ]{4,}/g)||[]){ const n=norm(w); freq.set(n,(freq.get(n)||0)+1); if(!orig.has(n)) orig.set(n,w.toLowerCase()); } };
@@ -508,6 +512,8 @@ function montarVocab(KB){
   for(const n of freq.keys()){ (porLetra[n[0]]=porLetra[n[0]]||[]).push(n); stems.add(stem(n)); }
   VOC={freq,orig,porLetra,stems,cache:new Map()};
 }
+/** Distância de edição (Damerau-Levenshtein: troca, inclusão, exclusão e inversão de letras vizinhas).
+    Para cedo e devolve max+1 quando passa do limite, para ser rápido em listas grandes. */
 function dist(a,b,max){
   if(Math.abs(a.length-b.length)>max) return max+1;
   const m=a.length,n=b.length; let p2=null,p=Array.from({length:n+1},(_,j)=>j);
@@ -518,6 +524,8 @@ function dist(a,b,max){
     if(best>max) return max+1; p2=p; p=c; }
   return p[n];
 }
+/** Devolve a grafia sugerida para uma palavra, ou null quando não há o que sugerir (palavra conhecida,
+    com acento, sigla, flexão ou sem parecida). Guarda o resultado em cache. */
 function corrigirPalavra(w){
   /* Só palavras sem acento: quem digitou acento escreveu com cuidado (e nomes de fármacos com acento ficam de fora) */
   if(!VOC || w.length<5 || /[^A-Za-z]/.test(w) || /^[A-Z]+$/.test(w) && w.length<=5) return null;
@@ -538,6 +546,8 @@ function corrigirPalavra(w){
   const r = best && bd<=max ? (fonte==='kb' ? VOC.orig.get(best) : DIC.orig.get(best)) : null;
   VOC.cache.set(n,r); return r;
 }
+/** Aplica corrigirPalavra a cada palavra do texto, mantendo maiúsculas/minúsculas.
+    Devolve {texto corrigido, trocas:[{de, para}]} ou null se nada mudou. */
 function sugerirGrafia(texto){
   const trocas=[];
   const novo=String(texto||'').replace(/[A-Za-zÀ-ÿ]+/g, w=>{ const c=corrigirPalavra(w); if(!c) return w;
@@ -866,6 +876,8 @@ async function classify(st){
     saveHist(st.item, r.codigo);
     LAST_ITEM = {item: st.item, ctx: st.ctx||''};
   }catch(e){
+    /* Mensagem de falha: excesso de consultas, acesso recusado, sem conexão, motivo enviado pelo servidor
+       (ex.: resposta da IA cortada) ou, sem detalhe, a mensagem genérica. */
     const msg = e&&e.code==='rate_limited' ? 'Muitas consultas seguidas. Aguarde um minuto e tente de novo.' : e&&e.code==='not_granted' ? (window.claude ? 'O acesso ao Claude não foi autorizado nesta página.' : (e.message || 'O servidor recusou a consulta.')) : e&&e.code==='network' ? 'Não foi possível falar com o servidor. Confira a conexão e tente de novo.'
       : e&&e.code==='server'&&e.message ? `O servidor não conseguiu concluir a classificação: ${e.message}. Tente de novo; se repetir, detalhe melhor o item.`
       : 'Não foi possível concluir a classificação. Tente de novo ou detalhe melhor o item.';
@@ -1240,6 +1252,8 @@ function aplicarOrto(g){
   for(const l of g.linhas){ l.titOrig = l.titOrig || l.tit; l.tit = g.orto.texto; }
   g.tit = g.orto.texto; g.orto = null;
 }
+/** Desenha o painel "Revisar grafia" do importador (tabela Linha | Como está | Sugestão | Corrigir)
+    com Corrigir todos e Ignorar sugestões; some quando não há títulos a revisar. */
 function renderOrtoImp(){
   const box = $('#orto-imp'); if(!box || !IMP) return;
   const gs = IMP.grupos.filter(g => g.orto && !g.res);
