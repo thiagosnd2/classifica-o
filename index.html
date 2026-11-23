@@ -555,7 +555,7 @@ function setUF(v){
   $('#uf').value = v;
   $('#step1-txt').textContent = v === 'ES'
     ? 'Colunas: TITULO, DESCRIÇÃO (até 400 caracteres), UNIDADE DE MEDIDA conforme a Tabela Auxiliar 22 (IN 68/2020, Anexo VI) e TIPO (Material ou Serviço). Unidade fora da tabela retorna ERRO.'
-    : 'Colunas: TITULO, DESCRIÇÃO (até 400 caracteres), UNIDADE DE MEDIDA. Unidade fora da tabela retorna ERRO.';
+    : 'Colunas: TITULO, DESCRIÇÃO (até 400 caracteres), UNIDADE DE MEDIDA e TIPO (Material ou Serviço).';
   if(v) $('#uf').classList.remove('uf-alerta');
   if(typeof gate === 'function') gate();
   if(!v){
