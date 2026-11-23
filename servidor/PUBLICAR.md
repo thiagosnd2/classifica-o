@@ -21,7 +21,7 @@ A mesma `index.html` funciona nos dois lugares: dentro do claude.ai usa a plataf
 ## 2. Servidor no Cloudflare (pelo painel, sem terminal)
 
 1. Crie a conta em https://dash.cloudflare.com (plano gratuito).
-2. Em **Workers & Pages**, crie um Worker chamado `classificador-api`.
+2. Em **Workers & Pages**, crie um Worker chamado `classificador-api` (em produção o nome usado foi `classificador-ap`: https://classificador-ap.tbraga262.workers.dev).
 3. Abra o editor de código do Worker, apague o conteúdo e cole todo o arquivo `servidor/worker.js`. Publique (Deploy).
 4. Em **Storage / KV**, crie um namespace chamado `LICENCAS`.
 5. Nas configurações do Worker (**Settings → Bindings / Variables**):
@@ -82,9 +82,18 @@ https://classificabr.com (domínio próprio; o arquivo `CNAME` do repositório a
 
 No registrador do domínio (Wix), crie quatro registros A para `185.199.108.153`, `185.199.109.153`, `185.199.110.153` e `185.199.111.153`, e um CNAME `www` → `thiagosnd2.github.io`. Depois, em Settings → Pages, confirme o domínio e marque *Enforce HTTPS*.
 
+## 6. Atualizar o Worker quando o `worker.js` mudar
+
+O Cloudflare não lê o GitHub: cada mudança no `servidor/worker.js` precisa ser colada à mão.
+
+1. Abra https://raw.githubusercontent.com/thiagosnd2/classifica-o/main/servidor/worker.js e copie tudo.
+2. No Cloudflare, abra **Workers & Pages → classificador-ap → Edit code**.
+3. Apague o código, cole o novo e clique em **Deploy**. Variáveis, segredos e KV não mudam.
+4. Confira: no editor, procure (Ctrl+F) um trecho da mudança; na página, faça uma consulta de teste.
+
 ## Segurança e custos
 
 - A chave da API fica só no Cloudflare, nunca na página.
-- O importador (rota `/lote`) só funciona com chave Pro válida, conferida no servidor — trava real.
+- O importador (rota `/lote`): com chave Pro válida, sem limite. Sem chave, depende de `PRO_OBRIGATORIO`: `true` recusa (trava real do plano Pro); ausente, a importação é gratuita e limitada a `IMPORT_LIMIT` arquivos por dia por IP (padrão 5), contados no KV `LICENCAS`.
 - A consulta individual é gratuita; o Worker aceita só pedidos vindos de `ALLOWED_ORIGIN`, com tamanho limitado, e — com o Turnstile e o `DAILY_LIMIT` configurados — exige a verificação anti-robô e respeita o teto diário. Mantenha também o limite de gasto no console da Anthropic.
 - Custo de referência (estimativa do projeto): cerca de US$ 39/mês para o ES inteiro com Haiku 5.5 e prompt otimizado. O Worker e o GitHub Pages ficam no plano gratuito nesse volume.

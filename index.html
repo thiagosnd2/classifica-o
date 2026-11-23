@@ -455,7 +455,7 @@ function tokenTurnstile(){
   return p;
 }
 /** Cria substitutos com a mesma interface do Claude (sample.json e db.doc().get())
-    que falam com o servidor próprio. Lote → /lote (exige chave Pro); consulta → /classificar
+    que falam com o servidor próprio. Lote → /lote (chave Pro, ou limite diário por IP com o Pro suspenso); consulta → /classificar
     (exige token do Turnstile); licença → /licenca. */
 function servidorProprio(){
   if(!API_URL) return null;
@@ -1114,7 +1114,7 @@ const drop = $('#drop');
 ['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
 drop.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if(f) loadFile(f); });
 
-/** Monta o pedido de um lote (até 15 itens do mesmo TIPO): regras + catálogo restrito (RAG) +
+/** Monta o pedido de um lote (até BATCH = 30 itens do mesmo TIPO): regras + catálogo restrito (RAG) +
     itens com finalidade informada + contas contábeis + formato JSON. full=true usa o catálogo completo. */
 function batchPrompt(gs, full){
   const es = IMP.uf === 'ES';

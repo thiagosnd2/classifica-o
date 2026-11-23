@@ -32,7 +32,7 @@ Contas contábeis: PCASP 2027 (Portaria STN/MF nº 2.520, de 21/08/2026).
 - No topo da página, o campo **Chave Pro** ativa o plano Pro. Sem chave válida, a Consulta individual funciona normalmente, mas **importar** e **exportar** planilhas ficam desativados.
 - As chaves têm o formato `QW-ES-XXXX-XXXX-XXXX`. O banco de dados da página guarda só o hash SHA-256 de cada chave (coleção `licencas/<hash>`), com município, UF, validade e situação (`ativa`). Só o dono do artefato grava nessa coleção.
 - Com o termo de aceite, a chave fica salva no navegador e é revalidada a cada acesso.
-- **Limite:** a verificação é feita no navegador, então é uma trava leve. Nesta fase, o uso da IA conta no plano de quem usa. A trava definitiva exige validação no backend próprio (Fase 3), com login e licenças por município.
+- **Onde a trava vale:** no Projeto 1 (claude.ai) a verificação é feita no navegador, então é uma trava leve, e o uso da IA conta no plano de quem usa. No Projeto 2 (classificabr.com) a chave é conferida no servidor a cada lote; com `PRO_OBRIGATORIO=true`, sem chave válida o servidor recusa o lote.
 
 ## Publicação fora do Claude (GitHub Pages + Cloudflare Workers)
 
@@ -54,7 +54,7 @@ Princípio de projeto: **a IA só sugere; o código valida antes e confere depoi
 - Respostas da IA sempre escapadas antes de aparecer na tela.
 - Chave da API só no servidor (Cloudflare), nunca na página ou no repositório.
 - Chaves Pro guardadas como hash; no Projeto 1 os dados da licença (município, validade) ficam cifrados com a própria chave (`servidor/lacrar_licenca.mjs`).
-- Projeto 2: verificação anti-robô (Turnstile) na consulta individual, teto diário de consultas, limite por IP opcional e chave Pro conferida no servidor para o importador.
+- Projeto 2: verificação anti-robô (Turnstile) na consulta individual, teto diário de consultas, limite de importações por IP (Pro suspenso), limite por IP opcional e chave Pro conferida no servidor para o importador.
 - Política de conteúdo (CSP) na hospedagem própria.
 - Sem cookies próprios nem rastreadores; fontes IBM Plex servidas pelo próprio site (`vendor/fonts/`), sem envio de dados ao Google. No claude.ai a página usa o Google Fonts.
 - SheetJS 0.20.3 servido pelo próprio site (`vendor/`), com verificação de integridade (SRI). No claude.ai a página usa a versão 0.18.5 do cdnjs.
@@ -75,13 +75,11 @@ Princípio de projeto: **a IA só sugere; o código valida antes e confere depoi
 - Itens repetidos classificados uma vez só; lotes de 30 itens separados por tipo; catálogo restrito aos elementos prováveis para economizar tokens.
 - Exportação: TITULO, DESCRIÇÃO, UNIDADE DE MEDIDA, CLASSE (ELEMENTO), SUB ELEMENTO (SUGESTÃO), CONTA CONTÁBIL.
 
-## Limitação atual
+## Limitações atuais
 
-A página foi construída como artefato do Claude. Duas funções dependem de recursos do próprio Claude e **não funcionam fora dele**:
-- classificação pela IA (`claude.use("sample")`);
-- download de arquivos (`claude.use("downloads")`).
-
-Fora do Claude, a página abre e faz a busca local por palavra-chave, mas não classifica com IA.
+- A mesma página roda nos dois projetos: no claude.ai usa os recursos do Claude (`sample`, `db`, `downloads`); em https://classificabr.com usa o servidor próprio (`servidor/worker.js`). Sem nenhum dos dois, faz só a busca local por palavra-chave.
+- No Projeto 1 (claude.ai), a IA só funciona para quem está logado no Claude, a trava Pro é só no navegador, a biblioteca de planilhas é a 0.18.5 e a correção ortográfica fica desligada (o dicionário não é publicado no artefato).
+- Fora do Espírito Santo, a classificação vai até o elemento (base federal) e a unidade de medida não é conferida.
 
 ## Custos, escala e métricas
 
@@ -94,7 +92,7 @@ No artefato compartilhado, o uso da IA conta nos limites do plano de cada pessoa
 |---|---|---|
 | Consulta individual (ES) | ~11.300 | ~500 |
 | Consulta individual otimizada (catálogo restrito) | ~3.400 | ~500 |
-| Importação, por item (lote de 20) | ~220 | ~25 |
+| Importação, por item (lote de 30) | ~170 | ~25 |
 
 A consulta individual ainda envia o catálogo inteiro (412 subelementos). Aplicar a restrição de catálogo do importador reduz o custo cerca de 3 vezes.
 
@@ -135,7 +133,7 @@ Documento completo: [Classificador de Natureza de Despesa — Custos, Escala e M
 
 ## Próximos passos
 
-1. **Backend próprio (Fase 3):** API que recebe o item, monta o prompt com as regras e o catálogo do Estado e chama a IA pela API da Anthropic com chave própria. Substituir `sample.json(...)` por `fetch` para essa API e o download por geração de arquivo no navegador.
+1. **Backend próprio:** concluído em 21/11/2026 (Cloudflare Worker + API da Anthropic, no ar em https://classificabr.com).
 2. **Cache compartilhado de respostas:** chave = Estado + item normalizado + finalidade + unidade + fornecedor + despesa + versão da base. Respostas confirmadas no quiz têm prioridade. Pergunta repetida = zero token.
 3. **Dicionário por município:** classificação revisada por código de catálogo, reaproveitada entre processos.
 4. **Tabelas estaduais:** carregar a tabela de natureza da despesa de cada tribunal de contas e a base federal oficial de subitens.

@@ -2,8 +2,10 @@
  * Servidor do Classificador de Natureza de Despesa (Cloudflare Workers)
  *
  * Rotas (todas POST, JSON):
- *   /classificar  { prompt }          -> consulta individual (plano gratuito)
- *   /lote         { prompt, chave }   -> importador (exige chave Pro válida)
+ *   /classificar  { prompt, ts }               -> consulta individual (gratuita; ts = token Turnstile)
+ *   /lote         { prompt, chave?, arquivo }  -> importador: com chave Pro válida, sem limite; sem chave,
+ *                                                 conta 1 importação por arquivo e IP (IMPORT_LIMIT/dia),
+ *                                                 ou recusa se PRO_OBRIGATORIO=true; devolve "restantes"
  *   /licenca      { hash }            -> verifica uma chave Pro
  *
  * Configuração no painel do Cloudflare:
