@@ -1524,13 +1524,38 @@ $('#termo-no').addEventListener('click', ()=>{ try{ localStorage.setItem('cnd_co
    e atalhos para Gmail, Outlook e o app de e-mail, todos com assunto e roteiro preenchidos (o problema leva
    estado, versão e aba, para reproduzir). Nada é enviado nem guardado pela página. */
 const EMAIL_CONTATO = 'mversobr@gmail.com';
+/** Navegador, versão e sistema (ex.: "Edge 142 · Windows"), para reproduzir bugs. Só no Reportar problema;
+    nada que identifique a pessoa. Usa userAgentData (Edge, Chrome, Opera) e, sem ele, lê o userAgent
+    (Firefox, Safari). Se não reconhecer, devolve "não identificado". */
+function infoNavegador(){
+  try{
+    const ua = navigator.userAgent || '', d = navigator.userAgentData;
+    let nome = '', ver = '', so = '';
+    if(d && d.brands){
+      const b = d.brands.find(x => /Edge|Opera|Chrome/i.test(x.brand) && !/Not/i.test(x.brand) && x.brand !== 'Chromium')
+             || d.brands.find(x => x.brand === 'Chromium');
+      if(b){ nome = b.brand.replace('Microsoft ','').replace('Google ',''); ver = b.version; }
+      so = d.platform || '';
+    }
+    if(!nome){
+      const m = ua.match(/Edg\/(\d+)/) ? ['Edge', ua.match(/Edg\/(\d+)/)[1]]
+        : ua.match(/OPR\/(\d+)/) ? ['Opera', ua.match(/OPR\/(\d+)/)[1]]
+        : ua.match(/Firefox\/(\d+)/) ? ['Firefox', ua.match(/Firefox\/(\d+)/)[1]]
+        : ua.match(/Chrome\/(\d+)/) ? ['Chrome', ua.match(/Chrome\/(\d+)/)[1]]
+        : ua.match(/Version\/(\d+).*Safari/) ? ['Safari', ua.match(/Version\/(\d+).*Safari/)[1]] : null;
+      if(m){ nome = m[0]; ver = m[1]; }
+    }
+    if(!so) so = /Windows/.test(ua) ? 'Windows' : /Android/.test(ua) ? 'Android' : /iPhone|iPad/.test(ua) ? 'iOS' : /Mac OS/.test(ua) ? 'macOS' : /Linux/.test(ua) ? 'Linux' : '';
+    return nome ? `${nome} ${ver}${so ? ' · ' + so : ''}` : 'não identificado';
+  }catch{ return 'não identificado'; }
+}
 /** Assunto e corpo do e-mail conforme o botão clicado. */
 function mensagemContato(tipo){
   const info = ['— Informações para o suporte —', `Estado: ${UF ? UFS[UF] : 'não selecionado'}`,
     `Versão: ${window.claude ? 'link do Claude' : location.host || 'site'}`,
     `Aba: ${location.hash === '#importar' ? 'Importar planilha' : 'Consulta individual'}`];
   return tipo === 'problema'
-    ? {assunto:'Classificador – problema', corpo:['O que aconteceu:', '', '', 'Item ou planilha usada:', '', '', ...info].join('\n')}
+    ? {assunto:'Classificador – problema', corpo:['O que aconteceu:', '', '', 'Item ou planilha usada:', '', '', ...info, `Navegador: ${infoNavegador()}`].join('\n')}
     : {assunto:'Classificador – contato', corpo:['Sua mensagem:', '', '', ...info].join('\n')};
 }
 document.querySelectorAll('.contato-btn').forEach(b => b.addEventListener('click', () => {
