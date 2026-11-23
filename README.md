@@ -62,7 +62,7 @@ Princípio de projeto: **a IA só sugere; o código valida antes e confere depoi
 ## Funcionalidades
 
 **Consulta individual**
-- Botão Classificar habilitado só com Estado selecionado, ao menos 3 letras no item e unidade de medida escolhida na lista. Para nova classificação é preciso apagar ao menos 3 letras ou usar Limpar.
+- Botão Classificar habilitado só com Estado selecionado, ao menos 3 letras ou números no item (ex.: "WD40") e unidade de medida escolhida na lista. Para nova classificação é preciso apagar ao menos 3 letras ou usar Limpar.
 - Resultado com código, justificativa, critérios de consumo × permanente (Portaria 448, art. 3º), regras aplicadas e alternativas.
 - Quiz quando a confiança é média ou baixa: as opções já vêm ligadas a um código e o clique resolve sem nova chamada à IA.
 - Correção ortográfica local, sem IA: palavra do título que não existe na base nem no dicionário e está a 1 letra (2 se tiver 10+) de uma conhecida → "Você quis dizer…?" com Usar sugestão / Manter como escrevi. Palavras com acento, siglas curtas, flexões e termos técnicos ficam de fora; palavra desconhecida sem parecida (ex.: "HD") segue direto para a IA.
