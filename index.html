@@ -1266,7 +1266,7 @@ function postStats(){
   const nErro = IMP.linhas.filter(l=>l.erro).length;
   const ok = IMP.linhas.filter(l=>!l.erro && saida(l).classe).length;
   $('#post-stats').innerHTML = stat(ok,'linhas classificadas') + stat(nErro,'linhas com ERRO', nErro?'bad':'');
-  renderOrtoImp();
+  renderOrtoImp(); atualizaRun();
 }
 /* Filtros da tabela do importador */
 /** Regra de cada filtro da tabela: todos, com ERRO, TIPO a corrigir, texto sugerido, não classificados. */
@@ -1424,8 +1424,12 @@ function perguntaDistrib(cands){
 /** Classificar itens: (1) pergunta de distribuição gratuita, se houver candidatos; (2) monta lotes
     por TIPO sem os itens com TIPO a corrigir; (3) dois trabalhadores processam os lotes em paralelo;
     (4) mostra o andamento e o motivo de eventuais falhas. */
+/** Itens que ainda vão para a IA: sem resultado (ou com falha) e sem TIPO a corrigir. */
+function pendentes(){ return IMP ? IMP.grupos.filter(g => (!g.res || g.res.falha) && !g.tipoLocal).length : 0; }
+/** Botão Classificar: só habilitado quando há item pendente (senão fica cinza, indisponível). */
+function atualizaRun(){ const b = $('#run'); if(!b || busy) return; b.disabled = !proAtivo() || !pendentes(); }
 $('#run').addEventListener('click', async () => {
-  if(!IMP || !sample || busy || !proAtivo()) return;
+  if(!IMP || !sample || busy || !proAtivo() || !pendentes()) return;
   if(!UF){ $('#prog').hidden=false; $('#prog-txt').textContent = 'Selecione o Estado no topo da página.'; return; }
   if(IMP.uf !== UF){ $('#prog').hidden=false; $('#prog-txt').textContent = `O estado foi alterado para ${UFS[UF]}. Envie o arquivo de novo para aplicar a regra desse estado.`; return; }
   const cands = IMP.grupos.filter(g => (!g.res || g.res.falha) && !g.tipoLocal && !g.finalidade && candDistrib(g));
@@ -1454,7 +1458,7 @@ $('#run').addEventListener('click', async () => {
   };
   await Promise.all([worker(), worker()]);
   $('#prog-txt').textContent = bloqueio ? `${bloqueio}.` : abortCtl.signal.aborted ? 'Interrompido. Clique em Classificar itens pendentes para continuar.' : `Concluído: ${IMP.linhas.length} linhas em ${lotes.length} lote(s)${falhas?`, ${falhas} lote(s) com erro (${motivo})`:''}.${nTipo?` ${nTipo} item(ns) aguardando correção do TIPO.`:''}${IMP_RESTANTES!=null && !PRO?` Importações restantes hoje: ${IMP_RESTANTES}.`:''}`;
-  $('#run').disabled = false; $('#run').textContent = 'Classificar itens pendentes'; $('#stop').hidden = true; busy = false;
+  $('#run').textContent = 'Classificar itens pendentes'; $('#stop').hidden = true; busy = false; atualizaRun();
   IMP.classificado = true; gateDownload();
   postStats(); renderTable();
 });
@@ -1518,7 +1522,7 @@ function aplicarPlano(){
     $('#chave').hidden = true; $('#pro-btn').hidden = true;
     document.querySelector('#t-importar .pro').hidden = true;
     $('#pro-lock').hidden = true; $('#drop').classList.remove('locked'); $('#file').disabled = false;
-    gateDownload(); $('#run').disabled = busy;
+    gateDownload(); atualizaRun();
     return;
   }
   $('#pro-status').textContent = PRO ? `Plano Pro · ${PRO.municipio||''}${PRO.validade?' · até '+PRO.validade.split('-').reverse().join('/'):''}` : 'Plano gratuito';
@@ -1528,7 +1532,7 @@ function aplicarPlano(){
   $('#drop').classList.toggle('locked', !on);
   $('#file').disabled = !on;
   gateDownload();
-  $('#run').disabled = !on || busy;
+  atualizaRun();
 }
 /** Confere a chave: hash → busca a licença → decifra → checa ativa e validade. */
 async function validarChave(chave, silencioso){
