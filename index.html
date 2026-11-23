@@ -201,8 +201,12 @@ td.j{color:var(--muted);min-width:260px}
 #pro-msg{font-size:12px}
 footer{padding:0 24px 24px;color:var(--muted);font-size:12px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px 24px}
 footer .foot-esq{max-width:110ch}
-/* Contato um pouco mais visível: contorno na cor de destaque, como os demais botões discretos */
-#contato{color:var(--accent);font-weight:600;font-size:13px;text-decoration:none;white-space:nowrap;border:1px solid var(--accent);border-radius:999px;padding:5px 14px}#contato:hover{background:var(--accent-soft)}
+/* Botões de contato do rodapé (contorno em pílula na cor de destaque) e janela de contato */
+.contatos{display:flex;gap:8px;flex-wrap:wrap}
+.contato-btn{color:var(--accent);background:transparent;font:600 13px var(--body);white-space:nowrap;border:1px solid var(--accent);border-radius:999px;padding:5px 14px;cursor:pointer;width:auto}.contato-btn:hover{background:var(--accent-soft)}
+#contato-box{inset:0;align-items:center;background:rgba(0,0,0,.45)}.contato-box{max-width:520px}
+.contato-acoes{flex-wrap:wrap;gap:8px}
+.contato-op{display:inline-block;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent);border-radius:8px;padding:8px 12px;font:600 13px var(--body);text-decoration:none;cursor:pointer;width:auto}.contato-op:hover{filter:brightness(1.1)}
 </style>
 </head>
 <body>
@@ -372,7 +376,23 @@ footer .foot-esq{max-width:110ch}
   </div>
 </div>
 <!-- Rodapé: aviso de responsabilidade e botão Preferências de dados. -->
-<footer id="foot"><span class="foot-esq"><button class="ghost" type="button" id="prefs" style="padding:2px 8px;font-size:12px;margin-right:8px">Preferências de dados</button>Ferramenta de apoio. A classificação final é responsabilidade do setor de contabilidade/orçamento do ente.</span><a id="contato" href="mailto:mversobr@gmail.com?subject=Classificador%20%E2%80%93%20contato">✉ Reportar problema ou falar conosco</a></footer>
+<footer id="foot"><span class="foot-esq"><button class="ghost" type="button" id="prefs" style="padding:2px 8px;font-size:12px;margin-right:8px">Preferências de dados</button>Ferramenta de apoio. A classificação final é responsabilidade do setor de contabilidade/orçamento do ente.</span><span class="contatos"><button type="button" class="contato-btn" data-tipo="problema">⚠ Reportar problema</button><button type="button" class="contato-btn" data-tipo="contato">✉ Fale conosco</button></span></footer>
+<!-- Janela de contato: e-mail para copiar e atalhos para Gmail, Outlook ou o app de e-mail (o mailto sozinho
+     não abre nada quando o computador não tem app de e-mail configurado) -->
+<div id="contato-box" class="termo" role="dialog" aria-labelledby="contato-h" hidden>
+  <div class="termo-box contato-box">
+    <h3 id="contato-h">Fale conosco</h3>
+    <p>Escreva para <b id="contato-email">mversobr@gmail.com</b>. Escolha como abrir a mensagem; o assunto e um roteiro já vêm preenchidos.</p>
+    <div class="toolbar contato-acoes">
+      <a class="contato-op" id="c-gmail" target="_blank" rel="noopener">Abrir no Gmail</a>
+      <a class="contato-op" id="c-outlook" target="_blank" rel="noopener">Abrir no Outlook</a>
+      <a class="contato-op" id="c-app">App de e-mail do computador</a>
+      <button type="button" class="contato-op" id="c-copiar">Copiar e-mail</button>
+    </div>
+    <p class="empty" id="c-msg" style="min-height:1.2em"></p>
+    <div class="toolbar"><button type="button" class="ghost" id="c-fechar" style="padding:8px 14px">Fechar</button></div>
+  </div>
+</div>
 
 <!-- SheetJS 0.20.3 servido pelo próprio site, com verificação de integridade.
      Onde o arquivo não existe (claude.ai), cai para a versão do cdnjs. -->
@@ -1500,18 +1520,36 @@ $('#dl-res').addEventListener('click', async () => {
 /* Termo de aceite (LGPD): aceitar grava as preferências no navegador; recusar não grava nada. */
 $('#termo-ok').addEventListener('click', ()=>{ try{ localStorage.setItem('cnd_consent','sim'); }catch{} persist(); $('#termo').hidden = true; });
 $('#termo-no').addEventListener('click', ()=>{ try{ localStorage.setItem('cnd_consent','nao'); }catch{} apagarDadosSalvos(); $('#termo').hidden = true; });
-/* Contato (rodapé): abre o e-mail já com assunto e um roteiro; inclui estado, versão (site ou Claude)
-   e aba aberta para ajudar a reproduzir o problema. Nada é enviado sem a pessoa mandar o e-mail. */
+/* Contato (rodapé): dois botões, Reportar problema e Fale conosco. Abrem uma janela com o e-mail para copiar
+   e atalhos para Gmail, Outlook e o app de e-mail, todos com assunto e roteiro preenchidos (o problema leva
+   estado, versão e aba, para reproduzir). Nada é enviado nem guardado pela página. */
 const EMAIL_CONTATO = 'mversobr@gmail.com';
-if(window.claude){ $('#contato').target = '_blank'; $('#contato').rel = 'noopener'; } /* no Claude a página roda num quadro: abre fora dele */
-$('#contato').addEventListener('click', ()=>{
-  const corpo = ['O que aconteceu (ou sua mensagem):', '', '', 'Item ou planilha usada:', '', '',
-    '— Informações para o suporte —',
-    `Estado: ${UF ? UFS[UF] : 'não selecionado'}`,
+/** Assunto e corpo do e-mail conforme o botão clicado. */
+function mensagemContato(tipo){
+  const info = ['— Informações para o suporte —', `Estado: ${UF ? UFS[UF] : 'não selecionado'}`,
     `Versão: ${window.claude ? 'link do Claude' : location.host || 'site'}`,
-    `Aba: ${location.hash === '#importar' ? 'Importar planilha' : 'Consulta individual'}`].join('\n');
-  $('#contato').href = `mailto:${EMAIL_CONTATO}?subject=${encodeURIComponent('Classificador – contato')}&body=${encodeURIComponent(corpo)}`;
+    `Aba: ${location.hash === '#importar' ? 'Importar planilha' : 'Consulta individual'}`];
+  return tipo === 'problema'
+    ? {assunto:'Classificador – problema', corpo:['O que aconteceu:', '', '', 'Item ou planilha usada:', '', '', ...info].join('\n')}
+    : {assunto:'Classificador – contato', corpo:['Sua mensagem:', '', '', ...info].join('\n')};
+}
+document.querySelectorAll('.contato-btn').forEach(b => b.addEventListener('click', () => {
+  const m = mensagemContato(b.dataset.tipo), su = encodeURIComponent(m.assunto), bo = encodeURIComponent(m.corpo), to = encodeURIComponent(EMAIL_CONTATO);
+  $('#contato-h').textContent = b.dataset.tipo === 'problema' ? 'Reportar problema' : 'Fale conosco';
+  $('#c-gmail').href = `https://mail.google.com/mail/?view=cm&fs=1&to=${to}&su=${su}&body=${bo}`;
+  $('#c-outlook').href = `https://outlook.live.com/mail/0/deeplink/compose?to=${to}&subject=${su}&body=${bo}`;
+  $('#c-app').href = `mailto:${EMAIL_CONTATO}?subject=${su}&body=${bo}`;
+  if(window.claude) $('#c-app').target = '_blank'; /* no Claude a página roda num quadro */
+  $('#c-msg').textContent = '';
+  $('#contato-box').hidden = false; $('#c-gmail').focus();
+}));
+$('#c-copiar').addEventListener('click', async () => {
+  try{ await navigator.clipboard.writeText(EMAIL_CONTATO); $('#c-msg').textContent = 'E-mail copiado.'; }
+  catch{ const r = document.createRange(); r.selectNodeContents($('#contato-email')); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); $('#c-msg').textContent = 'Selecionei o e-mail: use Ctrl+C para copiar.'; }
 });
+$('#c-fechar').addEventListener('click', () => { $('#contato-box').hidden = true; });
+$('#contato-box').addEventListener('click', e => { if(e.target.id === 'contato-box') $('#contato-box').hidden = true; });
+document.addEventListener('keydown', e => { if(e.key === 'Escape' && !$('#contato-box').hidden) $('#contato-box').hidden = true; });
 $('#prefs').addEventListener('click', ()=>{ $('#termo').hidden = false; $('#termo-ok').focus(); });
 
 /* ===================== 7. PLANO PRO (chave de licença) ===================== */

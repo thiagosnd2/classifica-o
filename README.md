@@ -62,7 +62,7 @@ Princípio de projeto: **a IA só sugere; o código valida antes e confere depoi
 ## Funcionalidades
 
 **Rodapé**
-- À direita, "Reportar problema ou falar conosco" abre o e-mail (mversobr@gmail.com) com assunto, roteiro e o estado, a versão e a aba usados.
+- À direita, os botões "Reportar problema" e "Fale conosco" abrem uma janela com o e-mail (mversobr@gmail.com) para copiar e atalhos para Gmail, Outlook ou o app de e-mail, já com assunto e roteiro (o problema inclui estado, versão e aba).
 
 **Consulta individual**
 - Botão Classificar habilitado só com Estado selecionado, ao menos 3 letras ou números no item (ex.: "WD40") e unidade de medida escolhida na lista. Para nova classificação é preciso apagar ao menos 3 letras ou usar Limpar.
