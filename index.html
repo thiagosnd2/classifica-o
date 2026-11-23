@@ -835,7 +835,10 @@ function renderResult(r, q, st){
   const txtSug = r.texto_sugerido && String(r.texto_sugerido).trim() && String(r.texto_sugerido).trim() !== String(q).trim() ? String(r.texto_sugerido).trim() : '';
   const falta = Array.isArray(r.falta) ? r.falta.filter(Boolean).slice(0,4) : [];
   if(txtSug || falta.length){
-    h += `<div class="ask"><p><b>Melhorar o texto</b></p>${txtSug?`<p style="margin:4px 0">Sugestão: <b>${esc(txtSug)}</b></p>`:''}${falta.length?`<p class="empty" style="margin:6px 0 0">Descrição vaga. Para uma compra pública, informe também: ${esc(falta.join(', '))}.</p>`:''}</div>`;
+    /* Se a IA mudou as palavras (não só maiúsculas/acentos), destaca como "Você quis dizer…?" — ex.: "caneta
+       esfirtoigada" → "Caneta esferográfica", erro grande demais para a correção local. Senão, "Sugestão". */
+    const corrigiu = txtSug && norm(txtSug).replace(/\s+/g,' ') !== norm(q).replace(/\s+/g,' ');
+    h += `<div class="ask"><p><b>Melhorar o texto</b></p>${txtSug?(corrigiu?`<p style="margin:4px 0;font-size:15px">Você quis dizer: <b style="color:var(--accent)">${esc(txtSug)}</b>?</p>`:`<p style="margin:4px 0">Sugestão: <b>${esc(txtSug)}</b></p>`):''}${falta.length?`<p class="empty" style="margin:6px 0 0">Descrição vaga. Para uma compra pública, informe também: ${esc(falta.join(', '))}.</p>`:''}</div>`;
   }
   const quiz = r.quiz && r.quiz.pergunta && Array.isArray(r.quiz.opcoes) && !conf.startsWith('alta') ? r.quiz : null;
   if(quiz){
