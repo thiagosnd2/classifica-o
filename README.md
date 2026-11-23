@@ -63,6 +63,7 @@ Princípio de projeto: **a IA só sugere; o código valida antes e confere depoi
 ## Funcionalidades
 
 **Rodapé**
+- No centro, abaixo de tudo, a marca d'água discreta "Sanada Inc 2027".
 - À direita, os botões "Reportar problema" e "Fale conosco" abrem uma janela com o e-mail (mversobr@gmail.com) para copiar e atalhos para Gmail, Outlook ou o app de e-mail, já com assunto e roteiro (o problema inclui estado, versão, aba e navegador, ex.: "Edge 142 · Windows").
 
 **Consulta individual**

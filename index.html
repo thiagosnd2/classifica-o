@@ -201,6 +201,8 @@ td.j{color:var(--muted);min-width:260px}
 #pro-msg{font-size:12px}
 footer{padding:0 24px 24px;color:var(--muted);font-size:12px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px 24px}
 footer .foot-esq{max-width:110ch}
+/* Marca d'água: centralizada no fim do rodapé, bem discreta */
+footer .marca{flex-basis:100%;text-align:center;font-size:11px;letter-spacing:.12em;opacity:.35;margin-top:6px;user-select:none}
 /* Botões de contato do rodapé (contorno em pílula na cor de destaque) e janela de contato */
 .contatos{display:flex;gap:8px;flex-wrap:wrap}
 .contato-btn{color:var(--accent);background:transparent;font:600 13px var(--body);white-space:nowrap;border:1px solid var(--accent);border-radius:999px;padding:5px 14px;cursor:pointer;width:auto}.contato-btn:hover{background:var(--accent-soft)}
@@ -376,7 +378,7 @@ footer .foot-esq{max-width:110ch}
   </div>
 </div>
 <!-- Rodapé: aviso de responsabilidade e botão Preferências de dados. -->
-<footer id="foot"><span class="foot-esq"><button class="ghost" type="button" id="prefs" style="padding:2px 8px;font-size:12px;margin-right:8px">Preferências de dados</button>Ferramenta de apoio. A classificação final é responsabilidade do setor de contabilidade/orçamento do ente.</span><span class="contatos"><button type="button" class="contato-btn" data-tipo="problema">⚠ Reportar problema</button><button type="button" class="contato-btn" data-tipo="contato">✉ Fale conosco</button></span></footer>
+<footer id="foot"><span class="foot-esq"><button class="ghost" type="button" id="prefs" style="padding:2px 8px;font-size:12px;margin-right:8px">Preferências de dados</button>Ferramenta de apoio. A classificação final é responsabilidade do setor de contabilidade/orçamento do ente.</span><span class="contatos"><button type="button" class="contato-btn" data-tipo="problema">⚠ Reportar problema</button><button type="button" class="contato-btn" data-tipo="contato">✉ Fale conosco</button></span><div class="marca" aria-label="Marca">Sanada Inc 2027</div></footer>
 <!-- Janela de contato: e-mail para copiar e atalhos para Gmail, Outlook ou o app de e-mail (o mailto sozinho
      não abre nada quando o computador não tem app de e-mail configurado) -->
 <div id="contato-box" class="termo" role="dialog" aria-labelledby="contato-h" hidden>
