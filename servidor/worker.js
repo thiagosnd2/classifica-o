@@ -19,6 +19,9 @@
  *   Variável PRO_OBRIGATORIO    "true" = importador só com chave Pro; ausente/"false" = Pro suspenso,
  *                               importação liberada com limite diário por IP
  *   Variável IMPORT_LIMIT       importações por dia por IP quando o Pro está suspenso (padrão 5)
+ *
+ * Estabilidade: a IA é chamada com temperature 0, e a consulta individual tem cache de 30 dias no KV
+ * (respostas de confiança alta; veja chaveDoCache/CACHE_VERSAO).
  */
 
 /* Prefixo do hash das chaves Pro (o mesmo usado na página e nos scripts). */
@@ -89,9 +92,21 @@ export default {
           if (!ok) return resp(403, { erro: 'Verificação anti-robô falhou' });
         }
 
+        // Cache da consulta individual: o mesmo pedido (mesmo item, finalidade, unidade, fornecedor, despesa,
+        // Estado e versão da base, que estão todos no prompt) volta com a mesma resposta, sem chamar a IA
+        // e sem contar no teto diário. Só guarda respostas de confiança alta.
+        const chaveCache = tipo === 'classificar' ? await chaveDoCache(prompt) : null;
+        if (chaveCache) {
+          const salvo = await lerCache(env, chaveCache);
+          if (salvo) return resp(200, { resultado: salvo, cache: true });
+        }
+
         if (!(await dentroDoTeto(env))) return resp(429, { erro: 'Limite diário de consultas atingido' });
 
         const resultado = await chamarIA(env, prompt, LIM[tipo].maxTokens);
+        if (chaveCache && resultado && resultado.codigo && /^alta$/i.test(String(resultado.confianca || '').trim())) {
+          await gravarCache(env, chaveCache, resultado);
+        }
         return resp(200, restantes === null ? { resultado } : { resultado, restantes });
       }
 
@@ -175,7 +190,27 @@ async function licencaValida(env, chave) {
   return d;
 }
 
-/* Chama a API da Anthropic com a chave secreta, detecta resposta cortada e extrai o JSON. */
+/* ---------- Cache de respostas da consulta individual (KV LICENCAS, prefixo "cache:") ----------
+   Chave = SHA-256 do prompt normalizado (minúsculas, espaços únicos) + CACHE_VERSAO. Mudar CACHE_VERSAO
+   descarta o cache inteiro (ex.: nova tabela do TCE-ES ou mudança nas regras). Validade: 30 dias.
+   Falha no KV nunca derruba a consulta: sem cache, segue para a IA. */
+const CACHE_VERSAO = 'v1';
+async function chaveDoCache(prompt) {
+  const norm = prompt.toLowerCase().replace(/\s+/g, ' ').trim();
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(CACHE_VERSAO + '|' + norm));
+  return 'cache:' + [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+async function lerCache(env, chave) {
+  if (!env.LICENCAS) return null;
+  try { const v = await env.LICENCAS.get(chave); return v ? JSON.parse(v) : null; } catch { return null; }
+}
+async function gravarCache(env, chave, resultado) {
+  if (!env.LICENCAS) return;
+  try { await env.LICENCAS.put(chave, JSON.stringify(resultado), { expirationTtl: 30 * 86400 }); } catch {}
+}
+
+/* Chama a API da Anthropic com a chave secreta, detecta resposta cortada e extrai o JSON.
+   temperature: 0 deixa a IA mais estável: o mesmo pedido tende a voltar com o mesmo código. */
 async function chamarIA(env, prompt, maxTokens) {
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -187,6 +222,7 @@ async function chamarIA(env, prompt, maxTokens) {
     body: JSON.stringify({
       model: env.MODEL || 'claude-haiku-5-5',
       max_tokens: maxTokens,
+      temperature: 0,
       system: SISTEMA,
       messages: [{ role: 'user', content: prompt }],
     }),

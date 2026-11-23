@@ -54,6 +54,7 @@ Princípio de projeto: **a IA só sugere; o código valida antes e confere depoi
 - Respostas da IA sempre escapadas antes de aparecer na tela.
 - Chave da API só no servidor (Cloudflare), nunca na página ou no repositório.
 - Chaves Pro guardadas como hash; no Projeto 1 os dados da licença (município, validade) ficam cifrados com a própria chave (`servidor/lacrar_licenca.mjs`).
+- Estabilidade da IA: chamada com `temperature: 0` (o mesmo pedido tende a voltar com o mesmo código) e cache de respostas de confiança alta na consulta individual (Projeto 2).
 - Projeto 2: verificação anti-robô (Turnstile) na consulta individual, teto diário de consultas, limite de importações por IP (Pro suspenso), limite por IP opcional e chave Pro conferida no servidor para o importador.
 - Política de conteúdo (CSP) na hospedagem própria.
 - Sem cookies próprios nem rastreadores; fontes IBM Plex servidas pelo próprio site (`vendor/fonts/`), sem envio de dados ao Google. No claude.ai a página usa o Google Fonts.
@@ -114,7 +115,7 @@ Projeção para os 5.570 municípios do Brasil, versão otimizada: ~US$ 2.800/m�
 
 ### Plano de proteção (conexão e orçamento)
 1. Haiku por padrão; Sonnet só para casos de confiança baixa.
-2. Cache compartilhado de respostas: pergunta repetida = zero token.
+2. Cache compartilhado de respostas: pergunta repetida = zero token. **Implementado em 23/11/2026** para a consulta individual em classificabr.com (respostas de confiança alta, 30 dias, no KV do Worker).
 3. Cache de prompt da API para a parte fixa (regras e catálogo).
 4. Cotas por usuário e por município (plano gratuito × Pro).
 5. Fila e limite de requisições por minuto no backend para importações grandes.
@@ -137,7 +138,7 @@ Documento completo: [Classificador de Natureza de Despesa — Custos, Escala e M
 ## Próximos passos
 
 1. **Backend próprio:** concluído em 21/11/2026 (Cloudflare Worker + API da Anthropic, no ar em https://classificabr.com).
-2. **Cache compartilhado de respostas:** chave = Estado + item normalizado + finalidade + unidade + fornecedor + despesa + versão da base. Respostas confirmadas no quiz têm prioridade. Pergunta repetida = zero token.
+2. **Cache compartilhado de respostas:** feito em 23/11/2026 para a consulta individual no site (chave = hash do pedido normalizado, que já contém Estado, item, finalidade, unidade, fornecedor, despesa e catálogo; só confiança alta; 30 dias; `CACHE_VERSAO` no worker.js descarta tudo). Falta: importador e respostas confirmadas no quiz.
 3. **Dicionário por município:** classificação revisada por código de catálogo, reaproveitada entre processos.
 4. **Tabelas estaduais:** carregar a tabela de natureza da despesa de cada tribunal de contas e a base federal oficial de subitens.
 5. **Pendências da base:** versão final da tabela TCE-ES 2027; código 137 ausente na TA 22; subelemento de frete PJ em 3.3.90.39; critério do 4.4.90.52.38 (material de consumo de uso duradouro).

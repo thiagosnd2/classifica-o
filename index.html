@@ -487,7 +487,8 @@ function servidorProprio(){
     sample: { json: (prompt, opts={}) => {
       const lote = /array JSON/.test(prompt);
       if(lote) return apiPost('/lote', {prompt, chave: CHAVE_ATUAL, arquivo: IMP && IMP.id}, opts.signal).then(j => { if(j && j.restantes != null) IMP_RESTANTES = j.restantes; return j && j.resultado; });
-      return tokenTurnstile().then(ts => apiPost('/classificar', {prompt, ts}, opts.signal)).then(j => j && j.resultado);
+      /* cache:true = resposta repetida do cache do servidor (mesmo pedido já classificado com confiança alta) */
+      return tokenTurnstile().then(ts => apiPost('/classificar', {prompt, ts}, opts.signal)).then(j => j && j.resultado && (j.cache ? {...j.resultado, _cache:true} : j.resultado));
     }},
     db: { doc: path => ({ get: async () => {
       const hash = String(path).split('/').pop();
@@ -827,7 +828,7 @@ function renderResult(r, q, st){
     ${badgeTipo(r.codigo, true)}
     <div class="code">${esc(r.codigo)}</div>
     <div class="title">${esc(title)}</div>
-    <div class="meta"><span class="pill c-${esc(conf)}">Confiança ${esc(r.confianca||'—')}${r._quiz?' · confirmada no quiz':''}</span>${it?`<span class="pill">${esc(it.k)}</span>`:''}${it&&it.s?`<span class="pill">${esc(it.s)}</span>`:''}${it&&it.p?`<span class="pill">PCASP ${esc(it.p)}</span>`:''}
+    <div class="meta"><span class="pill c-${esc(conf)}">Confiança ${esc(r.confianca||'—')}${r._quiz?' · confirmada no quiz':''}</span>${r._cache?'<span class="pill" title="Mesmo pedido já classificado com confiança alta: resposta repetida, sem nova consulta à IA">Resposta já confirmada</span>':''}${it?`<span class="pill">${esc(it.k)}</span>`:''}${it&&it.s?`<span class="pill">${esc(it.s)}</span>`:''}${it&&it.p?`<span class="pill">PCASP ${esc(it.p)}</span>`:''}
     <button class="ghost" type="button" id="copy">Copiar código</button></div>
     <p class="empty" style="margin:0">Item interpretado: ${esc(r.item_interpretado||q)}</p>
   </div>`;
