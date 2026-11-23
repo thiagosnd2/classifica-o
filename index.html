@@ -71,6 +71,7 @@ button{font:600 14px var(--body);cursor:pointer;border-radius:7px;border:1px sol
 .primary{background:var(--accent);color:var(--surface);width:100%}
 .primary:disabled{background:var(--line);border-color:var(--line);color:var(--muted);cursor:not-allowed;pointer-events:none}
 #go-wrap{cursor:not-allowed}
+.orto{margin-top:6px;padding:8px 10px;border-radius:7px;background:var(--warn-soft,rgba(234,179,8,.12));font-size:13px;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}.orto[hidden]{display:none}.orto b{color:var(--acc,#5eead4)}.orto button{width:auto;padding:4px 10px;font-size:12.5px}
 #go-hint.alerta{background:var(--bad-soft);color:var(--bad);border-radius:7px;padding:8px 10px;font-weight:600}
 #uf.uf-alerta{border:2px solid var(--bad);color:var(--bad);box-shadow:0 0 0 3px var(--bad-soft)}
 .ghost{background:transparent;color:var(--accent);padding:6px 10px;font-size:13px}
@@ -211,6 +212,7 @@ footer{padding:0 24px 24px;color:var(--muted);font-size:12px;max-width:110ch}
       <div class="field">
         <label for="item">Nome ou descrição do item</label>
         <input id="item" autocomplete="off" placeholder="Ex.: toner HP 85A para impressora laser" required>
+        <div id="orto" class="orto" hidden aria-live="polite"></div>
       </div>
       <div class="field">
         <label for="ctx">Finalidade ou detalhes <span class="hint">(opcional)</span></label>
@@ -291,6 +293,7 @@ footer{padding:0 24px 24px;color:var(--muted);font-size:12px;max-width:110ch}
     <div class="step-n">03</div>
     <h3>Classificar</h3>
     <div class="stats" id="pre-stats"></div>
+    <div id="orto-imp"></div>
     <div class="toolbar" style="margin-top:12px">
       <button class="primary" type="button" id="run" style="width:auto">Classificar itens</button>
       <button class="ghost" type="button" id="stop" hidden>Interromper</button>
@@ -466,6 +469,75 @@ const stem = w => w.length>5 ? w.slice(0,6) : w.replace(/s$/,'');
 const toks = s => norm(s).split(/[^a-z0-9]+/).filter(w=>w.length>2 && !STOP.has(w)).map(stem);
 const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const clip = (v, n) => String(v ?? '').replace(/\s+/g,' ').trim().slice(0, n);
+
+/* ---------- Correção ortográfica local (sem IA, sem tokens) ----------
+   Sugere a grafia certa quando uma palavra do título NÃO existe nem na base (catálogo TCE-ES,
+   base federal, unidades) nem no dicionário de português (vendor/palavras.txt, ~178 mil palavras,
+   lista MIT "an-array-of-portuguese-words"; as 25 mil primeiras em ordem de frequência).
+   Regras para não atrapalhar: só palavras sem acento e com 5+ letras; siglas curtas em maiúsculas,
+   flexões (plural, gênero) e termos técnicos (ORTO_EXTRA) ficam de fora; distância de edição 1
+   (2 para palavras com 10+ letras). Palavra desconhecida e sem parecida (ex.: "HD") → nada a sugerir:
+   a IA decide. Testado com 115 medicamentos e ~200 itens comuns sem falso positivo.
+   VOC: vocabulário da base (montado ao carregar o kb.json). DIC: dicionário (carregado sob demanda). */
+let VOC=null, DIC=null, DIC_PROMESSA=null;
+/* Termos técnicos comuns em compras públicas que faltam no dicionário (sais de fármacos etc.) */
+const ORTO_EXTRA = new Set('sodico sodica potassico potassica calcico calcica magnesico cloridrato maleato besilato succinato mesilato fumarato citrato tartarato acetato fosfato sulfato monoidratado diidratado triidratado heptaidratado esfigmomanometro hipodermico hipodermica descartavel micropore esparadrapo multiuso antiderrapante'.split(' '));
+function setDic(t){ const l=t.split('\n'); DIC=new Map(); const pl={}, orig=new Map(); l.forEach((o,i)=>{ const w=norm(o); DIC.set(w,i); if(i<25000){ (pl[w[0]]=pl[w[0]]||[]).push(w); orig.set(w,o); } }); DIC.porLetra=pl; DIC.orig=orig; }
+function montarVocab(KB){
+  const freq=new Map(), orig=new Map();
+  const add = s => { for(const w of String(s||'').match(/[A-Za-zÀ-ÿ]{4,}/g)||[]){ const n=norm(w); freq.set(n,(freq.get(n)||0)+1); if(!orig.has(n)) orig.set(n,w.toLowerCase()); } };
+  for(const i of KB.itens){ add(i.t); add(i.x); add(i.d); }
+  for(const f of KB.federal||[]){ add(f.n); add(f.x); add(f.d); }
+  for(const u of KB.ta22||[]) add(u.n);
+  for(const v of Object.values(KB.elementos||{})){ add(v.n); add(v.c); }
+  const porLetra={}, stems=new Set();
+  for(const n of freq.keys()){ (porLetra[n[0]]=porLetra[n[0]]||[]).push(n); stems.add(stem(n)); }
+  VOC={freq,orig,porLetra,stems,cache:new Map()};
+}
+function dist(a,b,max){
+  if(Math.abs(a.length-b.length)>max) return max+1;
+  const m=a.length,n=b.length; let p2=null,p=Array.from({length:n+1},(_,j)=>j);
+  for(let i=1;i<=m;i++){ const c=[i]; let best=i;
+    for(let j=1;j<=n;j++){ let v=Math.min(p[j]+1,c[j-1]+1,p[j-1]+(a[i-1]===b[j-1]?0:1));
+      if(p2&&i>1&&j>1&&a[i-1]===b[j-2]&&a[i-2]===b[j-1]) v=Math.min(v,p2[j-2]+1);
+      c[j]=v; if(v<best) best=v; }
+    if(best>max) return max+1; p2=p; p=c; }
+  return p[n];
+}
+function corrigirPalavra(w){
+  /* Só palavras sem acento: quem digitou acento escreveu com cuidado (e nomes de fármacos com acento ficam de fora) */
+  if(!VOC || w.length<5 || /[^A-Za-z]/.test(w) || /^[A-Z]+$/.test(w) && w.length<=5) return null;
+  const n=norm(w), conhecida = x => ORTO_EXTRA.has(x) || VOC.freq.has(x) || (DIC && DIC.has(x));
+  if(STOP.has(n) || !DIC || conhecida(n)) return null;
+  /* Flexões de palavras conhecidas (plural, masculino/feminino) não são erro */
+  const base = n.replace(/(s|es)$/,'');
+  if([base, base+'o', base+'a', n+'s', n.replace(/a$/,'o'), n.replace(/o$/,'a'), n.replace(/as$/,'os'), n.replace(/os$/,'as')].some(conhecida)) return null;
+  if(VOC.cache.has(n)) return VOC.cache.get(n);
+  const max = n.length>=10 ? 2 : 1;
+  /* 1º: palavras da base (catálogo, unidades); 2º: as 25 mil palavras mais comuns do português */
+  let best=null, bd=max+1, bf=0, fonte='';
+  for(const c of VOC.porLetra[n[0]]||[]){ const d=dist(n,c,max); if(d<bd || d===bd && VOC.freq.get(c)>bf){ best=c; bd=d; bf=VOC.freq.get(c); fonte='kb'; } }
+  if(!best || bd>1){ let b2=null, d2=2, r2=1e9;
+    for(const c of DIC.porLetra[n[0]]||[]){ if(c.length<6) continue; const d=dist(n,c,1); if(d<=1 && (d<d2 || d===d2 && DIC.get(c)<r2)){ b2=c; d2=d; r2=DIC.get(c); } }
+    if(b2 && d2<bd){ best=b2; bd=d2; fonte='dic'; } }
+  if(best && (best.length<5 || n.startsWith(best))) best=null; /* abreviação/truncamento da base */
+  const r = best && bd<=max ? (fonte==='kb' ? VOC.orig.get(best) : DIC.orig.get(best)) : null;
+  VOC.cache.set(n,r); return r;
+}
+function sugerirGrafia(texto){
+  const trocas=[];
+  const novo=String(texto||'').replace(/[A-Za-zÀ-ÿ]+/g, w=>{ const c=corrigirPalavra(w); if(!c) return w;
+    const out = w===w.toUpperCase() ? c.toUpperCase() : w[0]===w[0].toUpperCase() ? c[0].toUpperCase()+c.slice(1) : c;
+    trocas.push({de:w,para:out}); return out; });
+  return trocas.length ? {texto:novo, trocas} : null;
+}
+/** Carrega o dicionário uma vez (≈570 KB compactado). Falhou → sem sugestões, nada quebra. */
+function carregarDic(){
+  if(!DIC_PROMESSA) DIC_PROMESSA = fetch('vendor/palavras.txt').then(r => r.ok ? r.text() : Promise.reject()).then(setDic).catch(()=>{ DIC_PROMESSA = null; });
+  return DIC_PROMESSA;
+}
+/** Espera o dicionário por no máximo ms milissegundos (a consulta nunca fica presa nele). */
+const dicPronto = (ms=3000) => Promise.race([carregarDic(), new Promise(r=>setTimeout(r, ms))]);
 
 /* ---------- Estado (UF) ---------- */
 /* ===================== 3. ESTADO (UF) ===================== */
@@ -780,8 +852,10 @@ async function classify(st){
     saveHist(st.item, r.codigo);
     LAST_ITEM = {item: st.item, ctx: st.ctx||''};
   }catch(e){
-    const msg = e&&e.code==='rate_limited' ? 'Muitas consultas seguidas. Aguarde um minuto e tente de novo.' : e&&e.code==='not_granted' ? (window.claude ? 'O acesso ao Claude não foi autorizado nesta página.' : (e.message || 'O servidor recusou a consulta.')) : 'Não foi possível concluir a classificação. Tente de novo ou detalhe melhor o item.';
-    $('#res').innerHTML = `<h2>Resultado</h2><div class="warnbox">${msg}</div>` + renderLocal([st.item,st.ctx].join(' '));
+    const msg = e&&e.code==='rate_limited' ? 'Muitas consultas seguidas. Aguarde um minuto e tente de novo.' : e&&e.code==='not_granted' ? (window.claude ? 'O acesso ao Claude não foi autorizado nesta página.' : (e.message || 'O servidor recusou a consulta.')) : e&&e.code==='network' ? 'Não foi possível falar com o servidor. Confira a conexão e tente de novo.'
+      : e&&e.code==='server'&&e.message ? `O servidor não conseguiu concluir a classificação: ${e.message}. Tente de novo; se repetir, detalhe melhor o item.`
+      : 'Não foi possível concluir a classificação. Tente de novo ou detalhe melhor o item.';
+    $('#res').innerHTML = `<h2>Resultado</h2><div class="warnbox">${esc(msg)}</div>` + renderLocal([st.item,st.ctx].join(' '));
   }finally{ busy=false; $('#go').textContent='Classificar'; gate(); }
 }
 /* Regras do botão Classificar: mínimo de 3 letras; nova classificação só após apagar ao menos 3 letras */
@@ -828,10 +902,30 @@ $('#un').addEventListener('input', gate);
 $('#un').addEventListener('change', gate);
 $('#ctx').addEventListener('input', gate);
 /* Eventos da consulta individual: enviar, limpar, exemplos e histórico. */
-$('#f').addEventListener('submit', e=>{
+/* Correção ortográfica antes da consulta: se o título tiver provável erro de digitação, mostra
+   "Você quis dizer…?" e só classifica depois que o usuário escolher (Usar ou Manter). ORTO_OK guarda
+   o texto já decidido, para não perguntar de novo. */
+let ORTO_OK = '';
+const enviarConsulta = item => classify({item, ctx:$('#ctx').value.trim(), un:$('#un').value.trim(), forn:$('#forn').value, desp:$('#desp').value, extra:''});
+$('#item').addEventListener('focus', ()=>carregarDic(), {once:true});
+$('#item').addEventListener('input', ()=>{ $('#orto').hidden = true; });
+$('#f').addEventListener('submit', async e=>{
   e.preventDefault();
-  const item=$('#item').value.trim(); if(!item || !podeClassificar().ok){ gate(); return; }
-  classify({item, ctx:$('#ctx').value.trim(), un:$('#un').value.trim(), forn:$('#forn').value, desp:$('#desp').value, extra:''});
+  const item=$('#item').value.trim(); if(!item || !podeClassificar().ok || busy){ gate(); return; }
+  if(item !== ORTO_OK){
+    await dicPronto();
+    const sg = sugerirGrafia(item);
+    if(sg && $('#item').value.trim() === item){
+      const html = esc(item).replace(/[A-Za-zÀ-ÿ]+/g, w => { const t = sg.trocas.find(x => x.de === w); return t ? `<b>${esc(t.para)}</b>` : w; });
+      $('#orto').innerHTML = `<span>Você quis dizer: ${html}?</span><button type="button" class="primary" id="orto-sim">Usar sugestão</button><button type="button" class="ghost" id="orto-nao">Manter como escrevi</button>`;
+      $('#orto').hidden = false;
+      $('#orto-sim').onclick = ()=>{ $('#item').value = sg.texto; ORTO_OK = sg.texto; $('#orto').hidden = true; gate(); enviarConsulta(sg.texto); };
+      $('#orto-nao').onclick = ()=>{ ORTO_OK = item; $('#orto').hidden = true; enviarConsulta(item); };
+      return;
+    }
+  }
+  $('#orto').hidden = true;
+  enviarConsulta(item);
 });
 const RES_INICIAL = $('#res').innerHTML;
 $('#clear').addEventListener('click', ()=>{
@@ -940,7 +1034,7 @@ function sugTipo(g){ return g ? ((g.res && g.res.tipoSug) || (!g.res && g.tipoLo
 function addToGroup(grupos, l){
   const k = [norm(l.tit), norm(l.des), l.u.c || norm(l.un), l.tipo].join('|').replace(/\s+/g,' ');
   let g = grupos.find(x=>x.k===k);
-  if(!g){ g = {k, tit:l.tit, des:l.des, u:l.u, un:l.un, tipo:l.tipo, linhas:[], res:null}; g.tipoLocal = tipoPelaUnidade(g); grupos.push(g); }
+  if(!g){ g = {k, tit:l.tit, des:l.des, u:l.u, un:l.un, tipo:l.tipo, linhas:[], res:null}; g.tipoLocal = tipoPelaUnidade(g); g.orto = sugerirGrafia(g.tit); grupos.push(g); }
   g.linhas.push(l);
 }
 /* Sugestão de unidade (TA 22) para linhas com unidade fora da tabela */
@@ -977,6 +1071,7 @@ async function loadFile(file){
     } else wb = XLSX.read(buf, {type:'array'});
     const sh = wb.Sheets['Itens'] || wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(sh, {header:1, defval:'', raw:false, blankrows:false});
+    await dicPronto(); /* dicionário da correção ortográfica (até 3 s; sem ele, segue sem sugestões) */
     const p = parseRows(rows);
     if(p.errs.length){ msg.innerHTML = `<div class="warnbox">${p.errs.map(esc).join('<br>')}</div>`; return; }
     /* id: identifica esta importação no servidor, que conta até 5 importações por dia por endereço IP */
@@ -1122,12 +1217,33 @@ function preStats(){
   const nTL = p.grupos.filter(g=>!g.res && g.tipoLocal).length;
   if(nTL) $('#pre-stats').insertAdjacentHTML('beforeend', `<div class="warnbox">${nTL} item(ns) com TIPO provavelmente errado pela unidade de medida (ex.: ampola ou comprimido marcado como Serviço). Eles não serão enviados à IA até o TIPO ser corrigido: use Corrigir tipo na tabela ou Corrigir todos os TIPOS sugeridos.</div>`);
   if(!sample) $('#pre-stats').insertAdjacentHTML('beforeend','<div class="warnbox">A classificação com IA não está disponível nesta visualização.</div>');
+  renderOrtoImp();
+}
+/* Títulos com provável erro de digitação (correção ortográfica local): mostrados antes de classificar,
+   para a IA já receber o nome certo. Corrigir troca o título em todas as linhas do item e guarda o original. */
+function aplicarOrto(g){
+  if(!g || !g.orto) return;
+  for(const l of g.linhas){ l.titOrig = l.titOrig || l.tit; l.tit = g.orto.texto; }
+  g.tit = g.orto.texto; g.orto = null;
+}
+function renderOrtoImp(){
+  const box = $('#orto-imp'); if(!box || !IMP) return;
+  const gs = IMP.grupos.filter(g => g.orto && !g.res);
+  if(!gs.length){ box.innerHTML = ''; return; }
+  const marca = g => esc(g.tit).replace(/[A-Za-zÀ-ÿ]+/g, w => { const t = g.orto.trocas.find(x => x.de === w); return t ? `<b>${esc(t.para)}</b>` : w; });
+  box.innerHTML = `<div class="warnbox orto-imp"><p style="margin:0 0 6px"><strong>${gs.length} título(s) com provável erro de digitação.</strong> Corrija antes de classificar para a IA receber o nome certo (ou ignore, se o nome estiver correto).</p>
+    <ul style="margin:0 0 8px;padding-left:18px">${gs.slice(0,30).map(g => `<li>Linha ${g.linhas.map(l=>l.linha).slice(0,5).join(', ')}${g.linhas.length>5?'…':''}: ${esc(g.tit)} → ${marca(g)} <button type="button" class="ghost orto-1" data-k="${IMP.grupos.indexOf(g)}" style="width:auto;padding:2px 8px;font-size:12px">Corrigir</button></li>`).join('')}${gs.length>30?`<li>e mais ${gs.length-30}…</li>`:''}</ul>
+    <div class="toolbar"><button type="button" class="primary" id="orto-todos" style="width:auto">Corrigir todos</button><button type="button" class="ghost" id="orto-ign" style="width:auto">Ignorar sugestões</button></div></div>`;
+  box.querySelectorAll('.orto-1').forEach(b => b.onclick = () => { aplicarOrto(IMP.grupos[Number(b.dataset.k)]); renderOrtoImp(); renderTable(); });
+  $('#orto-todos').onclick = () => { gs.forEach(aplicarOrto); renderOrtoImp(); renderTable(); };
+  $('#orto-ign').onclick = () => { gs.forEach(g => g.orto = null); renderOrtoImp(); };
 }
 /** Resumo depois de classificar e botões em massa (corrigir unidades, textos, TIPOs). */
 function postStats(){
   const nErro = IMP.linhas.filter(l=>l.erro).length;
   const ok = IMP.linhas.filter(l=>!l.erro && saida(l).classe).length;
   $('#post-stats').innerHTML = stat(ok,'linhas classificadas') + stat(nErro,'linhas com ERRO', nErro?'bad':'');
+  renderOrtoImp();
 }
 /* Filtros da tabela do importador */
 /** Regra de cada filtro da tabela: todos, com ERRO, TIPO a corrigir, texto sugerido, não classificados. */
@@ -1429,6 +1545,7 @@ $('#pro-form').addEventListener('submit', async e=>{
     KB = await (await fetch('kb.json')).json();
     for(const i of KB.itens){ i._t=new Set(toks(i.t)); i._x=new Set(toks(i.x)); i._d=new Set(toks(i.d)); }
     for(const f of KB.federal){ f._t=new Set(toks(f.n)); f._x=new Set(toks(f.x)); f._d=new Set(toks(f.d)); }
+    montarVocab(KB); /* vocabulário da correção ortográfica */
     $('#ta22list').innerHTML = KB.ta22.map(u=>`<option value="${u.c} - ${esc(u.n)}"></option>`).join('');
   }catch{ $('#res').innerHTML='<div class="warnbox">Não foi possível carregar a base. Recarregue a página.</div>'; }
   if(consent() === 'sim'){

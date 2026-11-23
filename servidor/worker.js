@@ -23,7 +23,7 @@
 const PREFIXO = 'qw-classificador:';
 /* Limites por rota: tamanho máximo do pedido (caracteres) e da resposta da IA (tokens). */
 const LIM = {
-  classificar: { chars: 120000, maxTokens: 2000 },
+  classificar: { chars: 120000, maxTokens: 4000 },
   lote:        { chars: 300000, maxTokens: 12000 },
 };
 /* Instrução de sistema enviada à IA em toda chamada: resposta só em JSON. */

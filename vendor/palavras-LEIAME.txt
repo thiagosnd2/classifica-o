@@ -1,0 +1,8 @@
+palavras.txt — dicionário usado pela correção ortográfica local (index.html, seção 2).
+
+Origem: pacote npm "an-array-of-portuguese-words" 1.2.0 (https://github.com/hexapode/an-array-of-portuguese-words),
+licença MIT, autor hexapode. ~189 mil palavras do português coletadas da internet, em ordem de frequência.
+
+Tratamento aplicado: só palavras de 4+ letras, sem dígitos nem símbolos, uma por forma sem acento
+(178.597 palavras). As 25 mil primeiras linhas mantêm a ordem de frequência (usadas para sugerir);
+o restante está em ordem alfabética (usado só para reconhecer palavras válidas).

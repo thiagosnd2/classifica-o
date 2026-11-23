@@ -21,6 +21,7 @@ Contas contábeis: PCASP 2027 (Portaria STN/MF nº 2.520, de 21/08/2026).
 | `index.html` | Aplicação completa: consulta individual, quiz, importador de planilha e exportação |
 | `kb.json` | Base de conhecimento usada pela página: 454 subelementos TCE-ES 2027 com ementas e exemplos, conceitos dos elementos (MCASP), Tabela Auxiliar 22, siglas de unidade, base federal, contas de almoxarifado e de bens móveis |
 | `modelo_importacao.xlsx` | Modelo padrão de importação: TITULO, DESCRIÇÃO (até 400 caracteres), UNIDADE DE MEDIDA (lista da TA 22) e TIPO (Material ou Serviço) |
+| `vendor/palavras.txt` | Dicionário de português (~178 mil palavras, licença MIT) da correção ortográfica local; origem em `vendor/palavras-LEIAME.txt` |
 | `dados/` | Dados intermediários extraídos dos documentos oficiais (Portaria 448, PCASP 2027, MCASP e tabela TCE-ES) |
 | `scripts/` | Scripts Python que montaram a base. Usar para reprocessar quando sair uma nova versão da tabela do TCE-ES ou do PCASP |
 
@@ -64,11 +65,14 @@ Princípio de projeto: **a IA só sugere; o código valida antes e confere depoi
 - Botão Classificar habilitado só com Estado selecionado, ao menos 3 letras no item e unidade de medida escolhida na lista. Para nova classificação é preciso apagar ao menos 3 letras ou usar Limpar.
 - Resultado com código, justificativa, critérios de consumo × permanente (Portaria 448, art. 3º), regras aplicadas e alternativas.
 - Quiz quando a confiança é média ou baixa: as opções já vêm ligadas a um código e o clique resolve sem nova chamada à IA.
+- Correção ortográfica local, sem IA: palavra do título que não existe na base nem no dicionário e está a 1 letra (2 se tiver 10+) de uma conhecida → "Você quis dizer…?" com Usar sugestão / Manter como escrevi. Palavras com acento, siglas curtas, flexões e termos técnicos ficam de fora; palavra desconhecida sem parecida (ex.: "HD") segue direto para a IA.
+- Em falha, mostra o motivo enviado pelo servidor (ex.: resposta da IA cortada por tamanho).
 
-**Importar planilha (Pro)**
+**Importar planilha (Pro; suspenso desde 22/11/2026: gratuito, até 5 importações por dia por IP)**
 - Upload de .xlsx ou .csv no padrão do modelo.
 - Unidade fora da TA 22 → ERRO, com coluna Sugestão e botões para corrigir (individual ou em lote).
-- Itens repetidos classificados uma vez só; lotes de 20 itens separados por tipo; catálogo restrito aos elementos prováveis para economizar tokens.
+- Títulos com provável erro de digitação listados antes de classificar, com Corrigir, Corrigir todos e Ignorar (o original fica guardado).
+- Itens repetidos classificados uma vez só; lotes de 30 itens separados por tipo; catálogo restrito aos elementos prováveis para economizar tokens.
 - Exportação: TITULO, DESCRIÇÃO, UNIDADE DE MEDIDA, CLASSE (ELEMENTO), SUB ELEMENTO (SUGESTÃO), CONTA CONTÁBIL.
 
 ## Limitação atual
