@@ -71,6 +71,7 @@ button{font:600 14px var(--body);cursor:pointer;border-radius:7px;border:1px sol
 .primary{background:var(--accent);color:var(--surface);width:100%}
 .primary:disabled{background:var(--line);border-color:var(--line);color:var(--muted);cursor:not-allowed;pointer-events:none}
 #go-wrap{cursor:not-allowed}
+.un-sug{margin-top:6px;padding:8px 10px;border-radius:7px;background:var(--warn-soft);font-size:13px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}.un-sug[hidden]{display:none}.un-sug .chip{width:auto}
 .orto{margin-top:6px;padding:8px 10px;border-radius:7px;background:var(--warn-soft,rgba(234,179,8,.12));font-size:13px;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}.orto[hidden]{display:none}.orto b{color:var(--acc,#5eead4)}.orto button{width:auto;padding:4px 10px;font-size:12.5px}
 #go-hint.alerta{background:var(--bad-soft);color:var(--bad);border-radius:7px;padding:8px 10px;font-weight:600}
 #uf.uf-alerta{border:2px solid var(--bad);color:var(--bad);box-shadow:0 0 0 3px var(--bad-soft)}
@@ -245,6 +246,7 @@ footer .marca{flex-basis:100%;text-align:center;font-size:11px;letter-spacing:.1
       <div class="field">
         <label for="un">Unidade de medida <span class="ubad" aria-hidden="true">*</span> <span class="hint" id="un-hint">(escolha na lista)</span></label>
         <input id="un" list="ta22list" autocomplete="off" placeholder="Ex.: 027 - Comprimido">
+        <div id="un-sug" class="un-sug" hidden aria-live="polite"></div>
         <datalist id="ta22list"></datalist>
       </div>
       <div class="row2">
@@ -686,6 +688,11 @@ function g0(l){ const g = IMP && IMP.grupos.find(x=>x.linhas.includes(l)); retur
 const elOf = c => (c||'').split('.').slice(0,4).join('.');
 
 /* ---------- Unidade (TA 22) ---------- */
+/** Palavras usadas no lugar do nome da unidade (periodicidade etc.) → nome da TA22. Chaves sem acento, minúsculas. */
+const UN_SINONIMOS = {mensal:'Mês', mes:'Mês', meses:'Mês', mensalidade:'Mês', anual:'Ano', anos:'Ano', anuidade:'Ano',
+  semestral:'Semestre', trimestral:'Trimestre', semanal:'Semana', quinzenal:'Quinzena', diario:'Dia', dias:'Dia',
+  horas:'Hora', horario:'Hora', unidades:'Unidade', pecas:'Peça', caixas:'Caixa', pacotes:'Pacote', litros:'Litro',
+  quilo:'Quilograma', quilos:'Quilograma', metros:'Metro', resmas:'Resma', rolos:'Rolo', servicos:'Serviço'};
 /** Interpreta a unidade digitada (código, nome ou sigla) e devolve status + sugestões da TA22. */
 function resolveUnit(raw){
   const s = clip(raw, 60);
@@ -697,7 +704,11 @@ function resolveUnit(raw){
   const sig = s.toUpperCase().replace(/[.\s]/g,'');
   if(KB.siglas[sig]){ const u = KB.ta22.find(x=>x.c===KB.siglas[sig]); return {status:'corrigir', informada:s, sug:[u], motivo:`"${s}" não consta da Tabela Auxiliar 22; equivale a ${u.c} – ${u.n}.`}; }
   if(KB.ambiguas[sig]){ const sug = KB.ambiguas[sig].map(c=>KB.ta22.find(x=>x.c===c)).filter(Boolean); return {status:'ambigua', informada:s, sug, motivo:`"${s}" não consta da Tabela Auxiliar 22 e pode corresponder a mais de uma unidade.`}; }
-  const parc = KB.ta22.filter(x=>norm(x.n).startsWith(ns) || (ns.length>3 && norm(x.n).includes(ns))).slice(0,3);
+  /* Palavras comuns que não são nomes da TA22 (ex.: "mensal") → unidade equivalente */
+  const sin = UN_SINONIMOS[ns]; if(sin){ const u = KB.ta22.find(x=>norm(x.n)===norm(sin)); if(u) return {status:'corrigir', informada:s, sug:[u], motivo:`"${s}" não consta da Tabela Auxiliar 22; equivale a ${u.c} – ${u.n}.`}; }
+  let parc = KB.ta22.filter(x=>norm(x.n).startsWith(ns) || (ns.length>3 && norm(x.n).includes(ns))).slice(0,3);
+  /* Erro de digitação (ex.: "unidde", "quilogrma"): nomes a até 2 letras de distância */
+  if(!parc.length && ns.length >= 3) parc = KB.ta22.map(x=>({x, d:dist(ns, norm(x.n), 2)})).filter(o=>o.d<=2).sort((a,b)=>a.d-b.d).slice(0,3).map(o=>o.x);
   return {status: parc.length===1 ? 'corrigir' : 'ambigua', informada:s, sug:parc, motivo:`"${s}" não consta da Tabela Auxiliar 22.`};
 }
 const unitTxt = u => u && u.status==='ok' ? `${u.c} – ${u.n}` : '';
@@ -959,7 +970,24 @@ $('#go-wrap').addEventListener('click', ()=>{
   if(!UF){ $('#uf').classList.add('uf-alerta'); $('#uf').focus(); }
 });
 $('#item').addEventListener('input', gate);
+/** Ajuda da unidade na consulta: quando o texto não é uma unidade da TA22, explica e oferece as mais
+    próximas como botões (ex.: "mensal" → 073 – Mês). Some quando a unidade é válida ou o campo está vazio. */
+function ajudaUnidade(){
+  const box = $('#un-sug'), raw = $('#un').value.trim();
+  if(!KB || !raw){ box.hidden = true; return; }
+  const u = resolveUnit(raw);
+  if(u.status === 'ok'){ box.hidden = true; return; }
+  const sug = (u.sug||[]).filter(Boolean);
+  box.innerHTML = sug.length
+    ? `<span>"${esc(raw)}" não consta da Tabela Auxiliar 22. Você quis dizer:</span> ${sug.map(x=>`<button type="button" class="chip un-op" data-v="${esc(x.c+' - '+x.n)}">${esc(x.c)} – ${esc(x.n)}</button>`).join(' ')}`
+    : `<span>"${esc(raw)}" não consta da Tabela Auxiliar 22. Digite parte do nome (ex.: Mês, Unidade, Caixa) e escolha na lista.</span>`;
+  box.querySelectorAll('.un-op').forEach(b => b.onclick = () => { $('#un').value = b.dataset.v; box.hidden = true; gate(); });
+  box.hidden = false;
+}
 $('#un').addEventListener('input', gate);
+$('#un').addEventListener('change', ajudaUnidade);
+$('#un').addEventListener('blur', ajudaUnidade);
+$('#un').addEventListener('input', () => { if(resolveUnit($('#un').value).status === 'ok') $('#un-sug').hidden = true; });
 $('#un').addEventListener('change', gate);
 $('#ctx').addEventListener('input', gate);
 /* Eventos da consulta individual: enviar, limpar, exemplos e histórico. */

@@ -71,6 +71,7 @@ Princípio de projeto: **a IA só sugere; o código valida antes e confere depoi
 - Resultado com código, justificativa, critérios de consumo × permanente (Portaria 448, art. 3º), regras aplicadas e alternativas.
 - Quiz quando a confiança é média ou baixa: as opções já vêm ligadas a um código e o clique resolve sem nova chamada à IA.
 - Correção ortográfica local, sem IA: palavra do título que não existe na base nem no dicionário e está a 1 letra (2 se tiver 10+) de uma conhecida → "Você quis dizer…?" com Usar sugestão / Manter como escrevi. Palavras com acento, siglas curtas, flexões e termos técnicos ficam de fora; palavra desconhecida sem parecida (ex.: "HD") segue direto para a IA.
+- Unidade fora da Tabela Auxiliar 22: ao sair do campo, aparece "Você quis dizer" com as unidades mais próximas como botões (sinônimos como "mensal" → 073 – Mês e erros de digitação como "unidde" → 131 – Unidade); sem parecida, explica como escolher na lista.
 - Em falha, mostra o motivo enviado pelo servidor (ex.: resposta da IA cortada por tamanho).
 - **Em teste (23/11/2026):** para material permanente, o quadro "Registro patrimonial" mostra a conta do bem e a conta de depreciação acumulada (ex.: 1.2.3.1.1.03.02 → 1.2.3.8.1.01.03). A ligação fica em `kb.json` → `depreciacao` (por grupo 1.2.3.1.1.GG; contas de bens seguem o PCASP 2027). Para tirar: `git revert d7b2b32` (o Claude faz) e republicar o artefato; a versão anterior é a `39f1964`.
 
