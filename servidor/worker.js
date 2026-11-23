@@ -14,6 +14,9 @@
  *   Rate limit RL               opcional; limita consultas por IP
  *   Segredo  TURNSTILE_SECRET   opcional; exige a verificação anti-robô na consulta individual
  *   Variável DAILY_LIMIT        opcional; teto de consultas de IA por dia (todas as pessoas somadas)
+ *   Variável PRO_OBRIGATORIO    "true" = importador só com chave Pro; ausente/"false" = Pro suspenso,
+ *                               importação liberada com limite diário por IP
+ *   Variável IMPORT_LIMIT       importações por dia por IP quando o Pro está suspenso (padrão 5)
  */
 
 /* Prefixo do hash das chaves Pro (o mesmo usado na página e nos scripts). */
@@ -21,7 +24,7 @@ const PREFIXO = 'qw-classificador:';
 /* Limites por rota: tamanho máximo do pedido (caracteres) e da resposta da IA (tokens). */
 const LIM = {
   classificar: { chars: 120000, maxTokens: 2000 },
-  lote:        { chars: 300000, maxTokens: 8000 },
+  lote:        { chars: 300000, maxTokens: 12000 },
 };
 /* Instrução de sistema enviada à IA em toda chamada: resposta só em JSON. */
 const SISTEMA = 'Você é um classificador de natureza de despesa pública brasileira. Responda SOMENTE com JSON válido, sem texto antes ou depois e sem blocos de código.';
@@ -69,9 +72,16 @@ export default {
         if (!prompt) return resp(400, { erro: 'Prompt vazio' });
         if (prompt.length > LIM[tipo].chars) return resp(413, { erro: 'Pedido grande demais' });
 
+        let restantes = null;
         if (tipo === 'lote') {
-          const lic = await licencaValida(env, corpo.chave);
-          if (!lic) return resp(403, { erro: 'Chave Pro inválida, vencida ou cancelada' });
+          // Com chave Pro válida: sem limite. Sem chave: depende do modo (Pro obrigatório ou suspenso).
+          const lic = corpo.chave ? await licencaValida(env, corpo.chave) : null;
+          if (!lic) {
+            if (env.PRO_OBRIGATORIO === 'true') return resp(403, { erro: 'Chave Pro inválida, vencida ou cancelada' });
+            const r = await contarImportacao(env, String(corpo.arquivo || ''), req.headers.get('CF-Connecting-IP') || 'anon');
+            if (!r.ok) return resp(403, { erro: r.erro });
+            restantes = r.restantes;
+          }
         } else if (env.TURNSTILE_SECRET) {
           const ok = await verificarTurnstile(env, corpo.ts, req.headers.get('CF-Connecting-IP'));
           if (!ok) return resp(403, { erro: 'Verificação anti-robô falhou' });
@@ -80,7 +90,7 @@ export default {
         if (!(await dentroDoTeto(env))) return resp(429, { erro: 'Limite diário de consultas atingido' });
 
         const resultado = await chamarIA(env, prompt, LIM[tipo].maxTokens);
-        return resp(200, { resultado });
+        return resp(200, restantes === null ? { resultado } : { resultado, restantes });
       }
 
       return resp(404, { erro: 'Rota não encontrada' });
@@ -107,16 +117,34 @@ async function verificarTurnstile(env, token, ip) {
   } catch { return false; }
 }
 
+// Limite de importações por dia por IP (Pro suspenso). Cada planilha enviada tem um id próprio;
+// os lotes da mesma planilha contam como uma importação só. Se o KV falhar, a importação segue.
+async function contarImportacao(env, arquivo, ip) {
+  const lim = Number(env.IMPORT_LIMIT || 5);
+  if (!/^[\w.-]{8,64}$/.test(arquivo)) return { ok: false, erro: 'Importação sem identificação; recarregue a página e envie a planilha de novo' };
+  if (!env.LICENCAS) return { ok: true, restantes: null };
+  const k = 'imp:' + ip + ':' + diaBrasilia();
+  let ids = [];
+  try { ids = JSON.parse((await env.LICENCAS.get(k)) || '[]'); } catch { ids = []; }
+  if (ids.includes(arquivo)) return { ok: true, restantes: Math.max(0, lim - ids.length) };
+  if (ids.length >= lim) return { ok: false, erro: `Limite de ${lim} importações por dia atingido. Tente novamente amanhã` };
+  ids.push(arquivo);
+  try { await env.LICENCAS.put(k, JSON.stringify(ids), { expirationTtl: 2 * 86400 }); } catch {}
+  return { ok: true, restantes: Math.max(0, lim - ids.length) };
+}
+
+function diaBrasilia() { return new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10); }
+
 // Teto diário aproximado (contador no KV; a contagem pode escapar em poucas unidades
 // com muitos acessos simultâneos). No plano gratuito o KV aceita 1.000 gravações por dia.
 async function dentroDoTeto(env) {
   const lim = Number(env.DAILY_LIMIT || 0);
   if (!lim || !env.LICENCAS) return true;
-  const dia = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10); // dia em Brasília
-  const k = 'uso:' + dia;
-  const n = Number((await env.LICENCAS.get(k)) || 0);
+  const k = 'uso:' + diaBrasilia();
+  let n = 0;
+  try { n = Number((await env.LICENCAS.get(k)) || 0); } catch {}
   if (n >= lim) return false;
-  await env.LICENCAS.put(k, String(n + 1), { expirationTtl: 3 * 86400 });
+  try { await env.LICENCAS.put(k, String(n + 1), { expirationTtl: 3 * 86400 }); } catch {} // KV cheio: não derruba a consulta
   return true;
 }
 

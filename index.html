@@ -7,7 +7,10 @@
 /* ===== Configuração da hospedagem própria (GitHub Pages + Cloudflare Workers) =====
    API_URL: endereço do servidor (sem barra no fim). TURNSTILE_SITEKEY: chave pública do Turnstile.
    Dentro do claude.ai estes valores são ignorados. */
-window.CFG = { API_URL: 'https://classificador-ap.tbraga262.workers.dev', TURNSTILE_SITEKEY: '0x4AAAAAAGLGzle2EfLRor-d' };
+window.CFG = { API_URL: 'https://classificador-ap.tbraga262.workers.dev', TURNSTILE_SITEKEY: '0x4AAAAAAGLGzle2EfLRor-d',
+  /* PLANO_PRO: false = plano Pro suspenso, importação liberada para todos (limite diário no servidor).
+     true = importação só com chave Pro válida. No servidor, o equivalente é a variável PRO_OBRIGATORIO. */
+  PLANO_PRO: false };
 /* Política de conteúdo (CSP) para a hospedagem própria. No claude.ai a plataforma já aplica a dela. */
 (function(){
   if(!/(^|\.)(github\.io|classificabr\.com)$/.test(location.hostname)) return;
@@ -442,7 +445,7 @@ function servidorProprio(){
   return {
     sample: { json: (prompt, opts={}) => {
       const lote = /array JSON/.test(prompt);
-      if(lote) return apiPost('/lote', {prompt, chave: CHAVE_ATUAL}, opts.signal).then(j => j && j.resultado);
+      if(lote) return apiPost('/lote', {prompt, chave: CHAVE_ATUAL, arquivo: IMP && IMP.id}, opts.signal).then(j => { if(j && j.restantes != null) IMP_RESTANTES = j.restantes; return j && j.resultado; });
       return tokenTurnstile().then(ts => apiPost('/classificar', {prompt, ts}, opts.signal)).then(j => j && j.resultado);
     }},
     db: { doc: path => ({ get: async () => {
@@ -848,7 +851,7 @@ const MODELO_B64 = 'UEsDBBQAAAAIAO2Lc11Gx01IlwAAAM0AAAAQAAAAZG9jUHJvcHMvYXBwLnht
     classificação. FILTER: filtro ativo da tabela. MAXROWS: limite por arquivo. BATCH: itens por lote
     enviado à IA. DMAX: tamanho máximo da descrição. */
 let IMP = null, abortCtl = null, FILTER = 'all';
-const MAXROWS = 500, BATCH = 15, DMAX = 400;
+const MAXROWS = 500, BATCH = 30, DMAX = 400;
 
 /** Alterna as abas pela âncora da URL (#importar). */
 function route(){
@@ -958,7 +961,7 @@ function stat(n, label, cls=''){ return `<div class="stat ${cls}"><b>${n}</b><sp
 
 /** Lê o .xlsx/.csv no navegador (SheetJS), valida as linhas, agrupa e mostra o resumo. */
 async function loadFile(file){
-  if(!PRO){ $('#file-msg').innerHTML = '<div class="warnbox">Recurso do plano Pro. Informe sua chave no topo da página.</div>'; return; }
+  if(!proAtivo()){ $('#file-msg').innerHTML = '<div class="warnbox">Recurso do plano Pro. Informe sua chave no topo da página.</div>'; return; }
   const msg = $('#file-msg'); msg.innerHTML = ''; $('#run-panel').hidden = true; $('#res-panel').hidden = true;
   if(!UF){ msg.innerHTML = '<div class="warnbox">Selecione o Estado no topo da página antes de enviar a planilha.</div>'; return; }
   if(!/\.(xlsx|csv)$/i.test(file.name)){ msg.innerHTML = '<div class="warnbox">Formato não aceito. Envie .xlsx ou .csv no padrão do modelo.</div>'; return; }
@@ -976,7 +979,8 @@ async function loadFile(file){
     const rows = XLSX.utils.sheet_to_json(sh, {header:1, defval:'', raw:false, blankrows:false});
     const p = parseRows(rows);
     if(p.errs.length){ msg.innerHTML = `<div class="warnbox">${p.errs.map(esc).join('<br>')}</div>`; return; }
-    IMP = {...p, nome:file.name, uf:UF};
+    /* id: identifica esta importação no servidor, que conta até 5 importações por dia por endereço IP */
+    IMP = {...p, nome:file.name, uf:UF, id: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2))};
     msg.innerHTML = `<span class="pill">${esc(file.name)}</span> <span class="pill">${esc(UFS[UF])}</span>`;
     preStats();
     $('#run-panel').hidden = false; $('#prog').hidden = true; $('#run').textContent = 'Classificar itens';
@@ -1282,7 +1286,7 @@ function perguntaDistrib(cands){
     por TIPO sem os itens com TIPO a corrigir; (3) dois trabalhadores processam os lotes em paralelo;
     (4) mostra o andamento e o motivo de eventuais falhas. */
 $('#run').addEventListener('click', async () => {
-  if(!IMP || !sample || busy || !PRO) return;
+  if(!IMP || !sample || busy || !proAtivo()) return;
   if(!UF){ $('#prog').hidden=false; $('#prog-txt').textContent = 'Selecione o Estado no topo da página.'; return; }
   if(IMP.uf !== UF){ $('#prog').hidden=false; $('#prog-txt').textContent = `O estado foi alterado para ${UFS[UF]}. Envie o arquivo de novo para aplicar a regra desse estado.`; return; }
   const cands = IMP.grupos.filter(g => (!g.res || g.res.falha) && !g.tipoLocal && !g.finalidade && candDistrib(g));
@@ -1297,7 +1301,7 @@ $('#run').addEventListener('click', async () => {
   const nTipo = IMP.grupos.filter(g => !g.res && g.tipoLocal).length;
   const lotes = [];
   for(const t of ['Material','Serviço']){ const pt = pend.filter(g=>g.tipo===t); for(let i=0;i<pt.length;i+=BATCH) lotes.push(pt.slice(i,i+BATCH)); }
-  let feitos = 0, falhas = 0, motivo = '';
+  let feitos = 0, falhas = 0, motivo = '', bloqueio = '';
   const upd = () => { $('#bar').style.width = (lotes.length?100*feitos/lotes.length:100)+'%'; $('#prog-txt').textContent = `Lote ${Math.min(feitos+1,lotes.length)} de ${lotes.length}${falhas?` · ${falhas} lote(s) com erro`:''}`; };
   upd(); postStats(); renderTable();
   let idx = 0;
@@ -1305,12 +1309,12 @@ $('#run').addEventListener('click', async () => {
     while(idx < lotes.length && !abortCtl.signal.aborted){
       const lote = lotes[idx++];
       try{ await runBatch(lote, abortCtl.signal, false); }
-      catch(e){ if(abortCtl.signal.aborted) return; falhas++; motivo = e && e.code==='rate_limited' ? 'limite de uso da IA atingido; aguarde um minuto e clique em Classificar itens pendentes' : (e && e.message) || 'falha na resposta da IA'; lote.forEach(g => g.res = {falha:true}); if(e && e.code==='not_granted') abortCtl.abort(); }
+      catch(e){ if(abortCtl.signal.aborted) return; falhas++; motivo = e && e.code==='rate_limited' ? 'limite de uso da IA atingido; aguarde um minuto e clique em Classificar itens pendentes' : (e && e.message) || 'falha na resposta da IA'; lote.forEach(g => g.res = {falha:true}); if(e && e.code==='not_granted'){ bloqueio = (e && e.message) || 'acesso recusado pelo servidor'; abortCtl.abort(); } }
       feitos++; upd(); postStats(); renderTable();
     }
   };
   await Promise.all([worker(), worker()]);
-  $('#prog-txt').textContent = abortCtl.signal.aborted ? 'Interrompido. Clique em Classificar itens pendentes para continuar.' : `Concluído: ${IMP.linhas.length} linhas em ${lotes.length} lote(s)${falhas?`, ${falhas} lote(s) com erro (${motivo})`:''}.${nTipo?` ${nTipo} item(ns) aguardando correção do TIPO.`:''}`;
+  $('#prog-txt').textContent = bloqueio ? `${bloqueio}.` : abortCtl.signal.aborted ? 'Interrompido. Clique em Classificar itens pendentes para continuar.' : `Concluído: ${IMP.linhas.length} linhas em ${lotes.length} lote(s)${falhas?`, ${falhas} lote(s) com erro (${motivo})`:''}.${nTipo?` ${nTipo} item(ns) aguardando correção do TIPO.`:''}${IMP_RESTANTES!=null && !PRO?` Importações restantes hoje: ${IMP_RESTANTES}.`:''}`;
   $('#run').disabled = false; $('#run').textContent = 'Classificar itens pendentes'; $('#stop').hidden = true; busy = false;
   IMP.classificado = true; gateDownload();
   postStats(); renderTable();
@@ -1319,7 +1323,7 @@ $('#stop').addEventListener('click', () => abortCtl && abortCtl.abort());
 
 /** Exporta o resultado em .xlsx com unidade, TIPO, finalidade e textos já corrigidos. */
 $('#dl-res').addEventListener('click', async () => {
-  if(!IMP || !PRO || !IMP.classificado || busy) return;
+  if(!IMP || !proAtivo() || !IMP.classificado || busy) return;
   const out = [['TITULO','DESCRIÇÃO','UNIDADE DE MEDIDA','TIPO','FINALIDADE','CLASSE (ELEMENTO)','SUB ELEMENTO (SUGESTÃO)','CONTA CONTÁBIL']];
   for(const l of IMP.linhas){ const s = saida(l), g = !l.erro && grpDe(l); out.push([l.tit, l.des, l.un, l.tipo || '', (g && g.finalidade) || '', s.classe, s.sub, s.conta]); }
   const ws = XLSX.utils.aoa_to_sheet(out);
@@ -1337,6 +1341,12 @@ $('#prefs').addEventListener('click', ()=>{ $('#termo').hidden = false; $('#term
 /* ===================== 7. PLANO PRO (chave de licença) ===================== */
 /** PRO: licença ativa (município, validade). db: banco de licenças (Claude ou servidor próprio). */
 let PRO = null, db = null;
+/** Plano Pro suspenso (CFG.PLANO_PRO = false): o importador fica liberado para todos. */
+const PRO_SUSPENSO = !(window.CFG && window.CFG.PLANO_PRO);
+/** O importador pode ser usado? Sim se o Pro estiver suspenso ou se houver licença ativa. */
+const proAtivo = () => PRO_SUSPENSO || !!PRO;
+/** Importações que ainda restam hoje, informadas pelo servidor (null = sem informação). */
+let IMP_RESTANTES = null;
 const normChave = k => String(k||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 /** SHA-256 da chave normalizada — é por esse código que a licença é procurada (a chave nunca é gravada). */
 async function hashChave(k){
@@ -1356,14 +1366,23 @@ async function abrirLicenca(chave, e){
 /* Baixar resultado: só depois de clicar em Classificar itens e a classificação terminar */
 /** Libera "Baixar resultado" só depois que Classificar itens terminou. */
 function gateDownload(){
-  const ok = !!PRO && !busy && !!IMP && !!IMP.classificado;
+  const ok = proAtivo() && !busy && !!IMP && !!IMP.classificado;
   const b = $('#dl-res'); b.disabled = !ok;
   b.title = ok ? '' : 'Clique em Classificar itens antes de baixar o resultado';
 }
 /** Liga/desliga os recursos Pro na tela conforme a licença. */
 function aplicarPlano(){
-  const on = !!PRO;
-  $('#pro-status').textContent = on ? `Plano Pro · ${PRO.municipio||''}${PRO.validade?' · até '+PRO.validade.split('-').reverse().join('/'):''}` : 'Plano gratuito';
+  const on = proAtivo();
+  if(PRO_SUSPENSO && !PRO){
+    $('#pro-status').textContent = window.claude ? 'Importação gratuita' : 'Importação gratuita · até 5 por dia';
+    $('#pro-status').classList.add('pro-on');
+    $('#chave').hidden = true; $('#pro-btn').hidden = true;
+    document.querySelector('#t-importar .pro').hidden = true;
+    $('#pro-lock').hidden = true; $('#drop').classList.remove('locked'); $('#file').disabled = false;
+    gateDownload(); $('#run').disabled = busy;
+    return;
+  }
+  $('#pro-status').textContent = PRO ? `Plano Pro · ${PRO.municipio||''}${PRO.validade?' · até '+PRO.validade.split('-').reverse().join('/'):''}` : 'Plano gratuito';
   $('#pro-status').classList.toggle('pro-on', on);
   $('#chave').hidden = on; $('#pro-btn').textContent = on ? 'Sair' : 'Ativar';
   $('#pro-lock').hidden = on;

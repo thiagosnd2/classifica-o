@@ -26,6 +26,8 @@ Contas contábeis: PCASP 2027 (Portaria STN/MF nº 2.520, de 21/08/2026).
 
 ## Plano Pro (chave de licença)
 
+> **Situação atual (22/11/2026): plano Pro suspenso.** O importador está liberado para todos, com limite de 5 importações por dia por endereço IP (contado no servidor). Chaves Pro válidas continuam funcionando, sem limite. Para reativar: `PLANO_PRO: true` em `window.CFG` e `PRO_OBRIGATORIO=true` no Worker.
+
 - No topo da página, o campo **Chave Pro** ativa o plano Pro. Sem chave válida, a Consulta individual funciona normalmente, mas **importar** e **exportar** planilhas ficam desativados.
 - As chaves têm o formato `QW-ES-XXXX-XXXX-XXXX`. O banco de dados da página guarda só o hash SHA-256 de cada chave (coleção `licencas/<hash>`), com município, UF, validade e situação (`ativa`). Só o dono do artefato grava nessa coleção.
 - Com o termo de aceite, a chave fica salva no navegador e é revalidada a cada acesso.
