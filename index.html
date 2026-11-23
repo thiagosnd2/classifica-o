@@ -106,6 +106,20 @@ ul.rules{margin:0;padding-left:18px;display:grid;gap:4px}
 .cand-item .cd{font:600 13px var(--mono);color:var(--code)}
 .cand-item small{color:var(--muted);display:block}
 .empty{color:var(--muted);max-width:60ch}
+/* Painel "Revisar grafia" do importador */
+.orto-panel{margin-top:14px;border:1px solid var(--line);border-left:3px solid var(--warn);background:var(--warn-soft);border-radius:10px;padding:14px 16px;display:grid;gap:12px}
+.orto-head strong{font-size:14px;color:var(--ink);margin-right:8px}.orto-head .pill{color:var(--warn);border-color:var(--warn)}
+.orto-head p{margin:6px 0 0;font-size:13px;color:var(--muted)}
+.orto-tab{display:grid;background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.orto-row{display:grid;grid-template-columns:90px 1fr 1fr 96px;gap:12px;align-items:center;padding:9px 12px;border-top:1px solid var(--line);font-size:13.5px}
+.orto-row:first-child{border-top:0}.orto-th{font:600 11px var(--body);text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:7px 12px}
+.orto-ln{font-family:var(--mono);color:var(--muted);font-size:12.5px}
+.orto-row .ghost{border:1px solid var(--accent);border-radius:6px;padding:4px 10px;font-size:12.5px;justify-self:end}
+mark.orto-de{background:none;color:var(--bad);text-decoration:line-through;text-decoration-thickness:1px}
+mark.orto-para{background:none;color:var(--accent);font-weight:700}
+.orto-mais{padding:8px 12px;font-size:12.5px;color:var(--muted);border-top:1px solid var(--line)}
+.orto-acoes{display:flex;justify-content:flex-end;gap:8px}.orto-acoes .primary{width:auto}.orto-acoes .ghost{border:1px solid var(--line);border-radius:8px}
+@media (max-width:640px){.orto-row{grid-template-columns:60px 1fr 1fr}.orto-row>span:last-child{grid-column:1/-1}.orto-th>span:last-child{display:none}}
 .warnbox{background:var(--bad-soft);color:var(--bad);border-radius:8px;padding:10px 12px;font-size:13.5px}
 .hist{display:grid;gap:4px;margin-top:6px}
 .hist button{text-align:left;background:transparent;border:0;border-top:1px solid var(--line);border-radius:0;padding:7px 0;color:var(--ink);font:400 13px var(--body);display:flex;justify-content:space-between;gap:8px}
@@ -1230,10 +1244,19 @@ function renderOrtoImp(){
   const box = $('#orto-imp'); if(!box || !IMP) return;
   const gs = IMP.grupos.filter(g => g.orto && !g.res);
   if(!gs.length){ box.innerHTML = ''; return; }
-  const marca = g => esc(g.tit).replace(/[A-Za-zÀ-ÿ]+/g, w => { const t = g.orto.trocas.find(x => x.de === w); return t ? `<b>${esc(t.para)}</b>` : w; });
-  box.innerHTML = `<div class="warnbox orto-imp"><p style="margin:0 0 6px"><strong>${gs.length} título(s) com provável erro de digitação.</strong> Corrija antes de classificar para a IA receber o nome certo (ou ignore, se o nome estiver correto).</p>
-    <ul style="margin:0 0 8px;padding-left:18px">${gs.slice(0,30).map(g => `<li>Linha ${g.linhas.map(l=>l.linha).slice(0,5).join(', ')}${g.linhas.length>5?'…':''}: ${esc(g.tit)} → ${marca(g)} <button type="button" class="ghost orto-1" data-k="${IMP.grupos.indexOf(g)}" style="width:auto;padding:2px 8px;font-size:12px">Corrigir</button></li>`).join('')}${gs.length>30?`<li>e mais ${gs.length-30}…</li>`:''}</ul>
-    <div class="toolbar"><button type="button" class="primary" id="orto-todos" style="width:auto">Corrigir todos</button><button type="button" class="ghost" id="orto-ign" style="width:auto">Ignorar sugestões</button></div></div>`;
+  /* Destaca no título as palavras trocadas: erradas (como está) e corrigidas (sugestão) */
+  const marca = (g, lado) => esc(g.tit).replace(/[A-Za-zÀ-ÿ]+/g, w => { const t = g.orto.trocas.find(x => x.de === w); return t ? (lado === 'de' ? `<mark class="orto-de">${esc(w)}</mark>` : `<mark class="orto-para">${esc(t.para)}</mark>`) : w; });
+  const linhas = g => { const n = g.linhas.map(l => l.linha); return n.slice(0,4).join(', ') + (n.length > 4 ? '…' : ''); };
+  box.innerHTML = `<div class="orto-panel">
+    <div class="orto-head"><div><strong>Revisar grafia</strong><span class="pill">${gs.length} título${gs.length>1?'s':''}</span></div>
+      <p>Prováveis erros de digitação. Corrija antes de classificar para a IA receber o nome certo, ou ignore se o nome estiver correto.</p></div>
+    <div class="orto-tab" role="table">
+      <div class="orto-row orto-th" role="row"><span>Linha</span><span>Como está</span><span>Sugestão</span><span></span></div>
+      ${gs.slice(0,30).map(g => `<div class="orto-row" role="row"><span class="orto-ln">${linhas(g)}</span><span>${marca(g,'de')}</span><span>${marca(g,'para')}</span><span><button type="button" class="ghost orto-1" data-k="${IMP.grupos.indexOf(g)}">Corrigir</button></span></div>`).join('')}
+      ${gs.length>30?`<div class="orto-mais">e mais ${gs.length-30} título(s) — use Corrigir todos</div>`:''}
+    </div>
+    <div class="orto-acoes"><button type="button" class="ghost" id="orto-ign">Ignorar sugestões</button><button type="button" class="primary" id="orto-todos">Corrigir todos</button></div>
+  </div>`;
   box.querySelectorAll('.orto-1').forEach(b => b.onclick = () => { aplicarOrto(IMP.grupos[Number(b.dataset.k)]); renderOrtoImp(); renderTable(); });
   $('#orto-todos').onclick = () => { gs.forEach(aplicarOrto); renderOrtoImp(); renderTable(); };
   $('#orto-ign').onclick = () => { gs.forEach(g => g.orto = null); renderOrtoImp(); };
