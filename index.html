@@ -987,7 +987,7 @@ function ajudaUnidade(){
   /* Fora do ES a TA22 é só referência: o aviso é uma sugestão opcional e a consulta segue com o texto digitado */
   if(!isES() && !sug.length){ box.hidden = true; return; }
   box.innerHTML = !isES()
-    ? `<span>Opcional: "${esc(raw)}" corresponde a</span> ${sug.map(x=>`<button type="button" class="chip un-op" data-v="${esc(x.c+' - '+x.n)}">${esc(x.c)} – ${esc(x.n)}</button>`).join(' ')} <span>na Tabela Auxiliar 22 (referência). Pode manter como digitou.</span>`
+    ? `<span>Você quis dizer</span> ${sug.map(x=>`<button type="button" class="chip un-op" data-v="${esc(x.c+' - '+x.n)}">${esc(x.c)} – ${esc(x.n)}</button>`).join(' ')} <span>?</span>`
     : sug.length
     ? `<span>"${esc(raw)}" não consta da Tabela Auxiliar 22. Você quis dizer:</span> ${sug.map(x=>`<button type="button" class="chip un-op" data-v="${esc(x.c+' - '+x.n)}">${esc(x.c)} – ${esc(x.n)}</button>`).join(' ')}`
     : `<span>"${esc(raw)}" não consta da Tabela Auxiliar 22. Digite parte do nome (ex.: Mês, Unidade, Caixa) e escolha na lista.</span>`;
