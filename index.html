@@ -998,6 +998,20 @@ $('#un').addEventListener('input', gate);
 $('#un').addEventListener('change', ajudaUnidade);
 $('#un').addEventListener('blur', ajudaUnidade);
 $('#un').addEventListener('input', () => { if(resolveUnit($('#un').value).status === 'ok') $('#un-sug').hidden = true; });
+/* Lista completa ao reabrir: a lista nativa (datalist) só mostra opções que combinam com o texto do campo, então
+   com "102 - Quilômetro quadrado" preenchido ela mostrava só essa. Ao entrar no campo (clique ou seta), o valor
+   vai para o placeholder e o campo fica vazio, mostrando todas as unidades; se a pessoa sair sem escolher, volta. */
+let UN_ANTES = '';
+$('#un').addEventListener('focus', () => {
+  const el = $('#un'); UN_ANTES = el.value;
+  if(UN_ANTES){ el.placeholder = UN_ANTES; el.value = ''; }
+});
+$('#un').addEventListener('blur', () => {
+  const el = $('#un');
+  if(!el.value.trim() && UN_ANTES) el.value = UN_ANTES;
+  el.placeholder = 'Ex.: 027 - Comprimido'; UN_ANTES = '';
+  gate(); ajudaUnidade();
+});
 $('#un').addEventListener('change', gate);
 $('#ctx').addEventListener('input', gate);
 /* Eventos da consulta individual: enviar, limpar, exemplos e histórico. */
