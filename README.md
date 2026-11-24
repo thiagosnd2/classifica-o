@@ -21,6 +21,7 @@ Contas contábeis: PCASP 2027 (Portaria STN/MF nº 2.520, de 21/08/2026).
 | `index.html` | Aplicação completa: consulta individual, quiz, importador de planilha e exportação |
 | `kb.json` | Base de conhecimento usada pela página: 454 subelementos TCE-ES 2027 com ementas e exemplos, conceitos dos elementos (MCASP), Tabela Auxiliar 22, siglas de unidade, base federal, contas de almoxarifado e de bens móveis |
 | `modelo_importacao.xlsx` | Modelo padrão de importação: TITULO, DESCRIÇÃO (até 400 caracteres), UNIDADE DE MEDIDA (lista da TA 22) e TIPO (Material ou Serviço) |
+| `favicon.svg`, `favicon.ico`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `site.webmanifest` | Ícone do site (aba, favoritos, barra lateral do navegador, atalho no celular): quadrado verde-petróleo com um "C" e linhas de classificação |
 | `vendor/palavras.txt` | Dicionário de português (~178 mil palavras, licença MIT) da correção ortográfica local; origem em `vendor/palavras-LEIAME.txt` |
 | `dados/` | Dados intermediários extraídos dos documentos oficiais (Portaria 448, PCASP 2027, MCASP e tabela TCE-ES) |
 | `scripts/` | Scripts Python que montaram a base. Usar para reprocessar quando sair uma nova versão da tabela do TCE-ES ou do PCASP |
