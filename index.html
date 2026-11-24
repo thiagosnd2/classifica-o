@@ -71,6 +71,13 @@ button{font:600 14px var(--body);cursor:pointer;border-radius:7px;border:1px sol
 .primary{background:var(--accent);color:var(--surface);width:100%}
 .primary:disabled{background:var(--line);border-color:var(--line);color:var(--muted);cursor:not-allowed;pointer-events:none}
 #go-wrap{cursor:not-allowed}
+.un-combo{position:relative}
+.un-combo input{padding-right:30px;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%;background-size:5px 5px;background-repeat:no-repeat}
+.un-lista{position:absolute;left:0;right:0;top:calc(100% + 2px);z-index:30;max-height:260px;overflow-y:auto;background:var(--bg);border:1px solid var(--line);border-radius:4px;box-shadow:0 6px 18px rgba(0,0,0,.25);padding:2px 0;font-size:14.5px}
+.un-lista[hidden]{display:none}
+.un-op-l{padding:3px 10px;cursor:default;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.un-op-l.ativo,.un-op-l:hover{background:var(--line)}
+.un-vazio{padding:4px 10px;color:var(--muted);font-size:13px}
 .un-sug{margin-top:6px;padding:8px 10px;border-radius:7px;background:var(--warn-soft);font-size:13px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}.un-sug[hidden]{display:none}.un-sug .chip{width:auto}
 .orto{margin-top:6px;padding:8px 10px;border-radius:7px;background:var(--warn-soft,rgba(234,179,8,.12));font-size:13px;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}.orto[hidden]{display:none}.orto b{color:var(--acc,#5eead4)}.orto button{width:auto;padding:4px 10px;font-size:12.5px}
 #go-hint.alerta{background:var(--bad-soft);color:var(--bad);border-radius:7px;padding:8px 10px;font-weight:600}
@@ -245,9 +252,13 @@ footer .marca{flex-basis:100%;text-align:center;font-size:11px;letter-spacing:.1
       </div>
       <div class="field">
         <label for="un">Unidade de medida <span class="ubad" aria-hidden="true">*</span> <span class="hint" id="un-hint">(escolha na lista)</span></label>
-        <input id="un" list="ta22list" autocomplete="off" placeholder="Ex.: 027 - Comprimido">
+        <!-- Lista de unidades própria (no lugar da nativa): mesmo visual das listas Estado, Fornecedor e Despesa,
+             filtra enquanto digita e aceita teclado (setas, Enter, Esc) -->
+        <div class="un-combo">
+          <input id="un" autocomplete="off" placeholder="Ex.: 027 - Comprimido" role="combobox" aria-expanded="false" aria-controls="un-lista" aria-autocomplete="list">
+          <div id="un-lista" class="un-lista" role="listbox" hidden></div>
+        </div>
         <div id="un-sug" class="un-sug" hidden aria-live="polite"></div>
-        <datalist id="ta22list"></datalist>
       </div>
       <div class="row2">
         <div class="field">
@@ -998,16 +1009,49 @@ $('#un').addEventListener('input', gate);
 $('#un').addEventListener('change', ajudaUnidade);
 $('#un').addEventListener('blur', ajudaUnidade);
 $('#un').addEventListener('input', () => { if(resolveUnit($('#un').value).status === 'ok') $('#un-sug').hidden = true; });
-/* Lista completa ao reabrir: a lista nativa (datalist) só mostra opções que combinam com o texto do campo, então
-   com "102 - Quilômetro quadrado" preenchido ela mostrava só essa. Ao entrar no campo (clique ou seta), o valor
-   vai para o placeholder e o campo fica vazio, mostrando todas as unidades; se a pessoa sair sem escolher, volta. */
-let UN_ANTES = '';
+/* Lista de unidades própria (substitui a lista nativa do navegador, que só mostrava opções parecidas com o texto
+   já preenchido e tinha outro visual). Abre ao clicar ou focar, mostra todas as unidades da TA22 com o campo vazio,
+   filtra por código ou nome enquanto digita, e aceita teclado: ↓ ↑ para andar, Enter para escolher, Esc para fechar.
+   Ao abrir com uma unidade já escolhida, ela vai para o placeholder e volta se a pessoa sair sem escolher outra. */
+let UN_ANTES = '', UN_ATIVO = -1, UN_OPS = [];
+function listaUnidades(){
+  const box = $('#un-lista'), q = norm($('#un').value).trim();
+  UN_OPS = (KB && KB.ta22 || []).map(u => `${u.c} - ${u.n}`).filter(t => !q || norm(t).includes(q));
+  UN_ATIVO = UN_OPS.length ? 0 : -1;
+  box.innerHTML = UN_OPS.length
+    ? UN_OPS.map((t,i) => `<div class="un-op-l${i===UN_ATIVO?' ativo':''}" role="option" data-i="${i}">${esc(t)}</div>`).join('')
+    : `<div class="un-vazio">${isES() ? 'Nenhuma unidade da Tabela Auxiliar 22 com esse texto' : 'Nenhuma unidade de referência; pode manter como digitou'}</div>`;
+  box.hidden = false; $('#un').setAttribute('aria-expanded','true');
+}
+function fecharUnidades(){ $('#un-lista').hidden = true; $('#un').setAttribute('aria-expanded','false'); }
+function marcarAtivo(i){
+  const itens = [...$('#un-lista').querySelectorAll('.un-op-l')]; if(!itens.length) return;
+  UN_ATIVO = (i + itens.length) % itens.length;
+  itens.forEach((el,k) => el.classList.toggle('ativo', k === UN_ATIVO));
+  itens[UN_ATIVO].scrollIntoView({block:'nearest'});
+}
+function escolherUnidade(t){ $('#un').value = t; UN_ANTES = ''; fecharUnidades(); $('#un-sug').hidden = true; gate(); }
 $('#un').addEventListener('focus', () => {
   const el = $('#un'); UN_ANTES = el.value;
   if(UN_ANTES){ el.placeholder = UN_ANTES; el.value = ''; }
+  listaUnidades();
+});
+$('#un').addEventListener('mousedown', () => { if(document.activeElement === $('#un') && $('#un-lista').hidden) listaUnidades(); });
+$('#un').addEventListener('input', listaUnidades);
+$('#un').addEventListener('keydown', e => {
+  const aberta = !$('#un-lista').hidden;
+  if(e.key === 'ArrowDown'){ e.preventDefault(); if(!aberta) listaUnidades(); else marcarAtivo(UN_ATIVO + 1); }
+  else if(e.key === 'ArrowUp'){ e.preventDefault(); if(aberta) marcarAtivo(UN_ATIVO - 1); }
+  else if(e.key === 'Enter' && aberta && UN_ATIVO >= 0){ e.preventDefault(); escolherUnidade(UN_OPS[UN_ATIVO]); }
+  else if(e.key === 'Escape' && aberta){ e.preventDefault(); fecharUnidades(); }
+});
+/* mousedown + preventDefault: o clique na opção não tira o foco do campo antes de escolher */
+$('#un-lista').addEventListener('mousedown', e => {
+  e.preventDefault();
+  const op = e.target.closest('.un-op-l'); if(op) escolherUnidade(UN_OPS[Number(op.dataset.i)]);
 });
 $('#un').addEventListener('blur', () => {
-  const el = $('#un');
+  const el = $('#un'); fecharUnidades();
   if(!el.value.trim() && UN_ANTES) el.value = UN_ANTES;
   el.placeholder = 'Ex.: 027 - Comprimido'; UN_ANTES = '';
   gate(); ajudaUnidade();
@@ -1757,7 +1801,6 @@ $('#pro-form').addEventListener('submit', async e=>{
     for(const i of KB.itens){ i._t=new Set(toks(i.t)); i._x=new Set(toks(i.x)); i._d=new Set(toks(i.d)); }
     for(const f of KB.federal){ f._t=new Set(toks(f.n)); f._x=new Set(toks(f.x)); f._d=new Set(toks(f.d)); }
     montarVocab(KB); /* vocabulário da correção ortográfica */
-    $('#ta22list').innerHTML = KB.ta22.map(u=>`<option value="${u.c} - ${esc(u.n)}"></option>`).join('');
   }catch{ $('#res').innerHTML='<div class="warnbox">Não foi possível carregar a base. Recarregue a página.</div>'; }
   if(consent() === 'sim'){
     try{ HIST = JSON.parse(localStorage.getItem('cnd_hist')||'[]'); }catch{ HIST = []; }
