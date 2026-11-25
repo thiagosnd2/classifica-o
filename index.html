@@ -146,6 +146,9 @@ mark.orto-para{background:none;color:var(--accent);font-weight:700}
 nav.tabs{display:flex;gap:4px;padding:0 24px;border-bottom:1px solid var(--line);background:var(--bg)}
 nav.tabs a{padding:10px 14px;color:var(--muted);text-decoration:none;font-weight:600;font-size:14px;border-bottom:2px solid transparent;margin-bottom:-1px}
 nav.tabs a[aria-current="page"]{color:var(--accent);border-bottom-color:var(--accent)}
+/* Aba Importar planilha: só as letras em amarelo (mesma cor do aviso "Selecione o Estado…"), aberta ou não;
+   a linha de baixo da aba aberta continua na cor de destaque. Desde 25/11/2026 */
+#t-importar,#t-importar[aria-current="page"]{color:var(--yellow)}
 .pro{font:600 10.5px var(--body);background:var(--accent);color:var(--surface);border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:1px;letter-spacing:.04em}
 .imp{padding:20px 24px;display:grid;gap:16px}
 @media (max-width:820px){.imp{padding:16px}}
