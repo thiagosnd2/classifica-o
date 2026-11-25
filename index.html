@@ -172,6 +172,7 @@ td.j{color:var(--muted);min-width:260px}
 .seg button[aria-pressed="true"]{background:var(--accent-soft);color:var(--ink)}
 .errlist{margin:6px 0 0;padding-left:18px;font-size:13px}
 .ufbox{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+header h1{text-align:right;margin-left:auto}
 .ufbox label{margin:0}
 .ufbox select{width:auto;padding:6px 10px}
 .ubad{color:var(--bad)}
@@ -227,8 +228,8 @@ footer .marca{flex-basis:100%;text-align:center;font-size:11px;letter-spacing:.1
 </head>
 <body>
 <!-- Cabeçalho: título, campo da chave Pro e seletor de Estado (obrigatório). -->
+<!-- Topo: Estado e selo do plano à esquerda, título à direita (desde 25/11/2026) -->
 <header>
-  <h1>Classificador de Natureza de Despesa</h1>
   <div class="ufbox">
     <form id="pro-form" class="pro-box" autocomplete="off">
       <span id="pro-status" class="pill">Plano gratuito</span>
@@ -236,6 +237,7 @@ footer .marca{flex-basis:100%;text-align:center;font-size:11px;letter-spacing:.1
       <button class="ghost" type="submit" id="pro-btn" style="padding:6px 10px">Ativar</button>
     </form>
     <label for="uf">Estado <span class="ubad" aria-hidden="true">*</span></label><select id="uf" required aria-required="true"><option value="">Selecionar</option></select></div>
+  <h1>Classificador de Natureza de Despesa</h1>
 </header>
 <!-- Abas: Consulta individual (gratuita) e Importar planilha (Pro). -->
 <nav class="tabs" aria-label="Modo">
