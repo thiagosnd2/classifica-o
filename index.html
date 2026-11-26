@@ -10,23 +10,34 @@
 window.CFG = { API_URL: 'https://classificador-ap.tbraga262.workers.dev', TURNSTILE_SITEKEY: '0x4AAAAAAGLGzle2EfLRor-d',
   /* PLANO_PRO: false = plano Pro suspenso, importação liberada para todos (limite diário no servidor).
      true = importação só com chave Pro válida. No servidor, o equivalente é a variável PRO_OBRIGATORIO. */
-  PLANO_PRO: false };
+  PLANO_PRO: false,
+  /* CF_ANALYTICS_TOKEN: token do Cloudflare Web Analytics (contagem de visitas sem cookies). Vazio = desligado. */
+  CF_ANALYTICS_TOKEN: '' };
 /* Política de conteúdo (CSP) para a hospedagem própria. No claude.ai a plataforma já aplica a dela. */
 (function(){
   if(!/(^|\.)(github\.io|classificabr\.com)$/.test(location.hostname)) return;
   var api = ''; try{ api = window.CFG.API_URL ? new URL(window.CFG.API_URL).origin : ''; }catch(e){}
   var csp = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com",
+    "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://static.cloudflareinsights.com",
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self'",
     "img-src 'self' data: blob:",
-    "connect-src 'self' " + api,
+    "connect-src 'self' https://cloudflareinsights.com " + api,
     "frame-src https://challenges.cloudflare.com",
     "object-src 'none'", "base-uri 'none'", "form-action 'none'"
   ].join('; ');
   var m = document.createElement('meta'); m.httpEquiv = 'Content-Security-Policy'; m.content = csp;
   document.head.appendChild(m);
+  /* Cloudflare Web Analytics: conta visitas e páginas sem cookies e sem dados pessoais. Só no site próprio
+     (não no claude.ai) e só quando CFG.CF_ANALYTICS_TOKEN estiver preenchido. */
+  var tk = window.CFG && window.CFG.CF_ANALYTICS_TOKEN;
+  if(tk){
+    var b = document.createElement('script'); b.defer = true;
+    b.src = 'https://static.cloudflareinsights.com/beacon.min.js';
+    b.setAttribute('data-cf-beacon', JSON.stringify({token: tk}));
+    document.head.appendChild(b);
+  }
 })();
 </script>
 <title>Classificador de Natureza de Despesa</title>
