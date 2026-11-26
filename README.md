@@ -55,6 +55,7 @@ Princípio de projeto: **a IA só sugere; o código valida antes e confere depoi
 - Respostas da IA sempre escapadas antes de aparecer na tela.
 - Chave da API só no servidor (Cloudflare), nunca na página ou no repositório.
 - Chaves Pro guardadas como hash; no Projeto 1 os dados da licença (município, validade) ficam cifrados com a própria chave (`servidor/lacrar_licenca.mjs`).
+- Visitas: Cloudflare Web Analytics (sem cookies, sem dados pessoais), só em classificabr.com; token em `window.CFG.CF_ANALYTICS_TOKEN` (vazio desliga). Painel: Cloudflare → Analytics & Logs → Web Analytics.
 - Estabilidade da IA: chamada com `temperature: 0` (o mesmo pedido tende a voltar com o mesmo código) e cache de respostas de confiança alta na consulta individual (Projeto 2).
 - Projeto 2: verificação anti-robô (Turnstile) na consulta individual, teto diário de consultas, limite de importações por IP (Pro suspenso), limite por IP opcional e chave Pro conferida no servidor para o importador.
 - Política de conteúdo (CSP) na hospedagem própria.
