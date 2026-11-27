@@ -88,7 +88,7 @@ button{font:600 14px var(--body);cursor:pointer;border-radius:7px;border:1px sol
 .primary{background:var(--accent);color:var(--surface);width:100%}
 .primary:disabled{background:var(--line);border-color:var(--line);color:var(--muted);cursor:not-allowed;pointer-events:none}
 #go-wrap{cursor:not-allowed}
-.reg-pat{display:grid;grid-template-columns:1fr auto 1fr;gap:18px;align-items:start;margin-top:8px}.reg-pat>div:not(.reg-div){display:flex;flex-direction:column;gap:3px}.reg-div{width:2px;align-self:stretch;background:var(--line);border-radius:2px}.reg-l{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}.reg-c{font-family:var(--mono);font-size:15px;font-weight:600;color:var(--accent)}.reg-n{font-size:13.5px}
+.reg-pat{display:grid;grid-template-columns:1fr auto 1fr;gap:18px;align-items:start;margin-top:8px}.reg-col{display:flex;gap:12px;align-items:flex-start}.reg-col>div{display:flex;flex-direction:column;gap:3px}.reg-ico{flex:none;display:grid;place-items:center;width:44px;height:44px;border-radius:10px}.reg-ent{color:var(--accent);background:var(--accent-soft)}.reg-dep{color:#e8892f;background:rgba(232,137,47,.14)}.reg-div{width:2px;align-self:stretch;background:var(--line);border-radius:2px}.reg-l{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}.reg-c{font-family:var(--mono);font-size:15px;font-weight:600;color:var(--accent)}.reg-n{font-size:13.5px}
 @media (max-width:640px){.reg-pat{grid-template-columns:1fr}.reg-div{width:auto;height:2px}}
 .un-combo{position:relative}
 .un-combo input{padding-right:30px;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%;background-size:5px 5px;background-repeat:no-repeat}
@@ -908,13 +908,14 @@ function renderResult(r, q, st){
   /* Registro patrimonial (em teste): material permanente tem conta do bem e conta de depreciação acumulada.
      Reforça a decisão consumo × permanente; não aparece para consumo nem serviço. */
   const contaBem = contaDe(it, r, 'Material'), contaDep = depreciacaoDe(contaBem);
-  /* Layout em duas colunas (desde 27/11/2026): à esquerda a conta do bem, à direita a de depreciação, com divisória */
+  /* Layout em duas colunas (desde 27/11/2026): à esquerda a conta do bem, à direita a de depreciação, com divisória.
+     Ícones: entrada (seta entrando na caixa = o bem entra no patrimônio) e depreciação (gráfico em queda). */
   const partes = t => { const m = String(t).match(/^(\S+)\s*–\s*(.*)$/); return m ? [m[1], m[2]] : [t, '']; };
   if(contaDep){ const [cb, nb] = partes(contaBem), [cd, nd] = partes(contaDep);
     h += `<div class="ask"><p><b>Registro patrimonial</b> <span class="pill">em teste</span> <span class="empty" style="margin-left:6px">Material permanente</span></p>
-    <div class="reg-pat"><div><span class="reg-l">Registrado em</span><span class="reg-c">${esc(cb)}</span><span class="reg-n">${esc(nb)}</span></div>
+    <div class="reg-pat"><div class="reg-col"><span class="reg-ico reg-ent" title="Entrada do bem no patrimônio">${ICO_ENTRADA}</span><div><span class="reg-l">Registrado em</span><span class="reg-c">${esc(cb)}</span><span class="reg-n">${esc(nb)}</span></div></div>
     <div class="reg-div" aria-hidden="true"></div>
-    <div><span class="reg-l">Depreciado em</span><span class="reg-c">${esc(cd)}</span><span class="reg-n">${esc(nd)}</span></div></div></div>`; }
+    <div class="reg-col"><span class="reg-ico reg-dep" title="Depreciação do bem ao longo do tempo">${ICO_DEPREC}</span><div><span class="reg-l">Depreciado em</span><span class="reg-c">${esc(cd)}</span><span class="reg-n">${esc(nd)}</span></div></div></div></div>`; }
   if(hasCr) h += `<div><h2>Critérios de consumo (Portaria 448, art. 3º)</h2><div class="tests">${keys.map(k=>`<div class="test"><b>${k[0].toUpperCase()+k.slice(1)}</b><span class="${cr[k]?'y':'n'}">${cr[k]===true?'atende':cr[k]===false?'não atende':'—'}</span></div>`).join('')}</div></div>`;
   if((r.regras||[]).length) h += `<div><h2>Regras aplicadas</h2><ul class="rules">${r.regras.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`;
   if(alts.length) h += `<div><h2>Alternativas</h2><div style="display:grid;gap:8px">${alts.map(a=>{const ai=es?byCode(a.codigo):null;const nm=es?(ai?ai.t:'(código não encontrado)'):elName(a.codigo);return `<div class="alt"><span class="cd">${esc(a.codigo)}</span><span>${esc(nm)}</span><small class="empty">${esc(a.quando)}</small></div>`}).join('')}</div></div>`;
@@ -1381,6 +1382,9 @@ const CONTA_NOME = c => { const x = (KB.almox.find(a=>a.c===c) || KB.bensmoveis.
 /** Conta de depreciação acumulada de uma conta de bens móveis (em teste desde 23/11/2026): ligação por grupo
     1.2.3.1.1.GG → KB.depreciacao.grupos (planilha fornecida por Sanada, ligada ao PCASP 2027).
     Aceita o texto "código – nome"; devolve "código – nome" da depreciação ou '' (consumo, serviço, grupo sem conta). */
+/* Ícones do Registro patrimonial (SVG próprio, cor herdada do quadro) */
+const ICO_ENTRADA = '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5"/><path d="M12 3v11"/><path d="M8 10l4 4 4-4"/></svg>';
+const ICO_DEPREC = '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5l6 6 4-4 8 8"/><path d="M21 9v6h-6"/></svg>';
 function depreciacaoDe(conta){
   const c = (String(conta||'').match(/1\.2\.3\.1\.1\.\d{2}\.\d{2}/)||[])[0]; if(!c || !KB.depreciacao) return '';
   const d = KB.depreciacao.grupos[c.slice(0,12)]; return d ? `${d.c} – ${d.n}` : '';
