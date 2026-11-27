@@ -905,14 +905,14 @@ function renderResult(r, q, st){
     r._ops = ops;
   } else if(r.pergunta && !REFINE_USED) h += `<div class="ask"><p>${esc(r.pergunta)}</p><div class="row"><input id="ans" aria-label="Resposta" placeholder="Responda para refinar"><button class="ghost" type="button" id="refine">Refinar</button></div></div>`;
   h += `<div><h2>Justificativa</h2><p class="just">${esc(r.justificativa)}</p></div>`;
-  /* Registro patrimonial (em teste): material permanente tem conta do bem e conta de depreciação acumulada.
+  /* Registro patrimonial (em teste; selo "Beta" em itálico desde 27/11/2026): material permanente tem conta do bem e conta de depreciação acumulada.
      Reforça a decisão consumo × permanente; não aparece para consumo nem serviço. */
   const contaBem = contaDe(it, r, 'Material'), contaDep = depreciacaoDe(contaBem);
   /* Layout em duas colunas (desde 27/11/2026): à esquerda a conta do bem, à direita a de depreciação, com divisória.
      Ícones: entrada (seta entrando na caixa = o bem entra no patrimônio) e depreciação (gráfico em queda). */
   const partes = t => { const m = String(t).match(/^(\S+)\s*–\s*(.*)$/); return m ? [m[1], m[2]] : [t, '']; };
   if(contaDep){ const [cb, nb] = partes(contaBem), [cd, nd] = partes(contaDep);
-    h += `<div class="ask"><p><b>Registro patrimonial</b> <span class="pill">em teste</span> <span class="empty" style="margin-left:6px">Material permanente</span></p>
+    h += `<div class="ask"><p><b>Registro patrimonial</b> <span class="pill" style="font-style:italic" title="Recurso em teste">Beta</span> <span class="empty" style="margin-left:6px">Material permanente</span></p>
     <div class="reg-pat"><div class="reg-col"><span class="reg-ico reg-ent" title="Entrada do bem no patrimônio">${ICO_ENTRADA}</span><div><span class="reg-l">Registrado em</span><span class="reg-c">${esc(cb)}</span><span class="reg-n">${esc(nb)}</span></div></div>
     <div class="reg-div" aria-hidden="true"></div>
     <div class="reg-col"><span class="reg-ico reg-dep" title="Depreciação do bem ao longo do tempo">${ICO_DEPREC}</span><div><span class="reg-l">Depreciado em</span><span class="reg-c">${esc(cd)}</span><span class="reg-n">${esc(nd)}</span></div></div></div></div>`; }
