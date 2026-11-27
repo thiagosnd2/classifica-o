@@ -830,12 +830,18 @@ ${cand || '(nenhum por palavra-chave)'}
 
 ${catalogFed()}
 
+CONTAS CONTÁBEIS (PCASP 2027) – material de consumo (estoque/almoxarifado):
+${KB.almox.map(c=>`${c.c} ${c.n}`).join('\n')}
+
+CONTAS CONTÁBEIS (PCASP 2027) – material permanente (bens móveis):
+${KB.bensmoveis.map(c=>`${c.c} ${c.n}`).join('\n')}
+
 ${head}
 
-Instruções: "codigo" deve ser um dos ELEMENTOS VÁLIDOS. "subelemento" é o nome de referência (ou null se não houver). Para material, avalie os cinco critérios. Se a confiança for "média" ou "baixa", monte um QUIZ em "quiz": uma pergunta objetiva sobre o fator que decide a classificação (finalidade, uso, forma de fornecimento etc.) e de 2 a 4 opções curtas, cada uma ligada ao elemento válido que vale se o usuário escolher aquela opção (códigos diferentes entre si). Se a confiança for "alta", "quiz" = null. Alternativas: até 3 elementos com a condição.
+Instruções: "codigo" deve ser um dos ELEMENTOS VÁLIDOS. "subelemento" é o nome de referência (ou null se não houver). "conta": para MATERIAL, a conta contábil do PCASP 2027 que corresponde ao item, escolhida nas listas acima (material de consumo → almoxarifado; material permanente → bens móveis); para SERVIÇO, null. Para material, avalie os cinco critérios. Se a confiança for "média" ou "baixa", monte um QUIZ em "quiz": uma pergunta objetiva sobre o fator que decide a classificação (finalidade, uso, forma de fornecimento etc.) e de 2 a 4 opções curtas, cada uma ligada ao elemento válido que vale se o usuário escolher aquela opção (códigos diferentes entre si). Se a confiança for "alta", "quiz" = null. Alternativas: até 3 elementos com a condição.
 ${TEXT_RULE} Na consulta, "texto_sugerido" é a versão revisada do "Nome ou descrição do item".
 Responda SOMENTE com JSON:
-{"item_interpretado":"...","codigo":"x.x.90.ee","subelemento":"...","justificativa":"...","regras":["..."],"criterios":{"durabilidade":null,"fragilidade":null,"perecibilidade":null,"incorporabilidade":null,"transformabilidade":null},"confianca":"alta|média|baixa","alternativas":[{"codigo":"...","quando":"..."}],"quiz":{"pergunta":"...","opcoes":[{"texto":"...","codigo":"..."}]},"alerta_unidade":null,"texto_sugerido":null,"falta":[]}`;
+{"item_interpretado":"...","codigo":"x.x.90.ee","subelemento":"...","conta":"x.x.x.x.x.xx.xx ou null","justificativa":"...","regras":["..."],"criterios":{"durabilidade":null,"fragilidade":null,"perecibilidade":null,"incorporabilidade":null,"transformabilidade":null},"confianca":"alta|média|baixa","alternativas":[{"codigo":"...","quando":"..."}],"quiz":{"pergunta":"...","opcoes":[{"texto":"...","codigo":"..."}]},"alerta_unidade":null,"texto_sugerido":null,"falta":[]}`;
 }
 
 /** Mostra os resultados mais próximos da busca local (usado quando a IA não está disponível). */
@@ -878,7 +884,7 @@ function renderResult(r, q, st){
     ${badgeTipo(r.codigo, true)}
     <div class="code">${esc(r.codigo)}</div>
     <div class="title">${esc(title)}</div>
-    <div class="meta"><span class="pill c-${esc(conf)}">Confiança ${esc(r.confianca||'—')}${r._quiz?' · confirmada no quiz':''}</span>${r._cache?'<span class="pill" title="Mesmo pedido já classificado com confiança alta: resposta repetida, sem nova consulta à IA">Resposta já confirmada</span>':''}${it?`<span class="pill">${esc(it.k)}</span>`:''}${it&&it.s?`<span class="pill">${esc(it.s)}</span>`:''}${it&&it.p?`<span class="pill">PCASP ${esc(it.p)}</span>`:''}
+    <div class="meta"><span class="pill c-${esc(conf)}">Confiança ${esc(r.confianca||'—')}${r._quiz?' · confirmada no quiz':''}</span>${r._cache?'<span class="pill" title="Mesmo pedido já classificado com confiança alta: resposta repetida, sem nova consulta à IA">Resposta já confirmada</span>':''}${it?`<span class="pill">${esc(it.k)}</span>`:''}${it&&it.s?`<span class="pill">${esc(it.s)}</span>`:''}${it&&it.p?`<span class="pill">PCASP ${esc(it.p)}</span>`:''}${!es&&/^1\./.test(contaDe(null,r,'Material'))?`<span class="pill">PCASP ${esc(contaDe(null,r,'Material'))}</span>`:''}
     <button class="ghost" type="button" id="copy">Copiar código</button></div>
     <p class="empty" style="margin:0">Item interpretado: ${esc(r.item_interpretado||q)}</p>
   </div>`;
