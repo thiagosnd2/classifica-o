@@ -59,7 +59,7 @@ Princípio de projeto: **a IA só sugere; o código valida antes e confere depoi
 - Estabilidade da IA: chamada com `temperature: 0` (o mesmo pedido tende a voltar com o mesmo código) e cache de respostas de confiança alta na consulta individual (Projeto 2).
 - Projeto 2: verificação anti-robô (Turnstile) na consulta individual, teto diário de consultas, limite de importações por IP (Pro suspenso), limite por IP opcional e chave Pro conferida no servidor para o importador.
 - Política de conteúdo (CSP) na hospedagem própria.
-- Sem cookies próprios nem rastreadores; texto em Arial (fonte do sistema, desde 27/11/2026) e códigos em IBM Plex Mono servida pelo próprio site (`vendor/fonts/`), sem envio de dados ao Google. No claude.ai a página usa o Google Fonts.
+- Sem cookies próprios nem rastreadores; texto em Figtree (desde 27/11/2026) e códigos em IBM Plex Mono, ambas servidas pelo próprio site (`vendor/fonts/`, licença SIL OFL), sem envio de dados ao Google. No claude.ai a página usa o Google Fonts.
 - SheetJS 0.20.3 servido pelo próprio site (`vendor/`), com verificação de integridade (SRI). No claude.ai a página usa a versão 0.18.5 do cdnjs.
 
 ## Funcionalidades
