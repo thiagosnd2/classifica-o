@@ -50,14 +50,15 @@ window.CFG = { API_URL: 'https://classificador-ap.tbraga262.workers.dev', TURNST
 <!-- Fontes IBM Plex servidas pelo próprio site (sem envio de dados ao Google).
      Onde o arquivo não existe (claude.ai), cai para o Google Fonts. -->
 <link rel="stylesheet" href="vendor/fonts/fonts.css" onerror="this.onerror=null;this.href='https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Serif:wght@600&amp;display=swap';">
-<!-- Estilos: tema escuro, tipografia IBM Plex, componentes (abas, tabela, selos, janelas). -->
+<!-- Estilos: tema escuro, tipografia Arial (texto) e IBM Plex Mono (códigos), componentes (abas, tabela, selos, janelas). -->
 <style>
 :root{
   /* Layout: coluna de consulta à esquerda, resultado à direita; empilha no celular */
   --bg:#f4f5f2; --surface:#ffffff; --ink:#1d2a2a; --muted:#5d6b69; --line:#d9dedb;
   --accent:#0f5e57; --accent-soft:#e2efec; --code:#0b3f3a;
   --yellow:#8a6a00; --ok:#2f7d32; --warn:#a86a00; --bad:#b3261e; --ok-soft:#e5f2e5; --warn-soft:#fbf0dc; --bad-soft:#fbe5e3;
-  --display:"IBM Plex Serif", Georgia, serif; --body:"IBM Plex Sans", system-ui, sans-serif; --mono:"IBM Plex Mono", ui-monospace, monospace;
+  /* Fontes do texto: Arial (pedido de 27/11/2026, mais legível); códigos continuam em IBM Plex Mono */
+  --display:Arial, "Helvetica Neue", Helvetica, sans-serif; --body:Arial, "Helvetica Neue", Helvetica, sans-serif; --mono:"IBM Plex Mono", ui-monospace, monospace;
 }
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
   --bg:#121817; --surface:#1a2221; --ink:#e3ebe9; --muted:#9aaba8; --line:#2c3836;
