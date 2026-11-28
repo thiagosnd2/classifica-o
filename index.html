@@ -660,7 +660,7 @@ const dicPronto = (ms=3000) => Promise.race([carregarDic(), new Promise(r=>setTi
 /** Estados atendidos. Só o ES tem tabela própria carregada; os demais usam a base federal. */
 /* Versão da página (item 5.3 do levantamento, 27/11/2026): AAAA.MM.DD-n. Atualizar a cada publicação
    (roteiro "Como trabalhamos"). Aparece no rodapé e no e-mail do "Reportar problema". */
-const APP_VERSAO = '2026.11.27-4';
+const APP_VERSAO = '2026.11.27-5';
 let UF = '';
 const isES = () => UF === 'ES';
 /** Troca o Estado ativo: atualiza textos, o quadro "Última atualização" e guarda a escolha (com aceite). */
@@ -818,11 +818,15 @@ function renderResult(r, q, st){
   /* Layout em duas colunas (desde 27/11/2026): à esquerda a conta do bem, à direita a de depreciação, com divisória.
      Ícones: entrada (seta entrando na caixa = o bem entra no patrimônio) e depreciação (gráfico em queda). */
   const partes = t => { const m = String(t).match(/^(\S+)\s*–\s*(.*)$/); return m ? [m[1], m[2]] : [t, '']; };
-  if(contaDep){ const [cb, nb] = partes(contaBem), [cd, nd] = partes(contaDep);
-    h += `<div class="ask"><p><b>Registro patrimonial</b> <span class="pill" style="font-style:italic" title="Recurso em teste">Beta</span> <span class="empty" style="margin-left:6px">Material permanente</span></p>
+  /* Item 2.3: também para obras e imóveis. Sem depreciação (terreno, obra em andamento) a coluna mostra "—" e o motivo.
+     A orientação de tombamento do Acre (bens móveis) só aparece para material permanente. */
+  const ehImovel = /^1\.2\.3\.2\./.test(contaBem);
+  const rotulo = !ehImovel ? 'Material permanente' : /^1\.2\.3\.2\.1\.06\./.test(contaBem) ? 'Obra ou estudo em andamento' : 'Bem imóvel';
+  if(contaDep){ const [cb, nb] = partes(contaBem), [cd, nd] = / – /.test(contaDep) ? partes(contaDep) : ['—', contaDep];
+    h += `<div class="ask"><p><b>Registro patrimonial</b> <span class="pill" style="font-style:italic" title="Recurso em teste">Beta</span> <span class="empty" style="margin-left:6px">${rotulo}</span></p>
     <div class="reg-pat"><div class="reg-col"><span class="reg-ico reg-ent" title="Entrada do bem no patrimônio">${ICO_ENTRADA}</span><div><span class="reg-l">Registrado em</span><span class="reg-c">${esc(cb)}</span><span class="reg-n">${esc(nb)}</span></div></div>
     <div class="reg-div" aria-hidden="true"></div>
-    <div class="reg-col"><span class="reg-ico reg-dep" title="Depreciação do bem ao longo do tempo">${ICO_DEPREC}</span><div><span class="reg-l">Depreciado em</span><span class="reg-c">${esc(cd)}</span><span class="reg-n">${esc(nd)}</span></div></div></div>${UF === 'AC' ? REG_AC : ''}</div>`; }
+    <div class="reg-col"><span class="reg-ico reg-dep" title="Depreciação do bem ao longo do tempo">${ICO_DEPREC}</span><div><span class="reg-l">Depreciado em</span><span class="reg-c">${esc(cd)}</span><span class="reg-n">${esc(nd)}</span></div></div></div>${UF === 'AC' && !ehImovel ? REG_AC : ''}</div>`; }
   if(hasCr) h += `<div><h2>Critérios de consumo (MCASP)</h2><div class="tests">${keys.map(k=>`<div class="test"><b>${k[0].toUpperCase()+k.slice(1)}</b><span class="${cr[k]?'y':'n'}">${cr[k]===true?'atende':cr[k]===false?'não atende':'—'}</span></div>`).join('')}</div></div>`;
   if((r.regras||[]).length) h += `<div><h2>Regras aplicadas</h2><ul class="rules">${r.regras.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`;
   if(alts.length) h += `<div><h2>Alternativas</h2><div style="display:grid;gap:8px">${alts.map(a=>{const ai=es?byCode(a.codigo):null;const nm=es?(ai?ai.t:'(código não encontrado)'):elName(a.codigo);return `<div class="alt"><span class="cd">${esc(a.codigo)}</span><span>${esc(nm)}</span><small class="empty">${esc(a.quando)}</small></div>`}).join('')}</div></div>`;
@@ -1247,7 +1251,15 @@ async function runBatch(gs, signal, full){
 
 /* Saída: Título, Descrição, Classe (Elemento), Sub Elemento (Sugestão), Conta Contábil */
 /** Nome completo de uma conta contábil (almoxarifado ou bens móveis). */
-const CONTA_NOME = c => { const x = (KB.almox.find(a=>a.c===c) || KB.bensmoveis.find(a=>a.c===c)); return x ? `${x.c} – ${x.n}` : ''; };
+const CONTA_NOME = c => { const x = (KB.almox.find(a=>a.c===c) || KB.bensmoveis.find(a=>a.c===c) || (KB.imoveis||[]).find(a=>a.c===c)); return x ? `${x.c} – ${x.n}` : ''; };
+/** Item 2.3 do levantamento (aprovado em 27/11/2026): obras (4.4.90.51) e imóveis (4.4.90.61 e 4.5.90.61) têm conta de
+    bem imóvel do PCASP 2027. No ES (e em Rio Branco, mesma tabela) a conta sai do subelemento (KB.imoveis_sub);
+    fora do ES, do elemento (KB.imoveis_el). Devolve "código – nome" ou null se não for obra/imóvel. */
+function contaImovel(it, r){
+  const el = elOf(r && r.codigo); if(!KB.imoveis_el || !KB.imoveis_el[el]) return null;
+  const c = (it && KB.imoveis_sub[it.c]) || KB.imoveis_sub[r.codigo] || KB.imoveis_el[el];
+  return CONTA_NOME(c) || null;
+}
 /** Conta de depreciação acumulada de uma conta de bens móveis (em teste desde 23/11/2026): ligação por grupo
     1.2.3.1.1.GG → KB.depreciacao.grupos (planilha fornecida por Sanada, ligada ao PCASP 2027).
     Aceita o texto "código – nome"; devolve "código – nome" da depreciação ou '' (consumo, serviço, grupo sem conta). */
@@ -1257,11 +1269,15 @@ const REG_AC = '<p class="reg-uf"><b>Acre:</b> o fiscal do contrato atesta a not
 const ICO_ENTRADA = '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5"/><path d="M12 3v11"/><path d="M8 10l4 4 4-4"/></svg>';
 const ICO_DEPREC = '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5l6 6 4-4 8 8"/><path d="M21 9v6h-6"/></svg>';
 function depreciacaoDe(conta){
+  /* Bens imóveis (item 2.3): depreciação pela conta do bem; terreno e obra em andamento não depreciam (texto sem código) */
+  const im = (String(conta||'').match(/1\.2\.3\.2\.1\.\d{2}\.\d{2}/)||[])[0];
+  if(im && KB.depreciacao && KB.depreciacao.imoveis){ const d = KB.depreciacao.imoveis[im]; return !d ? '' : d.c ? `${d.c} – ${d.n}` : d.n; }
   const c = (String(conta||'').match(/1\.2\.3\.1\.1\.\d{2}\.\d{2}/)||[])[0]; if(!c || !KB.depreciacao) return '';
   const d = KB.depreciacao.grupos[c.slice(0,12)]; return d ? `${d.c} – ${d.n}` : '';
 }
 /** Conta contábil final do item: a indicada pela IA, validada nas listas do PCASP. */
 function contaDe(it, r, tipo){
+  const imovel = contaImovel(it, r); if(imovel) return imovel; /* obra ou imóvel: vale também com TIPO Serviço (obra) */
   if(tipo === 'Serviço') return 'Não se aplica (serviço)';
   const el = (r.codigo||'').split('.')[3];
   if(it && it.p){ const pc = it.p.split(/\s*[|/]\s*/).map(x=>x.trim()).find(x=>/^1\.(1\.5|2\.3)\./.test(x)); if(pc && CONTA_NOME(pc)) return CONTA_NOME(pc); }
