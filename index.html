@@ -422,7 +422,8 @@ footer .direitos{flex-basis:100%;text-align:center;font-size:11px;opacity:.35;ma
     <ul>
       <li>Esses dados ficam só neste navegador e neste computador, até você apagá-los. Não são enviados a nós nem compartilhados com outros usuários.</li>
       <li>Os itens que você classifica são enviados à inteligência artificial (Anthropic) apenas para gerar a classificação.</li>
-      <li class="so-site">Quando a resposta tem confiança alta, o resultado fica guardado no nosso servidor por até 30 dias, para responder mais rápido a quem consultar exatamente o mesmo item. Guardamos só o resultado, sem identificar quem consultou.</li>
+      <!-- Texto aprovado por Sanada em 28/11/2026 (base de conhecimento no Supabase; prazo de 2 anos aprovado) -->
+      <li class="so-site">Quando a resposta tem confiança alta, o resultado fica guardado no nosso servidor por até 30 dias, para responder mais rápido a quem consultar exatamente o mesmo item. O texto do item e a classificação também entram na nossa base de conhecimento (Supabase, com servidor nos Estados Unidos), por até 2 anos, para melhorar as próximas classificações. Não guardamos quem consultou. Por isso, não escreva dados pessoais no campo do item.</li>
       <li class="so-site">Para aplicar o limite diário de importação, o servidor registra o endereço IP de quem importou por até 2 dias.</li>
       <li class="so-dominio" hidden>Em classificabr.com, as visitas são contadas de forma anônima pelo Cloudflare Web Analytics, sem cookies e sem dados pessoais.</li>
       <li>Na versão publicada fora do Claude, uma verificação anti-robô do Cloudflare (Turnstile) protege o serviço contra uso automatizado. No claude.ai valem também as regras de privacidade da Anthropic.</li>
@@ -667,7 +668,7 @@ const dicPronto = (ms=3000) => Promise.race([carregarDic(), new Promise(r=>setTi
    (roteiro "Como trabalhamos"). Aparece no rodapé e no e-mail do "Reportar problema".
    ORDEM DE SANADA (28/11/2026): SEMPRE atualizar esta versão em toda entrega, por menor que seja; é ela que
    aparece na marca d'água "Versão …" (desde a 2026.11.28-8 sem o nome; "Sanada INC" fica só nos direitos reservados). */
-const APP_VERSAO = '2026.11.28-10';
+const APP_VERSAO = '2026.11.28-11';
 let UF = '';
 const isES = () => UF === 'ES';
 /** Troca o Estado ativo: atualiza textos, o quadro "Última atualização" e guarda a escolha (com aceite). */
@@ -866,7 +867,11 @@ function renderResult(r, q, st){
 /* ---------- Dados guardados no navegador (com termo de aceite) ---------- */
 /** Histórico de consultas recentes (até 8). Só é gravado no navegador com aceite do termo (LGPD). */
 let HIST = [];
-const consent = () => { try{ return localStorage.getItem('cnd_consent'); }catch{ return null; } };
+/* Versão do termo de aceite (28/11/2026): quando o texto muda de forma relevante, sobe a versão e o termo volta a
+   aparecer para quem já tinha respondido. Gravado como "sim:2" ou "nao:2"; respostas de versão antiga ("sim", "nao")
+   contam como sem resposta. v2 = base de conhecimento no Supabase (texto do item por até 2 anos). */
+const TERMO_VER = '2';
+const consent = () => { try{ const v = localStorage.getItem('cnd_consent') || ''; const [r, ver] = v.split(':'); return ver === TERMO_VER ? r : null; }catch{ return null; } };
 function persist(){
   if(consent() !== 'sim') return;
   try{ localStorage.setItem('cnd_hist', JSON.stringify(HIST)); if(UF) localStorage.setItem('cnd_uf', UF); }catch{}
@@ -1604,8 +1609,8 @@ $('#dl-res').addEventListener('click', async () => {
 });
 
 /* Termo de aceite (LGPD): aceitar grava as preferências no navegador; recusar não grava nada. */
-$('#termo-ok').addEventListener('click', ()=>{ try{ localStorage.setItem('cnd_consent','sim'); }catch{} persist(); $('#termo').hidden = true; });
-$('#termo-no').addEventListener('click', ()=>{ try{ localStorage.setItem('cnd_consent','nao'); }catch{} apagarDadosSalvos(); $('#termo').hidden = true; });
+$('#termo-ok').addEventListener('click', ()=>{ try{ localStorage.setItem('cnd_consent','sim:' + TERMO_VER); }catch{} persist(); $('#termo').hidden = true; });
+$('#termo-no').addEventListener('click', ()=>{ try{ localStorage.setItem('cnd_consent','nao:' + TERMO_VER); }catch{} apagarDadosSalvos(); $('#termo').hidden = true; });
 /* Contato (rodapé): dois botões, Reportar problema e Fale conosco. Abrem uma janela com o e-mail para copiar
    e atalhos para Gmail, Outlook e o app de e-mail, todos com assunto e roteiro preenchidos (o problema leva
    estado, versão e aba, para reproduzir). Nada é enviado nem guardado pela página. */
@@ -1782,7 +1787,10 @@ $('#pro-form').addEventListener('submit', async e=>{
     try{ ERROS = await (await fetch('erros.json')).json(); }catch{ ERROS = null; }
     montarVocab(KB); /* vocabulário da correção ortográfica */
   }catch{ $('#res').innerHTML='<div class="warnbox">Não foi possível carregar a base. Recarregue a página.</div>'; }
-  if(consent() === 'sim'){
+  /* Quem aceitou a versão anterior do termo continua com o Estado e as consultas recentes carregados (o uso
+     local desses dados não mudou); o termo novo aparece para aceitar de novo. Se recusar, os dados são apagados. */
+  let aceiteAntigo = false; try{ aceiteAntigo = localStorage.getItem('cnd_consent') === 'sim'; }catch{}
+  if(consent() === 'sim' || aceiteAntigo){
     try{ HIST = JSON.parse(localStorage.getItem('cnd_hist')||'[]'); }catch{ HIST = []; }
     try{ const u = localStorage.getItem('cnd_uf'); if(u && UFS[u]) UF = u; }catch{}
   }
