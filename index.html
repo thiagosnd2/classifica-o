@@ -700,6 +700,9 @@ const RULES = `REGRAS DE CLASSIFICAÇÃO (Lei 4.320/64; Portaria STN 448/2002; M
 10. Bens/serviços para distribuição gratuita à população → 32 (premiações → 31). Medicamento entregue ao paciente (farmácia básica, demanda judicial) → distribuição gratuita; medicamento usado na unidade de saúde → material de consumo.
 11. Quantitativo de pessoal especificado no contrato → 37; sem quantitativo → 39. Fornecedor PF → 36; PJ → 39. Consultoria/auditoria → 35.
 12. Evitar "outros" (99) quando houver subelemento específico. Modalidade padrão 90.`;
+/** Justificativa sem citar normas (27/11/2026): a IA continua seguindo as mesmas regras (Lei 4.320/64, Portaria 448/2002,
+    MCASP, tabelas), mas o texto da "justificativa" mostrado na tela explica só pelas características do item. */
+const JUST_RULE = `Na "justificativa", explique em linguagem simples, pelas características do item e pelos critérios aplicados, SEM citar normas (leis, portarias, instruções normativas, manuais como o MCASP, nem números de artigos). As regras acima continuam valendo para escolher o código.`;
 /** Regras específicas do ES (Tabela TCE-ES 2027 e Tabela Auxiliar 22). */
 const RULES_ES = `
 REGRAS ESPECÍFICAS DA TABELA TCE-ES 2027:
@@ -827,6 +830,7 @@ ${head}
 
 Instruções: escolha UM código do catálogo, nunca invente. Para material, avalie os cinco critérios da regra 1. Se finalidade, fornecedor ou tipo de despesa puderem mudar o código e não foram informados, use a hipótese mais comum e confiança "média" ou "baixa". Se a confiança for "média" ou "baixa", monte um QUIZ em "quiz": uma pergunta objetiva sobre o fator que decide a classificação (finalidade, uso, forma de fornecimento etc.) e de 2 a 4 opções curtas, cada uma ligada ao código do catálogo que vale se o usuário escolher aquela opção (códigos diferentes entre si). Se a confiança for "alta", "quiz" = null. Alternativas: até 3 códigos do catálogo com a condição. Justificativa: 2 a 4 frases citando a regra ou ementa. Se a unidade informada for incompatível com o item, explique em "alerta_unidade".
 ${TEXT_RULE} Na consulta, "texto_sugerido" é a versão revisada do "Nome ou descrição do item".
+${JUST_RULE}
 Responda SOMENTE com JSON:
 {"item_interpretado":"...","codigo":"x.x.90.xx.xx","justificativa":"...","regras":["..."],"criterios":{"durabilidade":null,"fragilidade":null,"perecibilidade":null,"incorporabilidade":null,"transformabilidade":null},"confianca":"alta|média|baixa","alternativas":[{"codigo":"...","quando":"..."}],"quiz":{"pergunta":"...","opcoes":[{"texto":"...","codigo":"..."}]},"alerta_unidade":null,"texto_sugerido":null,"falta":[]}`;
   }
@@ -853,6 +857,7 @@ ${head}
 
 Instruções: "codigo" deve ser um dos ELEMENTOS VÁLIDOS. "subelemento" é o nome de referência (ou null se não houver). "conta": para MATERIAL, a conta contábil do PCASP 2027 que corresponde ao item, escolhida nas listas acima (material de consumo → almoxarifado; material permanente → bens móveis); para SERVIÇO, null. Para material, avalie os cinco critérios. Se a confiança for "média" ou "baixa", monte um QUIZ em "quiz": uma pergunta objetiva sobre o fator que decide a classificação (finalidade, uso, forma de fornecimento etc.) e de 2 a 4 opções curtas, cada uma ligada ao elemento válido que vale se o usuário escolher aquela opção (códigos diferentes entre si). Se a confiança for "alta", "quiz" = null. Alternativas: até 3 elementos com a condição.
 ${TEXT_RULE} Na consulta, "texto_sugerido" é a versão revisada do "Nome ou descrição do item".
+${JUST_RULE}
 Responda SOMENTE com JSON:
 {"item_interpretado":"...","codigo":"x.x.90.ee","subelemento":"...","conta":"x.x.x.x.x.xx.xx ou null","justificativa":"...","regras":["..."],"criterios":{"durabilidade":null,"fragilidade":null,"perecibilidade":null,"incorporabilidade":null,"transformabilidade":null},"confianca":"alta|média|baixa","alternativas":[{"codigo":"...","quando":"..."}],"quiz":{"pergunta":"...","opcoes":[{"texto":"...","codigo":"..."}]},"alerta_unidade":null,"texto_sugerido":null,"falta":[]}`;
 }

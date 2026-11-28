@@ -153,6 +153,7 @@ Documento completo: [Classificador de Natureza de Despesa — Custos, Escala e M
 - Tabela de Natureza da Despesa TCE-ES 2027 – 2ª consulta pública (PCM/2027)
 - IN TC 68/2020, Anexo VI – Tabela Auxiliar 22 (alterada pela Portaria 92/2025)
 - Portaria STN nº 448, de 13/09/2002 — revogada, mas o conceito continua: segue nas regras enviadas à IA e na base; desde 27/11/2026 não aparece mais na tela.
+- Justificativa da IA sem citar normas (regra `JUST_RULE`, desde 27/11/2026); as regras que a IA segue não mudaram.
 - Na tela: MCASP e Lei nº 4.320/1964 (art. 15, § 2º) para todos os estados; a Portaria Interministerial STN/SOF nº 163/2001 aparece só para o Espírito Santo (cada estado tem o seu regulamento).
 - MCASP – 11ª edição
 - PCASP 2027 – Portaria STN/MF nº 2.520, de 21/08/2026
