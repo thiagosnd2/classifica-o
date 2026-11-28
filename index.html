@@ -662,7 +662,7 @@ const dicPronto = (ms=3000) => Promise.race([carregarDic(), new Promise(r=>setTi
 /** Estados atendidos. Só o ES tem tabela própria carregada; os demais usam a base federal. */
 /* Versão da página (item 5.3 do levantamento, 27/11/2026): AAAA.MM.DD-n. Atualizar a cada publicação
    (roteiro "Como trabalhamos"). Aparece no rodapé e no e-mail do "Reportar problema". */
-const APP_VERSAO = '2026.11.28-5';
+const APP_VERSAO = '2026.11.28-6';
 let UF = '';
 const isES = () => UF === 'ES';
 /** Troca o Estado ativo: atualiza textos, o quadro "Última atualização" e guarda a escolha (com aceite). */

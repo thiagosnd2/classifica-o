@@ -106,3 +106,15 @@ Desde a fase 3 (27/11/2026), o `servidor/worker.js` é **gerado**: edite `servid
 ## 7. Fim da transição da fase 3 (pedido montado no servidor)
 
 Depois de alguns dias com o Worker 2026.11.28-1 ou mais novo no ar (tempo para os navegadores trocarem a página antiga), crie no Worker a variável `ACEITAR_PROMPT_LIVRE` = `false` (**Settings → Variables and Secrets → Add**). A partir daí o servidor recusa pedidos prontos e só aceita os campos; quem estiver com a página antiga vê "Página desatualizada. Recarregue com Ctrl + F5".
+
+## 8. Base de conhecimento no Supabase (Worker 2026.11.28-7 ou mais novo)
+
+Opcional: sem estas duas variáveis o Worker funciona como antes. Cadastradas em 28/11/2026.
+
+1. No Supabase, projeto **classificabr** → **Settings → API Keys → Secret keys** → copie a chave secreta (`sb_secret_…`). Não use as chaves antigas (service_role), que serão desativadas em 2027.
+2. No Cloudflare, Worker `classificador-ap` → **Configurações → Variáveis e segredos → Adicionar variável**:
+   - `SUPABASE_SECRET_KEY`, tipo **Segredo** (na tabela deve aparecer "Valor criptografado"; se o valor aparecer à vista, apague, gere outra chave no Supabase, apague a antiga lá e cadastre de novo como Segredo);
+   - `SUPABASE_URL`, tipo **Texto**: `https://oihsukbmtnbxzdcuugnl.supabase.co`.
+3. Cole o `servidor/worker.js` novo (seção 6) e confira em `/versao`.
+4. O que muda: antes de chamar a IA, o Worker busca no mapa as normas do assunto (e, na consulta individual, respostas parecidas já aprovadas ou repetidas 3 vezes) e coloca num bloco curto do pedido; depois grava as respostas de confiança alta da consulta individual. Se o Supabase demorar mais de 1,5 s ou falhar, o pedido segue sem o bloco.
+5. Para trocar a chave secreta: gere uma nova no Supabase, atualize o segredo no Cloudflare e só então apague a antiga no Supabase.

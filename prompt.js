@@ -168,7 +168,9 @@ function blocoErros(texto, uf){
 /* ---------- Pedido da consulta individual ---------- */
 /** Monta o pedido da consulta individual: regras + catálogo (restrito ou federal) + dados do item
     + formato JSON exigido (código, confiança, quiz, texto sugerido...). */
-function buildPrompt(st, uf = UFATUAL()){
+/* base (opcional, 28/11/2026): bloco da base de conhecimento (Supabase) montado pelo Worker; a página não
+   passa nada e o pedido dela fica idêntico ao de antes. Entra logo depois do dicionário de erros. */
+function buildPrompt(st, uf = UFATUAL(), base = ''){
   const {item, ctx, forn, desp, extra, un} = st;
   const el = elemConceitos(uf).map(([k,v])=>`${k} – ${v.n}: ${v.c}`).join('\n');
   const head = `ITEM: ${item}\nFINALIDADE/DETALHES: ${ctx||'não informado'}\nUNIDADE: ${un||'não informada'}\nFORNECEDOR: ${forn||'não informado'}\nTIPO DE DESPESA: ${desp||'não informado'}\n${extra?'RESPOSTA DO USUÁRIO À PERGUNTA ANTERIOR: '+extra:''}`;
@@ -177,7 +179,7 @@ function buildPrompt(st, uf = UFATUAL()){
     return `Você classifica itens de compras públicas municipais do Espírito Santo na natureza de despesa (até o subelemento), usando EXCLUSIVAMENTE códigos da Tabela de Natureza da Despesa TCE-ES 2027.
 
 ${RULES}
-${RULES_ES}${blocoErros([item, ctx, extra].join(' '), uf)}
+${RULES_ES}${blocoErros([item, ctx, extra].join(' '), uf)}${base}
 
 CONCEITO DOS ELEMENTOS (MCASP):
 ${el}
@@ -199,7 +201,7 @@ Responda SOMENTE com JSON:
   const cand = scoreFed([item,ctx,extra].join(' ')).map(f=>`${f.e} | ${f.n}\n  Descrição: ${f.d||'—'}\n  Exemplos: ${(f.x||'—').slice(0,500)}`).join('\n');
   return `Você classifica itens de compras públicas municipais (estado: ${UFS[uf]}) na natureza de despesa pela base FEDERAL de referência (Portaria STN 448/2002, MCASP 11ª ed.). Não há tabela estadual carregada para este estado: classifique até o ELEMENTO (código x.x.90.ee) e indique o subelemento apenas pelo NOME de referência, sem código.
 
-${RULES}${RULES_UF[uf]||''}${NORMA_FED}${blocoErros([item, ctx, extra].join(' '), uf)}
+${RULES}${RULES_UF[uf]||''}${NORMA_FED}${blocoErros([item, ctx, extra].join(' '), uf)}${base}
 
 CONCEITO DOS ELEMENTOS (MCASP):
 ${el}
@@ -231,7 +233,7 @@ Responda SOMENTE com JSON:
 /* ---------- Pedido do importador (lote) ---------- */
 /** Monta o pedido de um lote (até BATCH = 30 itens do mesmo TIPO): regras + catálogo restrito (RAG) +
     itens com finalidade informada + contas contábeis + formato JSON. full=true usa o catálogo completo. */
-function batchPrompt(gs, full, uf = (typeof IMP !== 'undefined' && IMP ? IMP.uf : '')){
+function batchPrompt(gs, full, uf = (typeof IMP !== 'undefined' && IMP ? IMP.uf : ''), base = ''){
   const es = uf === 'ES';
   const tipo = gs[0].tipo, okEl = new Set(tipoElems(tipo, uf));
   let elems = new Set(okEl);
@@ -257,7 +259,7 @@ function batchPrompt(gs, full, uf = (typeof IMP !== 'undefined' && IMP ? IMP.uf 
   const contasObra = comObra ? 'CONTAS CONTÁBEIS (PCASP 2027) – bens imóveis e obras:\n' + contasImoveisTxt() : '';
   return `Você classifica itens de compras públicas municipais (${es?'Espírito Santo, Tabela de Natureza da Despesa TCE-ES 2027, até o subelemento':`${UFS[uf]}, base federal de referência, até o ELEMENTO`}).
 
-${RULES}${es?RULES_ES:(RULES_UF[uf]||'')+NORMA_FED}${blocoErros(gs.map(g=>g.tit+' '+g.des).join(' '), uf)}
+${RULES}${es?RULES_ES:(RULES_UF[uf]||'')+NORMA_FED}${blocoErros(gs.map(g=>g.tit+' '+g.des).join(' '), uf)}${base}
 
 ELEMENTOS (MCASP):
 ${elTxt}

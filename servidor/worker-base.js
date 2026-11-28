@@ -48,10 +48,20 @@
  *  1.4 teto separado para a importação (DAILY_LIMIT_LOTE);
  *  1.5 sem temperature;
  *  5.2 rota GET /versao com WORKER_VERSAO.
+ *
+ * Base de conhecimento no Supabase (28/11/2026, Worker 2026.11.28-7) – opcional: sem as duas variáveis abaixo,
+ * o Worker funciona exatamente como antes.
+ *   Variável SUPABASE_URL         endereço do projeto (https://<id>.supabase.co)
+ *   Segredo  SUPABASE_SECRET_KEY  chave secreta (sb_secret_…), NUNCA no código nem no chat
+ *  - antes de chamar a IA, busca no mapa as normas do assunto (buscar_conhecimento) e, na consulta individual,
+ *    as respostas parecidas já confirmadas (buscar_resposta); tudo entra no pedido num bloco curto;
+ *  - depois, grava as respostas de confiança alta com código conferido da consulta individual (gravar_respostas),
+ *    sem atrasar a resposta (o lote não devolve confiança e não grava);
+ *  - se o Supabase demorar (mais de 1,5 s) ou falhar, o pedido segue sem o bloco (a base é um reforço, não trava nada).
  */
 
 /* Versão deste arquivo: atualizar a cada mudança (AAAA.MM.DD-n). GET /versao devolve este valor. */
-const WORKER_VERSAO = '2026.11.28-6';
+const WORKER_VERSAO = '2026.11.28-7';
 
 /* Prefixo do hash das chaves Pro (o mesmo usado na página e nos scripts). */
 const PREFIXO = 'qw-classificador:';
@@ -67,7 +77,7 @@ const SISTEMA = 'Você é um classificador de natureza de despesa pública brasi
 
 /* Ponto de entrada do Worker: trata CORS, confere origem e limite por IP e despacha para as rotas. */
 export default {
-  async fetch(req, env) {
+  async fetch(req, env, ctx) {
     const origem = req.headers.get('Origin') || '';
     const permitida = (env.ALLOWED_ORIGIN || '').split(',').map(s => s.trim()).filter(Boolean);
     const okOrigem = permitida.length === 0 || permitida.includes(origem);
@@ -113,7 +123,9 @@ export default {
           const v = tipo === 'classificar' ? validarCamposConsulta(corpo.campos) : validarCamposLote(corpo.campos);
           if (v.erro) return resp(400, { erro: v.erro });
           campos = v.campos;
-          prompt = tipo === 'classificar' ? buildPrompt(campos, campos.uf) : batchPrompt(campos.itens, campos.full, campos.uf);
+          // Base de conhecimento (Supabase): normas do assunto e respostas já confirmadas; vazio se não houver
+          const base = await blocoBase(env, tipo, campos);
+          prompt = tipo === 'classificar' ? buildPrompt(campos, campos.uf, base) : batchPrompt(campos.itens, campos.full, campos.uf, base);
         } else {
           if (env.ACEITAR_PROMPT_LIVRE === 'false') return resp(400, { erro: 'Página desatualizada. Recarregue com Ctrl + F5' });
           prompt = String(corpo.prompt || '');
@@ -150,7 +162,12 @@ export default {
         if (!teto) return resp(429, { erro: 'Limite diário de consultas atingido' });
 
         const resultado = await chamarIA(env, prompt, LIM[tipo].maxTokens);
-        if (campos) conferirCodigos(resultado, campos.uf);
+        if (campos) {
+          conferirCodigos(resultado, campos.uf);
+          // Guarda as respostas de confiança alta na base, depois de responder (waitUntil não atrasa o usuário)
+          const g = gravarRespostas(env, tipo, campos, resultado);
+          if (ctx && ctx.waitUntil) ctx.waitUntil(g); else await g;
+        }
         if (chaveCache && resultado && resultado.codigo && !resultado.codigo_invalido && /^alta$/i.test(String(resultado.confianca || '').trim())) {
           await gravarCache(env, chaveCache, resultado);
         }
@@ -372,6 +389,69 @@ async function chamarIA(env, prompt, maxTokens) {
   if (j.stop_reason === 'max_tokens') throw { status: 502, motivo: 'resposta da IA cortada por tamanho' };
   try { return extrairJSON(texto); }
   catch { throw { status: 502, motivo: 'resposta da IA fora do formato' }; }
+}
+
+/* ---------- Base de conhecimento no Supabase (28/11/2026) ---------- */
+
+/* Chama uma função (RPC) do Supabase com a chave secreta. Devolve null se a base não estiver configurada,
+   demorar mais que o limite ou falhar: a base é reforço e nunca impede a classificação. */
+async function supabaseRPC(env, nome, args, ms = 1500) {
+  if (!env.SUPABASE_URL || !env.SUPABASE_SECRET_KEY) return null;
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), ms);
+  try {
+    const r = await fetch(`${env.SUPABASE_URL.replace(/\/+$/, '')}/rest/v1/rpc/${nome}`, {
+      method: 'POST', signal: ctl.signal,
+      headers: { 'Content-Type': 'application/json', apikey: env.SUPABASE_SECRET_KEY },
+      body: JSON.stringify(args),
+    });
+    if (!r.ok) { console.error('supabase', nome, r.status); return null; }
+    return await r.json();
+  } catch (e) { console.error('supabase', nome, e && e.name); return null; }
+  finally { clearTimeout(t); }
+}
+
+/* Monta o bloco que vai no pedido à IA:
+   - NORMAS DA BASE: trechos achados pelo mapa de busca, já na ordem da hierarquia (assunto exato; regulamento
+     do estado antes do federal). Consulta: até 4; lote: até 8 para o lote inteiro (uma chamada só).
+   - RESPOSTAS JÁ CONFIRMADAS (só consulta individual): itens parecidos (semelhança >= 0,6) aprovados por
+     Sanada ou repetidos pela IA ao menos 3 vezes; servem de referência, a IA continua decidindo pelo item.
+   O texto não leva contagens nem datas, para o mesmo pedido continuar igual (o cache depende disso). */
+async function blocoBase(env, tipo, campos) {
+  if (!env.SUPABASE_URL || !env.SUPABASE_SECRET_KEY) return '';
+  const uf = campos.uf;
+  const texto = tipo === 'classificar'
+    ? [campos.item, campos.ctx, campos.extra].join(' ')
+    : campos.itens.map(g => g.tit + ' ' + g.des).join(' ');
+  const [normas, respostas] = await Promise.all([
+    supabaseRPC(env, 'buscar_conhecimento', { p_texto: texto.slice(0, 4000), p_ente: uf, p_limite: tipo === 'classificar' ? 4 : 8 }),
+    tipo === 'classificar' ? supabaseRPC(env, 'buscar_resposta', { p_item: campos.item, p_ente: uf, p_tipo: null }) : null,
+  ]);
+  let out = '';
+  if (Array.isArray(normas) && normas.length) {
+    out += '\n\nNORMAS DA BASE DE CONHECIMENTO (em ordem de prioridade; o regulamento do estado prevalece nele, a regra geral é o MCASP atualizado e a STN federal):\n'
+      + normas.map(n => `- ${n.fonte}${n.referencia ? ', ' + n.referencia : ''}: ${n.resumo}`).join('\n');
+  }
+  const conf = (Array.isArray(respostas) ? respostas : [])
+    .filter(r => r && r.codigo && Number(r.semelhanca) >= 0.6 && (r.origem === 'aprovada' || Number(r.confirmacoes) >= 3));
+  if (conf.length) {
+    out += '\n\nRESPOSTAS JÁ CONFIRMADAS PARA ITENS PARECIDOS (referência; confira se o item é de fato o mesmo):\n'
+      + conf.map(r => `- ${r.codigo}${r.conta ? ' | conta ' + r.conta : ''} (${r.origem === 'aprovada' ? 'aprovada por especialista' : 'confirmada várias vezes'})`).join('\n');
+  }
+  return out;
+}
+
+/* Grava na tabela respostas o que voltou com confiança alta e código conferido. Só a consulta individual:
+   o lote não devolve "confianca", então não há como saber se a resposta é assertiva. TIPO deduzido do
+   elemento (TIPO_ELEMS); sem TIPO conhecido (ex.: imóveis 4.4.90.61), não grava. */
+async function gravarRespostas(env, tipo, campos, r) {
+  if (tipo !== 'classificar' || !env.SUPABASE_URL || !env.SUPABASE_SECRET_KEY) return;
+  if (!r || !r.codigo || r.codigo_invalido || !/^alta$/i.test(String(r.confianca || '').trim())) return;
+  const t = Object.keys(TIPO_ELEMS).find(k => TIPO_ELEMS[k].includes(elOf(r.codigo)));
+  if (!t) return;
+  await supabaseRPC(env, 'gravar_respostas', { p: [{
+    ente: campos.uf, item: campos.item, tipo: t, codigo: String(r.codigo),
+    conta: r.conta ? String(r.conta) : null, justificativa: r.justificativa ? String(r.justificativa) : null,
+  }] }, 3000);
 }
 
 /* Extrai o JSON da resposta mesmo que venha com cercas de código ou texto em volta. */

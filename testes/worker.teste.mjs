@@ -103,3 +103,43 @@ kv.clear(); // sem cache, para a IA ser chamada de novo
 r = await run('/classificar', {campos:{uf:'ES', item:'Grampeador de mesa', ctx:'uso no setor', forn:'PJ', desp:'', extra:'', un:'131 - Unidade'}});
 ok(!/ERROS JÁ CORRIGIDOS/.test(promptEnviado()), 'item sem gatilho: pedido sem o bloco do dicionário');
 if (base) ok(promptEnviado() === base.c_ES, 'sem gatilho, o pedido continua idêntico ao da página (cache preservado)');
+
+// ---------- Base de conhecimento no Supabase (28/11/2026) ----------
+// Simula o Supabase: guarda as chamadas RPC e responde normas, respostas e gravação.
+const fetchIA = globalThis.fetch, rpcs = [];
+let supaFalha = false;
+globalThis.fetch = async (url, op) => {
+  const u = String(url);
+  if (u.startsWith('https://teste.supabase.co/rest/v1/rpc/')) {
+    const nome = u.split('/').pop(), args = JSON.parse(op.body);
+    rpcs.push({ nome, args, apikey: op.headers.apikey });
+    if (supaFalha) throw Object.assign(new Error('x'), { name: 'AbortError' });
+    if (nome === 'buscar_conhecimento') return { ok: true, json: async () => [{ fonte: 'NBC TSP 07 – Ativo Imobilizado', referencia: 'Depreciação', resumo: 'Terrenos não são depreciados.' }] };
+    if (nome === 'buscar_resposta') return { ok: true, json: async () => [
+      { codigo: '4.4.90.61', conta: '1.2.3.2.1.01.04', origem: 'aprovada', confirmacoes: 1, semelhanca: 0.8 },
+      { codigo: '3.3.90.39', conta: null, origem: 'ia_alta', confirmacoes: 1, semelhanca: 0.9 } ] };
+    if (nome === 'gravar_respostas') return { ok: true, json: async () => 1 };
+  }
+  return fetchIA(url, op);
+};
+kv.clear(); env.SUPABASE_URL = 'https://teste.supabase.co/'; env.SUPABASE_SECRET_KEY = 'sb_secret_TESTE';
+respostaIA = '{"codigo":"4.4.90.52","confianca":"alta","justificativa":"permanente"}';
+r = await run('/classificar', {campos:{uf:'AC', item:'Terreno para escola', un:'Unidade'}});
+let p = promptEnviado();
+ok(r[0]===200 && /NORMAS DA BASE DE CONHECIMENTO/.test(p) && /NBC TSP 07 – Ativo Imobilizado, Depreciação: Terrenos não são depreciados/.test(p), 'consulta leva o bloco de normas da base');
+ok(/RESPOSTAS JÁ CONFIRMADAS/.test(p) && /4\.4\.90\.61 \| conta 1\.2\.3\.2\.1\.01\.04 \(aprovada por especialista\)/.test(p) && !/3\.3\.90\.39 \(confirmada/.test(p), 'só resposta aprovada (ou repetida 3x) entra como referência');
+ok(rpcs.every(c => c.apikey === 'sb_secret_TESTE') && rpcs.find(c => c.nome==='buscar_conhecimento').args.p_limite === 4, 'RPC com a chave secreta no cabeçalho e até 4 normas na consulta');
+const grav = rpcs.find(c => c.nome === 'gravar_respostas');
+ok(grav && grav.args.p[0].ente==='AC' && grav.args.p[0].tipo==='Material' && grav.args.p[0].codigo==='4.4.90.52', 'resposta de confiança alta é gravada (TIPO deduzido do elemento)');
+rpcs.length = 0; kv.clear(); respostaIA = '{"codigo":"4.4.90.52","confianca":"média"}';
+r = await run('/classificar', {campos:{uf:'AC', item:'Cadeira giratória', un:'Unidade'}});
+ok(!rpcs.some(c => c.nome === 'gravar_respostas'), 'confiança média não é gravada');
+rpcs.length = 0; respostaIA = '[{"n":1,"codigo":"3.3.90.39"},{"n":2,"codigo":"3.3.90.39"}]';
+r = await run('/lote', {campos:{uf:'AC', full:false, itens:gs}, arquivo:'planilha-ffff1'});
+ok(r[0]===200 && /NORMAS DA BASE/.test(promptEnviado()) && rpcs.find(c=>c.nome==='buscar_conhecimento').args.p_limite===8 && !rpcs.some(c=>c.nome!=='buscar_conhecimento'), 'lote: uma busca de normas (até 8), sem busca nem gravação de respostas');
+// Supabase fora do ar: segue sem o bloco, pedido idêntico ao da página
+supaFalha = true; kv.clear(); respostaIA = '{"codigo":"3.3.90.34","confianca":"alta"}';
+r = await run('/classificar', {campos:{uf:'AC', item:'Terceirização de apoio administrativo', ctx:'dedicação exclusiva', un:'Mês'}});
+ok(r[0]===200 && !/NORMAS DA BASE/.test(promptEnviado()), 'Supabase com falha: consulta segue normalmente, sem o bloco');
+if (base) ok(promptEnviado() === base.c_AC, 'Supabase com falha: pedido idêntico ao da página');
+supaFalha = false; delete env.SUPABASE_URL; delete env.SUPABASE_SECRET_KEY;
