@@ -95,7 +95,7 @@ button{font:600 14px var(--body);cursor:pointer;border-radius:7px;border:1px sol
 .app-ver{opacity:.7;font-size:12px;margin-left:6px;white-space:nowrap}
 @media (max-width:640px){.reg-pat{grid-template-columns:1fr}.reg-div{width:auto;height:2px}}
 /* Orientação do Estado no Registro patrimonial (hoje só AC) */
-.reg-uf{max-width:none;margin:14px 0 0;padding-top:10px;border-top:1px solid var(--line);font-size:13.5px;color:var(--muted)}.reg-uf b{color:var(--ink)}
+.ask .reg-uf,.reg-uf{max-width:none;margin:14px 0 0;padding-top:10px;border-top:1px solid var(--line);font-size:13.5px;color:var(--muted)}.reg-uf b{color:var(--ink)}
 .un-combo{position:relative}
 .un-combo input{padding-right:30px;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%;background-size:5px 5px;background-repeat:no-repeat}
 .un-lista{position:absolute;left:0;right:0;top:calc(100% + 2px);z-index:30;max-height:260px;overflow-y:auto;background:var(--bg);border:1px solid var(--line);border-radius:4px;box-shadow:0 6px 18px rgba(0,0,0,.25);padding:2px 0;font-size:14.5px}
@@ -660,7 +660,7 @@ const dicPronto = (ms=3000) => Promise.race([carregarDic(), new Promise(r=>setTi
 /** Estados atendidos. Só o ES tem tabela própria carregada; os demais usam a base federal. */
 /* Versão da página (item 5.3 do levantamento, 27/11/2026): AAAA.MM.DD-n. Atualizar a cada publicação
    (roteiro "Como trabalhamos"). Aparece no rodapé e no e-mail do "Reportar problema". */
-const APP_VERSAO = '2026.11.28-1';
+const APP_VERSAO = '2026.11.28-2';
 let UF = '';
 const isES = () => UF === 'ES';
 /** Troca o Estado ativo: atualiza textos, o quadro "Última atualização" e guarda a escolha (com aceite). */
@@ -786,7 +786,7 @@ function renderResult(r, q, st){
   let h = `<h2>Resultado · ${es?'Espírito Santo (TCE-ES 2027)':esc(UFS[UF])+' (base federal)'}</h2>`;
   if(es && !it) h += `<div class="warnbox">O código sugerido (${esc(r.codigo)}) não existe na tabela TCE-ES 2027. Use os candidatos abaixo e reformule a busca.</div>`;
   if(!es && !okFed) h += `<div class="warnbox">O elemento sugerido (${esc(r.codigo)}) não está entre os elementos válidos desta base.</div>`;
-  if(!es) h += `<p class="empty" style="margin:0">Para ${esc(UFS[UF])} não há tabela estadual carregada: a classificação vai até o elemento. Confirme o subelemento na tabela do tribunal de contas do estado.</p>`;
+  if(!es) h += `<p class="empty" style="margin:0">Para ${esc(UFS[UF])} vale a regra geral: MCASP atualizado. Não há tabela estadual carregada, então a classificação vai até o elemento. Confirme o subelemento na tabela do tribunal de contas do estado.</p>`;
   h += unitBox(st.u);
   if(es && r.alerta_unidade) h += `<div class="warnbox">Unidade × item: ${esc(r.alerta_unidade)}</div>`;
   h += `<div class="verdict">
@@ -822,12 +822,16 @@ function renderResult(r, q, st){
   /* Item 2.3: também para obras e imóveis. Sem depreciação (terreno, obra em andamento) a coluna mostra "—" e o motivo.
      A orientação de tombamento do Acre (bens móveis) só aparece para material permanente. */
   const ehImovel = /^1\.2\.3\.2\./.test(contaBem);
+  /* Terreno x edificação (28/11/2026): imóvel com construção (uso especial ou dominical, exceto terrenos) recebe a
+     lembrança de registrar o terreno separado, porque terreno não deprecia (NBC TSP 07 e MCASP). */
+  const ehEdificacao = /^1\.2\.3\.2\.1\.0[14]\./.test(contaBem) && !/^1\.2\.3\.2\.1\.(01\.04|04\.13)/.test(contaBem);
+  const NOTA_TERRENO = ehEdificacao ? '<p class="reg-uf"><b>Terreno:</b> se o imóvel foi comprado junto com o terreno, registre o valor do terreno separado, na conta de terrenos, que não deprecia. Só a edificação deprecia.</p>' : '';
   const rotulo = !ehImovel ? 'Material permanente' : /^1\.2\.3\.2\.1\.06\./.test(contaBem) ? 'Obra ou estudo em andamento' : 'Bem imóvel';
   if(contaDep){ const [cb, nb] = partes(contaBem), [cd, nd] = / – /.test(contaDep) ? partes(contaDep) : ['—', contaDep];
     h += `<div class="ask"><p><b>Registro patrimonial</b> <span class="pill" style="font-style:italic" title="Recurso em teste">Beta</span> <span class="empty" style="margin-left:6px">${rotulo}</span></p>
     <div class="reg-pat"><div class="reg-col"><span class="reg-ico reg-ent" title="Entrada do bem no patrimônio">${ICO_ENTRADA}</span><div><span class="reg-l">Registrado em</span><span class="reg-c">${esc(cb)}</span><span class="reg-n">${esc(nb)}</span></div></div>
     <div class="reg-div" aria-hidden="true"></div>
-    <div class="reg-col"><span class="reg-ico reg-dep" title="Depreciação do bem ao longo do tempo">${ICO_DEPREC}</span><div><span class="reg-l">Depreciado em</span><span class="reg-c">${esc(cd)}</span><span class="reg-n">${esc(nd)}</span></div></div></div>${UF === 'AC' && !ehImovel ? REG_AC : ''}</div>`; }
+    <div class="reg-col"><span class="reg-ico reg-dep" title="Depreciação do bem ao longo do tempo">${ICO_DEPREC}</span><div><span class="reg-l">Depreciado em</span><span class="reg-c">${esc(cd)}</span><span class="reg-n">${esc(nd)}</span></div></div></div>${UF === 'AC' && !ehImovel ? REG_AC : ''}${NOTA_TERRENO}</div>`; }
   if(hasCr) h += `<div><h2>Critérios de consumo (MCASP)</h2><div class="tests">${keys.map(k=>`<div class="test"><b>${k[0].toUpperCase()+k.slice(1)}</b><span class="${cr[k]?'y':'n'}">${cr[k]===true?'atende':cr[k]===false?'não atende':'—'}</span></div>`).join('')}</div></div>`;
   if((r.regras||[]).length) h += `<div><h2>Regras aplicadas</h2><ul class="rules">${r.regras.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`;
   if(alts.length) h += `<div><h2>Alternativas</h2><div style="display:grid;gap:8px">${alts.map(a=>{const ai=es?byCode(a.codigo):null;const nm=es?(ai?ai.t:'(código não encontrado)'):elName(a.codigo);return `<div class="alt"><span class="cd">${esc(a.codigo)}</span><span>${esc(nm)}</span><small class="empty">${esc(a.quando)}</small></div>`}).join('')}</div></div>`;

@@ -1,7 +1,7 @@
 /* =====================================================================================
    ARQUIVO GERADO — NÃO EDITE AQUI.
    Edite servidor/worker-base.js e/ou prompt.js e rode:  node servidor/montar-worker.mjs
-   Versão do Worker: 2026.11.28-3
+   Versão do Worker: 2026.11.28-4
    Parte 1: prompt.js (montagem do pedido à IA, igual à da página)
    Parte 2: servidor/worker-base.js (rotas, limites, cache e chamada à IA)
    ===================================================================================== */
@@ -147,6 +147,16 @@ const IMOVEL_GRUPO = { '4.4.90.61': /^1\.2\.3\.2\.1\.01\./, '4.5.90.61': /^1\.2\
 const contasImoveisTxt = () => (KB.imoveis || []).map(c=>`${c.c} ${c.n}`).join('\n');
 const REGRA_CONTA_IMOVEL = 'Para obras e imóveis, "conta" é a da lista de BENS IMÓVEIS E OBRAS: elemento 4.4.90.61 (imóvel para uso do órgão) → bens de uso especial (1.2.3.2.1.01.xx); 4.5.90.61 (inversão financeira) → bens dominicais (1.2.3.2.1.04.xx); 4.4.90.51 → obras em andamento, estudos e projetos, instalações ou benfeitorias (1.2.3.2.1.06/07/08). Terreno → a conta de terrenos do grupo. Para obras e imóveis a "conta" é OBRIGATÓRIA: nunca null.';
 
+/* ---------- Norma geral fora do ES (28/11/2026, pedido de Sanada) ----------
+   Regra geral: todos os estados seguem o MCASP atualizado (edição vigente; em 2026, a 11ª). EXCEÇÃO: o Espírito Santo,
+   que tem normativa e regulamento próprios (Tabela de Natureza da Despesa do TCE-ES) — por isso este bloco NÃO vai no
+   pedido do ES (o pedido do ES continua idêntico e o cache dele segue valendo).
+   Terreno: vida útil ilimitada, não deprecia (NBC TSP 07 e MCASP), mesmo comprado junto com edificação; nesse caso o
+   valor do terreno é registrado separado e só a edificação deprecia. */
+const NORMA_FED = `
+NORMA GERAL DESTE ESTADO: aplique o MCASP atualizado (edição vigente) em tudo: conceito dos elementos, critérios de consumo × permanente, ativo imobilizado e depreciação. (Exceção: o Espírito Santo segue normativa e regulamento próprios; não é o caso deste pedido.)
+TERRENOS: não sofrem depreciação (vida útil ilimitada), mesmo quando adquiridos junto com edificações; nesse caso o valor do terreno é registrado separado do valor da edificação, e só a edificação deprecia. Para terreno, use sempre a conta de terrenos do grupo.`;
+
 /* ---------- Pedido da consulta individual ---------- */
 /** Monta o pedido da consulta individual: regras + catálogo (restrito ou federal) + dados do item
     + formato JSON exigido (código, confiança, quiz, texto sugerido...). */
@@ -181,7 +191,7 @@ Responda SOMENTE com JSON:
   const cand = scoreFed([item,ctx,extra].join(' ')).map(f=>`${f.e} | ${f.n}\n  Descrição: ${f.d||'—'}\n  Exemplos: ${(f.x||'—').slice(0,500)}`).join('\n');
   return `Você classifica itens de compras públicas municipais (estado: ${UFS[uf]}) na natureza de despesa pela base FEDERAL de referência (Portaria STN 448/2002, MCASP 11ª ed.). Não há tabela estadual carregada para este estado: classifique até o ELEMENTO (código x.x.90.ee) e indique o subelemento apenas pelo NOME de referência, sem código.
 
-${RULES}${RULES_UF[uf]||''}
+${RULES}${RULES_UF[uf]||''}${NORMA_FED}
 
 CONCEITO DOS ELEMENTOS (MCASP):
 ${el}
@@ -239,7 +249,7 @@ function batchPrompt(gs, full, uf = (typeof IMP !== 'undefined' && IMP ? IMP.uf 
   const contasObra = comObra ? 'CONTAS CONTÁBEIS (PCASP 2027) – bens imóveis e obras:\n' + contasImoveisTxt() : '';
   return `Você classifica itens de compras públicas municipais (${es?'Espírito Santo, Tabela de Natureza da Despesa TCE-ES 2027, até o subelemento':`${UFS[uf]}, base federal de referência, até o ELEMENTO`}).
 
-${RULES}${es?RULES_ES:(RULES_UF[uf]||'')}
+${RULES}${es?RULES_ES:(RULES_UF[uf]||'')+NORMA_FED}
 
 ELEMENTOS (MCASP):
 ${elTxt}
@@ -315,7 +325,7 @@ ${es?'[{"n":1,"codigo":"x.x.90.xx.xx","conta":"x.x.x.x.x.xx.xx","titulo_sugerido
  */
 
 /* Versão deste arquivo: atualizar a cada mudança (AAAA.MM.DD-n). GET /versao devolve este valor. */
-const WORKER_VERSAO = '2026.11.28-3';
+const WORKER_VERSAO = '2026.11.28-4';
 
 /* Prefixo do hash das chaves Pro (o mesmo usado na página e nos scripts). */
 const PREFIXO = 'qw-classificador:';
