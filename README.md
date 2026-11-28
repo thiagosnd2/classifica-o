@@ -74,7 +74,7 @@ Princípio de projeto: **a IA só sugere; o código valida antes e confere depoi
 - À direita, os botões "Reportar problema" e "Fale conosco" abrem uma janela com o e-mail (mversobr@gmail.com) para copiar e atalhos para Gmail, Outlook ou o app de e-mail, já com assunto e roteiro (o problema inclui estado, versão, aba e navegador, ex.: "Edge 142 · Windows").
 
 **Consulta individual**
-- Botão Classificar habilitado só com Estado selecionado, ao menos 3 letras ou números no item (ex.: "WD40") e unidade de medida escolhida na lista. Para nova classificação é preciso apagar ao menos 3 letras ou usar Limpar.
+- Botão Classificar habilitado só com Estado selecionado, ao menos 3 letras ou números no item (ex.: "WD40") e unidade de medida escolhida na lista. Depois de classificar, o botão volta a ficar disponível quando qualquer campo muda (item, finalidade, unidade, fornecedor ou despesa) ou ao clicar numa consulta recente, que já reclassifica; repetir a mesma consulta, sem mudar nada, continua travado (diferença só de maiúsculas ou espaços não conta). Desde 28/11/2026; antes era preciso apagar 3 letras.
 - Resultado com código, justificativa, critérios de consumo × permanente (na tela: "MCASP"), regras aplicadas e alternativas.
 - Quiz quando a confiança é média ou baixa: as opções já vêm ligadas a um código e o clique resolve sem nova chamada à IA.
 - Correção ortográfica local, sem IA: palavra do título que não existe na base nem no dicionário e está a 1 letra (2 se tiver 10+) de uma conhecida → "Você quis dizer…?" com Usar sugestão / Manter como escrevi. Palavras com acento, siglas curtas, flexões e termos técnicos ficam de fora; palavra desconhecida sem parecida (ex.: "HD") segue direto para a IA.
