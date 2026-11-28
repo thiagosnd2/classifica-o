@@ -39,7 +39,7 @@
  */
 
 /* Versão deste arquivo: atualizar a cada mudança (AAAA.MM.DD-n). GET /versao devolve este valor. */
-const WORKER_VERSAO = '2026.11.27-1';
+const WORKER_VERSAO = '2026.11.27-2';
 
 /* Prefixo do hash das chaves Pro (o mesmo usado na página e nos scripts). */
 const PREFIXO = 'qw-classificador:';
@@ -178,15 +178,25 @@ async function contarImportacao(env, arquivo, ip, ts) {
     if (ids.length >= lim) return { ok: false, erro: `Limite de ${lim} importações por dia atingido. Tente novamente amanhã` };
     ids.push(arquivo);
     rec = { ip, n: 0 };
-    try { await env.LICENCAS.put(kIp, JSON.stringify(ids), { expirationTtl: 2 * 86400 }); }
+    try { await gravarKV(env, kIp, JSON.stringify(ids), 2 * 86400); }
     catch { return { ok: false, erro: 'Serviço temporariamente indisponível. Tente de novo em alguns minutos' }; }
   }
   if (rec.ip !== ip) return { ok: false, erro: 'Esta importação começou em outra conexão. Envie a planilha de novo' };
   if (rec.n >= maxLotes) return { ok: false, erro: 'Esta planilha já usou todos os lotes permitidos. Envie a planilha de novo' };
   rec.n++;
-  try { await env.LICENCAS.put(kLote, JSON.stringify(rec), { expirationTtl: 2 * 86400 }); }
+  try { await gravarKV(env, kLote, JSON.stringify(rec), 2 * 86400); }
   catch { return { ok: false, erro: 'Serviço temporariamente indisponível. Tente de novo em alguns minutos' }; }
   return { ok: true, restantes: Math.max(0, lim - ids.length) };
+}
+
+/* Grava no KV tentando até 3 vezes, com 1,1 s entre as tentativas. O KV aceita só 1 gravação por segundo na
+   MESMA chave (vale nos dois planos), e o importador manda 2 lotes em paralelo que gravam as mesmas chaves
+   ("lote:<id>" e o teto). Só depois das 3 tentativas a falha sobe (e o pedido é recusado, item 1.3). */
+async function gravarKV(env, k, v, ttl) {
+  for (let t = 0; ; t++) {
+    try { return await env.LICENCAS.put(k, v, { expirationTtl: ttl }); }
+    catch (e) { if (t >= 2) throw e; await new Promise(r => setTimeout(r, 1100)); }
+  }
 }
 
 function diaBrasilia() { return new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10); }
@@ -203,7 +213,7 @@ async function dentroDoTeto(env, tipo) {
   let n;
   try { n = Number((await env.LICENCAS.get(k)) || 0); } catch { console.error('teto: KV sem leitura'); return 'falha'; }
   if (n >= lim) return false;
-  try { await env.LICENCAS.put(k, String(n + 1), { expirationTtl: 3 * 86400 }); }
+  try { await gravarKV(env, k, String(n + 1), 3 * 86400); }
   catch { console.error('teto: KV sem gravação'); return 'falha'; }
   return true;
 }

@@ -7,9 +7,9 @@ import { join } from 'node:path';
 const tmp = join(tmpdir(), 'worker-teste.mjs');
 writeFileSync(tmp, readFileSync(new URL('../servidor/worker.js', import.meta.url)));
 const { default: W } = await import(tmp);
-const kv = new Map(); let falharPut = false, falharGet = false, chamadasIA = 0, ultimoCorpoIA = null;
+const kv = new Map(); let falharPut = false, falhasTransit = 0, falharGet = false, chamadasIA = 0, ultimoCorpoIA = null;
 const KV = { get: async k => { if(falharGet) throw new Error('x'); return kv.has(k) ? kv.get(k) : null; },
-             put: async (k,v) => { if(falharPut) throw new Error('x'); kv.set(k,v); } };
+             put: async (k,v) => { if(falharPut) throw new Error('x'); if(falhasTransit>0){ falhasTransit--; throw new Error('429 same key'); } kv.set(k,v); } };
 globalThis.fetch = async (url, op) => {
   if (String(url).includes('turnstile')) { const tok = op.body.get('response'); return { json: async () => ({ success: tok === 'TOK-OK' }) }; }
   chamadasIA++; ultimoCorpoIA = JSON.parse(op.body);
@@ -20,7 +20,7 @@ const req = (rota, corpo, ip='1.1.1.1', metodo='POST') => new Request('https://w
 const run = async (...a) => { const r = await W.fetch(req(...a), env); return [r.status, await r.json()]; };
 const ok = (c, m) => console.log((c ? 'OK  ' : 'ERRO') + ' ' + m);
 let r;
-r = await run('/versao', null, '1.1.1.1', 'GET'); ok(r[0]===200 && r[1].versao, 'GET /versao → ' + r[1].versao);
+r = await run('/versao', null, '1.1.1.1', 'GET'); ok(r[0]===200 && /^\d{4}\.\d{2}\.\d{2}-\d+$/.test(r[1].versao), 'GET /versao → ' + r[1].versao);
 r = await run('/lote', {prompt:'x array JSON', arquivo:'planilha-aaaa1'}); ok(r[0]===403 && /anti-robô/.test(r[1].erro), '1ª chamada sem token é recusada');
 r = await run('/lote', {prompt:'x array JSON', arquivo:'planilha-aaaa1', ts:'TOK-OK'}); ok(r[0]===200, '1ª chamada com token passa');
 ok(!('temperature' in ultimoCorpoIA), 'pedido à IA sem temperature'); ok(chamadasIA===1, 'uma chamada à IA por pedido');
@@ -42,6 +42,8 @@ r = await run('/lote', {prompt:'x array JSON', arquivo:'planilha-cccc3', ts:'TOK
 falharPut = false; falharGet = true;
 r = await run('/classificar', {prompt:'consulta 4', ts:'TOK-OK'}); ok(r[0]===503, 'KV sem leitura → consulta recusada (503)');
 falharGet = false;
+// gravação na mesma chave recusada 1 vez (limite de 1/s do KV) → nova tentativa passa
+falhasTransit = 1; r = await run('/classificar', {prompt:'consulta 5', ts:'TOK-OK'}); ok(r[0]===200, 'falha passageira do KV é repetida e a consulta passa');
 // limite de 5 planilhas por IP
 kv.clear(); delete env.DAILY_LIMIT_LOTE; env.DAILY_LIMIT='1000';
 for(let i=1;i<=6;i++){ r = await run('/lote', {prompt:'x array JSON', arquivo:'planilha-dddd'+i, ts:'TOK-OK'}); }
