@@ -153,6 +153,7 @@ Documento completo: [Classificador de Natureza de Despesa — Custos, Escala e M
 - Tabela de Natureza da Despesa TCE-ES 2027 – 2ª consulta pública (PCM/2027)
 - IN TC 68/2020, Anexo VI – Tabela Auxiliar 22 (alterada pela Portaria 92/2025)
 - Portaria STN nº 448, de 13/09/2002 — revogada, mas o conceito continua: segue nas regras enviadas à IA e na base; desde 27/11/2026 não aparece mais na tela.
+- **Regras por Estado (fora do ES), desde 27/11/2026:** `ELEM_UF`, `ELEM_UF_CONCEITO` e `RULES_UF` em `index.html` guardam os acréscimos de cada estado à base federal, sem afetar os demais. Hoje só o **Acre (AC)**: terceirização com mão de obra em dedicação exclusiva → 3.3.90.34 (prática do Estado nos extratos de contrato da CGE-AC de 2026; no AC prevalece sobre a regra 11) e orientação de tombamento no Registro patrimonial (IN CGE-AC nº 3/2026, art. 30). Casos de teste em `testes/casos-acre.md`.
 - Justificativa da IA sem citar normas (regra `JUST_RULE`, desde 27/11/2026); as regras que a IA segue não mudaram.
 - Na tela: MCASP e Lei nº 4.320/1964 (art. 15, § 2º) para todos os estados; a Portaria Interministerial STN/SOF nº 163/2001 aparece só para o Espírito Santo (cada estado tem o seu regulamento).
 - MCASP – 11ª edição

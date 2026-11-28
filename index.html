@@ -92,6 +92,8 @@ button{font:600 14px var(--body);cursor:pointer;border-radius:7px;border:1px sol
 #go-wrap{cursor:not-allowed}
 .reg-pat{display:grid;grid-template-columns:1fr auto 1fr;gap:18px;align-items:start;margin-top:8px}.reg-col{display:flex;gap:12px;align-items:flex-start}.reg-col>div{display:flex;flex-direction:column;gap:3px}.reg-ico{flex:none;display:grid;place-items:center;width:44px;height:44px;border-radius:10px}.reg-ent{color:var(--accent);background:var(--accent-soft)}.reg-dep{color:#e8892f;background:rgba(232,137,47,.14)}.reg-div{width:2px;align-self:stretch;background:var(--line);border-radius:2px}.reg-l{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}.reg-c{font-family:var(--mono);font-size:15px;font-weight:600;color:var(--accent)}.reg-n{font-size:13.5px}
 @media (max-width:640px){.reg-pat{grid-template-columns:1fr}.reg-div{width:auto;height:2px}}
+/* Orientação do Estado no Registro patrimonial (hoje só AC) */
+.reg-uf{max-width:none;margin:14px 0 0;padding-top:10px;border-top:1px solid var(--line);font-size:13.5px;color:var(--muted)}.reg-uf b{color:var(--ink)}
 .un-combo{position:relative}
 .un-combo input{padding-right:30px;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%;background-size:5px 5px;background-repeat:no-repeat}
 .un-lista{position:absolute;left:0;right:0;top:calc(100% + 2px);z-index:30;max-height:260px;overflow-y:auto;background:var(--bg);border:1px solid var(--line);border-radius:4px;box-shadow:0 6px 18px rgba(0,0,0,.25);padding:2px 0;font-size:14.5px}
@@ -642,7 +644,25 @@ const isES = () => UF === 'ES';
 /** Elementos válidos na base federal e seus nomes (usados fora do ES). */
 const ELEM_OK = ['3.3.90.30','3.3.90.31','3.3.90.32','3.3.90.33','3.3.90.35','3.3.90.36','3.3.90.37','3.3.90.38','3.3.90.39','3.3.90.40','4.4.90.30','4.4.90.35','4.4.90.36','4.4.90.39','4.4.90.40','4.4.90.51','4.4.90.52','4.4.90.61','4.5.90.61'];
 const ELNAME = {'30':'Material de consumo','31':'Premiações','32':'Material, bem ou serviço para distribuição gratuita','33':'Passagens e despesas com locomoção','35':'Serviços de consultoria','36':'Outros serviços de terceiros – PF','37':'Locação de mão de obra','38':'Arrendamento mercantil','39':'Outros serviços de terceiros – PJ','40':'Serviços de TIC – PJ','51':'Obras e instalações','52':'Equipamentos e material permanente','61':'Aquisição de imóveis'};
-const elName = c => ELNAME[(c||'').split('.')[3]] || '';
+const elName = c => ELNAME[(c||'').split('.')[3]] || (c === '3.3.90.34' ? 'Outras despesas de pessoal decorrentes de contratos de terceirização' : '');
+/* ---------- Regras por Estado (fora do ES), desde 27/11/2026 ----------
+   Cada estado tem o seu regulamento. Aqui ficam só os acréscimos de um estado à base federal;
+   os outros estados não são afetados.
+   AC: o Acre classifica a terceirização com mão de obra em dedicação exclusiva no 3.3.90.34
+   (prática do Estado, vista nos extratos de contrato da CGE-AC no Diário Oficial de 2026). */
+const ELEM_UF = { AC: ['3.3.90.34'] };
+const ELEM_UF_CONCEITO = { AC: { '34': ['Outras despesas de pessoal decorrentes de contratos de terceirização',
+  'No Acre: contratos de terceirização com mão de obra em regime de dedicação exclusiva (apoio técnico, administrativo e operacional, com postos de trabalho). Usado no Acre como 3.3.90.34.'] } };
+const RULES_UF = { AC: `
+REGRAS ESPECÍFICAS DO ACRE:
+- Terceirização de serviços com mão de obra em regime de DEDICAÇÃO EXCLUSIVA (postos de trabalho de apoio técnico, administrativo, operacional e similares) → 3.3.90.34 (Outras despesas de pessoal decorrentes de contratos de terceirização). No Acre, esta regra prevalece sobre a regra 11 (37 × 39).
+- Serviços sem dedicação exclusiva de mão de obra continuam pelas regras gerais (ex.: segurança eletrônica e monitoramento → 39; sistemas e suporte de TI → 40).` };
+/** Elementos válidos no Estado (base federal + acréscimos do Estado). */
+const elemsOk = (uf = UF) => ELEM_OK.concat(ELEM_UF[uf] || []);
+/** Elementos válidos por tipo no Estado (os acréscimos do AC são de serviço). */
+const tipoElems = (tipo, uf = UF) => TIPO_ELEMS[tipo].concat(tipo === 'Serviço' ? (ELEM_UF[uf] || []) : []);
+/** Conceito dos elementos para o pedido (MCASP + acréscimos do Estado). */
+const elemConceitos = (uf = UF) => Object.entries(KB.elementos).concat(Object.entries(ELEM_UF_CONCEITO[uf] || {}).map(([k,[n,c]])=>[k,{n,c}]));
 /** Troca o Estado ativo: atualiza textos, o quadro "Última atualização" e guarda a escolha (com aceite). */
 function setUF(v){
   UF = v; if(v) persist();
@@ -791,10 +811,10 @@ function catalogES(elems){
   return list.map(i=>`${i.c} | ${i.t}`).join('\n');
 }
 /** Texto do catálogo federal de elementos — vai no prompt fora do ES. */
-function catalogFed(tipo){
-  const ok = tipo ? TIPO_ELEMS[tipo] : ELEM_OK;
+function catalogFed(tipo, uf = UF){
+  const ok = tipo ? tipoElems(tipo, uf) : elemsOk(uf);
   const sub = KB.federal.filter(f=>ok.includes(f.e)).map(f=>`${f.e} | ${f.n}`).join('\n');
-  const els = ELEM_OK.filter(e=>ok.includes(e)).map(e=>`${e} | ${elName(e)}`).join('\n');
+  const els = elemsOk(uf).filter(e=>ok.includes(e)).map(e=>`${e} | ${elName(e)}`).join('\n');
   return `ELEMENTOS VÁLIDOS:\n${els}\n\nSUBELEMENTOS DE REFERÊNCIA (nome, sem código; elemento | nome):\n${sub}`;
 }
 /** Elementos prováveis pela unidade (ex.: ampola → grupo fármaco → 3.3.90.30/32). */
@@ -808,7 +828,7 @@ function unitGroupElems(u){
     + formato JSON exigido (código, confiança, quiz, texto sugerido...). */
 function buildPrompt(st){
   const {item, ctx, forn, desp, extra, un} = st;
-  const el = Object.entries(KB.elementos).map(([k,v])=>`${k} – ${v.n}: ${v.c}`).join('\n');
+  const el = elemConceitos().map(([k,v])=>`${k} – ${v.n}: ${v.c}`).join('\n');
   const head = `ITEM: ${item}\nFINALIDADE/DETALHES: ${ctx||'não informado'}\nUNIDADE: ${un||'não informada'}\nFORNECEDOR: ${forn||'não informado'}\nTIPO DE DESPESA: ${desp||'não informado'}\n${extra?'RESPOSTA DO USUÁRIO À PERGUNTA ANTERIOR: '+extra:''}`;
   if(isES()){
     const cand = score([item,ctx,extra].join(' ')).map(i=>`${i.c} — ${i.t}\n  Descrição: ${i.d||'—'}\n  Exemplos: ${(i.x||'—').slice(0,600)}`).join('\n');
@@ -837,7 +857,7 @@ Responda SOMENTE com JSON:
   const cand = scoreFed([item,ctx,extra].join(' ')).map(f=>`${f.e} | ${f.n}\n  Descrição: ${f.d||'—'}\n  Exemplos: ${(f.x||'—').slice(0,500)}`).join('\n');
   return `Você classifica itens de compras públicas municipais (estado: ${UFS[UF]}) na natureza de despesa pela base FEDERAL de referência (Portaria STN 448/2002, MCASP 11ª ed.). Não há tabela estadual carregada para este estado: classifique até o ELEMENTO (código x.x.90.ee) e indique o subelemento apenas pelo NOME de referência, sem código.
 
-${RULES}
+${RULES}${RULES_UF[UF]||''}
 
 CONCEITO DOS ELEMENTOS (MCASP):
 ${el}
@@ -885,7 +905,7 @@ function unitBox(u){
 function renderResult(r, q, st){
   const es = isES();
   const it = es ? byCode(r.codigo) : null;
-  const okFed = !es && ELEM_OK.includes(r.codigo);
+  const okFed = !es && elemsOk().includes(r.codigo);
   const conf = (r.confianca||'').toLowerCase();
   const cr = r.criterios||{};
   const keys = ['durabilidade','fragilidade','perecibilidade','incorporabilidade','transformabilidade'];
@@ -916,7 +936,7 @@ function renderResult(r, q, st){
   }
   const quiz = r.quiz && r.quiz.pergunta && Array.isArray(r.quiz.opcoes) && !conf.startsWith('alta') ? r.quiz : null;
   if(quiz){
-    const ops = quiz.opcoes.filter(o=>o && o.codigo && (es ? byCode(o.codigo) : ELEM_OK.includes(o.codigo)));
+    const ops = quiz.opcoes.filter(o=>o && o.codigo && (es ? byCode(o.codigo) : elemsOk().includes(o.codigo)));
     h += `<div class="ask quiz"><p><b>Quiz</b> · ${esc(quiz.pergunta)}</p><div class="quiz-ops">${ops.map((o,k)=>`<button class="chip quiz-op" type="button" data-k="${k}">${esc(o.texto)}</button>`).join('')}<button class="chip quiz-other" type="button" ${REFINE_USED?'disabled':''}>Nenhuma dessas</button>${REFINE_USED?'<small class="empty quiz-lock" style="display:block;margin-top:4px">Para uma nova descrição em “Nenhuma dessas”, apague por completo o campo “Nome ou descrição do item”.</small>':''}</div><div class="row" id="quiz-free" hidden><input id="ans" aria-label="Descreva" placeholder="Descreva a finalidade ou o uso do item"><button class="ghost" type="button" id="refine">Reclassificar</button></div></div>`;
     r._ops = ops;
   } else if(r.pergunta && !REFINE_USED) h += `<div class="ask"><p>${esc(r.pergunta)}</p><div class="row"><input id="ans" aria-label="Resposta" placeholder="Responda para refinar"><button class="ghost" type="button" id="refine">Refinar</button></div></div>`;
@@ -931,7 +951,7 @@ function renderResult(r, q, st){
     h += `<div class="ask"><p><b>Registro patrimonial</b> <span class="pill" style="font-style:italic" title="Recurso em teste">Beta</span> <span class="empty" style="margin-left:6px">Material permanente</span></p>
     <div class="reg-pat"><div class="reg-col"><span class="reg-ico reg-ent" title="Entrada do bem no patrimônio">${ICO_ENTRADA}</span><div><span class="reg-l">Registrado em</span><span class="reg-c">${esc(cb)}</span><span class="reg-n">${esc(nb)}</span></div></div>
     <div class="reg-div" aria-hidden="true"></div>
-    <div class="reg-col"><span class="reg-ico reg-dep" title="Depreciação do bem ao longo do tempo">${ICO_DEPREC}</span><div><span class="reg-l">Depreciado em</span><span class="reg-c">${esc(cd)}</span><span class="reg-n">${esc(nd)}</span></div></div></div></div>`; }
+    <div class="reg-col"><span class="reg-ico reg-dep" title="Depreciação do bem ao longo do tempo">${ICO_DEPREC}</span><div><span class="reg-l">Depreciado em</span><span class="reg-c">${esc(cd)}</span><span class="reg-n">${esc(nd)}</span></div></div></div>${UF === 'AC' ? REG_AC : ''}</div>`; }
   if(hasCr) h += `<div><h2>Critérios de consumo (MCASP)</h2><div class="tests">${keys.map(k=>`<div class="test"><b>${k[0].toUpperCase()+k.slice(1)}</b><span class="${cr[k]?'y':'n'}">${cr[k]===true?'atende':cr[k]===false?'não atende':'—'}</span></div>`).join('')}</div></div>`;
   if((r.regras||[]).length) h += `<div><h2>Regras aplicadas</h2><ul class="rules">${r.regras.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`;
   if(alts.length) h += `<div><h2>Alternativas</h2><div style="display:grid;gap:8px">${alts.map(a=>{const ai=es?byCode(a.codigo):null;const nm=es?(ai?ai.t:'(código não encontrado)'):elName(a.codigo);return `<div class="alt"><span class="cd">${esc(a.codigo)}</span><span>${esc(nm)}</span><small class="empty">${esc(a.quando)}</small></div>`}).join('')}</div></div>`;
@@ -1303,7 +1323,7 @@ drop.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if(f) lo
     itens com finalidade informada + contas contábeis + formato JSON. full=true usa o catálogo completo. */
 function batchPrompt(gs, full){
   const es = IMP.uf === 'ES';
-  const tipo = gs[0].tipo, okEl = new Set(TIPO_ELEMS[tipo]);
+  const tipo = gs[0].tipo, okEl = new Set(tipoElems(tipo, IMP.uf));
   let elems = new Set(okEl);
   if(es && !full){
     const cand = new Set(); let weak = false;
@@ -1316,7 +1336,7 @@ function batchPrompt(gs, full){
     if(!weak && cand.size) elems = cand;
   }
   const restrito = elems.size < okEl.size;
-  const elTxt = Object.entries(KB.elementos).filter(([k])=>[...elems].some(e=>e.endsWith('.'+k))).map(([k,v])=>`${k} – ${v.n}: ${v.c.slice(0,350)}`).join('\n');
+  const elTxt = elemConceitos(IMP.uf).filter(([k])=>[...elems].some(e=>e.endsWith('.'+k))).map(([k,v])=>`${k} – ${v.n}: ${v.c.slice(0,350)}`).join('\n');
   const itens = gs.map((g,n)=>`${n+1} | ${g.tit} | ${g.des} | unidade: ${g.u&&g.u.c?g.u.c+' ':''}${g.u?g.u.n:(g.un||'')}${g.finalidade?` | finalidade informada pelo usuário: ${g.finalidade==='Distribuição gratuita'?'DISTRIBUIÇÃO GRATUITA à população':'USO INTERNO do órgão'}`:''}`).join('\n');
   const temFin = gs.some(g=>g.finalidade);
   const comPerm = elems.has('4.4.90.52');
@@ -1324,14 +1344,14 @@ function batchPrompt(gs, full){
     + (comPerm ? '\n\nCONTAS CONTÁBEIS (PCASP 2027) – material permanente (bens móveis):\n' + KB.bensmoveis.map(c=>`${c.c} ${c.n}`).join('\n') : '');
   return `Você classifica itens de compras públicas municipais (${es?'Espírito Santo, Tabela de Natureza da Despesa TCE-ES 2027, até o subelemento':`${UFS[IMP.uf]}, base federal de referência, até o ELEMENTO`}).
 
-${RULES}${es?RULES_ES:''}
+${RULES}${es?RULES_ES:(RULES_UF[IMP.uf]||'')}
 
 ELEMENTOS (MCASP):
 ${elTxt}
 
 TIPO DOS ITENS (informado pelo usuário): ${tipo.toUpperCase()}
 
-${es?`CATÁLOGO DE ${tipo.toUpperCase()} (código | título)${restrito?' – restrito aos elementos prováveis destes itens':''}:\n${catalogES(elems)}`:catalogFed(tipo)}
+${es?`CATÁLOGO DE ${tipo.toUpperCase()} (código | título)${restrito?' – restrito aos elementos prováveis destes itens':''}:\n${catalogES(elems)}`:catalogFed(tipo, IMP.uf)}
 
 ITENS (nº | título | descrição | unidade):
 ${itens}
@@ -1398,6 +1418,8 @@ const CONTA_NOME = c => { const x = (KB.almox.find(a=>a.c===c) || KB.bensmoveis.
 /** Conta de depreciação acumulada de uma conta de bens móveis (em teste desde 23/11/2026): ligação por grupo
     1.2.3.1.1.GG → KB.depreciacao.grupos (planilha fornecida por Sanada, ligada ao PCASP 2027).
     Aceita o texto "código – nome"; devolve "código – nome" da depreciação ou '' (consumo, serviço, grupo sem conta). */
+/* Orientação de tombamento mostrada no Registro patrimonial só no Acre (IN CGE-AC nº 3/2026, art. 30), desde 27/11/2026 */
+const REG_AC = '<p class="reg-uf"><b>Acre:</b> o fiscal do contrato atesta a nota fiscal e o processo segue para incorporação do bem no sistema de gestão patrimonial. Após o tombamento, o responsável pelo patrimônio também atesta o documento fiscal (IN CGE nº 3/2026, art. 30).</p>';
 /* Ícones do Registro patrimonial (SVG próprio, cor herdada do quadro) */
 const ICO_ENTRADA = '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14v5a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5"/><path d="M12 3v11"/><path d="M8 10l4 4 4-4"/></svg>';
 const ICO_DEPREC = '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5l6 6 4-4 8 8"/><path d="M21 9v6h-6"/></svg>';
