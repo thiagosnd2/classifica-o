@@ -243,6 +243,8 @@ footer{padding:0 24px 24px;color:var(--muted);font-size:12px;display:flex;flex-w
 footer .foot-esq{max-width:110ch}
 /* Marca d'água: centralizada no fim do rodapé, bem discreta */
 footer .marca{flex-basis:100%;text-align:center;font-size:11px;letter-spacing:.12em;opacity:.35;margin-top:6px;user-select:none}
+/* Direitos reservados (28/11/2026): linha logo abaixo da marca d'água, mesmo tom discreto */
+footer .direitos{flex-basis:100%;text-align:center;font-size:11px;opacity:.35;margin-top:2px}
 /* Botões de contato do rodapé (contorno em pílula na cor de destaque) e janela de contato */
 .contatos{display:flex;gap:8px;flex-wrap:wrap}
 .contato-btn{color:var(--accent);background:transparent;font:600 13px var(--body);white-space:nowrap;border:1px solid var(--accent);border-radius:999px;padding:5px 14px;cursor:pointer;width:auto}.contato-btn:hover{background:var(--accent-soft)}
@@ -431,7 +433,7 @@ footer .marca{flex-basis:100%;text-align:center;font-size:11px;letter-spacing:.1
   </div>
 </div>
 <!-- Rodapé: aviso de responsabilidade e botão Preferências de dados. -->
-<footer id="foot"><span class="foot-esq"><button class="ghost" type="button" id="prefs" style="padding:2px 8px;font-size:12px;margin-right:8px">Preferências de dados</button>Ferramenta de apoio. A classificação final é responsabilidade do setor de contabilidade/orçamento do ente.</span><span class="contatos"><button type="button" class="contato-btn" data-tipo="problema">⚠ Reportar problema</button><button type="button" class="contato-btn" data-tipo="contato">✉ Fale conosco</button></span><div class="marca" aria-label="Marca e versão">Sanada INC <span id="app-ver">Versão</span></div></footer>
+<footer id="foot"><span class="foot-esq"><button class="ghost" type="button" id="prefs" style="padding:2px 8px;font-size:12px;margin-right:8px">Preferências de dados</button>Ferramenta de apoio. A classificação final é responsabilidade do setor de contabilidade/orçamento do ente.</span><span class="contatos"><button type="button" class="contato-btn" data-tipo="problema">⚠ Reportar problema</button><button type="button" class="contato-btn" data-tipo="contato">✉ Fale conosco</button></span><div class="marca" aria-label="Marca e versão">Sanada INC <span id="app-ver">Versão</span></div><div class="direitos">© <span id="ano-dir">2026</span> Sanada INC. Todos os direitos reservados.</div></footer>
 <!-- Janela de contato: e-mail para copiar e atalhos para Gmail, Outlook ou o app de e-mail (o mailto sozinho
      não abre nada quando o computador não tem app de e-mail configurado) -->
 <div id="contato-box" class="termo" role="dialog" aria-labelledby="contato-h" hidden>
@@ -661,8 +663,10 @@ const dicPronto = (ms=3000) => Promise.race([carregarDic(), new Promise(r=>setTi
 /* ===================== 3. ESTADO (UF) ===================== */
 /** Estados atendidos. Só o ES tem tabela própria carregada; os demais usam a base federal. */
 /* Versão da página (item 5.3 do levantamento, 27/11/2026): AAAA.MM.DD-n. Atualizar a cada publicação
-   (roteiro "Como trabalhamos"). Aparece no rodapé e no e-mail do "Reportar problema". */
-const APP_VERSAO = '2026.11.28-6';
+   (roteiro "Como trabalhamos"). Aparece no rodapé e no e-mail do "Reportar problema".
+   ORDEM DE SANADA (28/11/2026): SEMPRE atualizar esta versão em toda entrega, por menor que seja; é ela que
+   aparece na marca d'água "Sanada INC Versão …". */
+const APP_VERSAO = '2026.11.28-7';
 let UF = '';
 const isES = () => UF === 'ES';
 /** Troca o Estado ativo: atualiza textos, o quadro "Última atualização" e guarda a escolha (com aceite). */
@@ -1607,6 +1611,7 @@ const EMAIL_CONTATO = 'mversobr@gmail.com';
 /* Mostra a versão no rodapé assim que a página carrega */
 /* A versão aparece na marca d'água do rodapé: "Sanada INC Versão AAAA.MM.DD-n" (pedido de Sanada, 28/11/2026) */
 document.addEventListener('DOMContentLoaded', ()=>{ const v = document.getElementById('app-ver'); if(v) v.textContent = 'Versão ' + APP_VERSAO;
+  /* Ano dos direitos reservados acompanha o ano corrente */ const a = document.getElementById('ano-dir'); if(a) a.textContent = new Date().getFullYear();
   /* Termo de aceite: itens que só valem no site (servidor próprio) e só em classificabr.com (Web Analytics) */
   if(window.claude) document.querySelectorAll('.termo-box .so-site').forEach(li=>li.hidden = true);
   if(/(^|\.)classificabr\.com$/.test(location.hostname)) document.querySelectorAll('.termo-box .so-dominio').forEach(li=>li.hidden = false);
