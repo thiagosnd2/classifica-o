@@ -36,7 +36,7 @@ r = await run('/lote', {prompt:'x array JSON', arquivo:'planilha-aaaa1'}); ok(r[
 r = await run('/lote', {prompt:'x array JSON', arquivo:'planilha-aaaa1'}, '2.2.2.2'); ok(r[0]===403 && /outra conexão/.test(r[1].erro), 'mesma planilha em outro IP é recusada');
 r = await run('/lote', {prompt:'x array JSON', arquivo:'planilha-aaaa1'}); ok(r[0]===200, '3ª chamada ainda cabe no teto de 3'); r = await run('/lote', {prompt:'x array JSON', arquivo:'planilha-aaaa1'}); ok(r[0]===429, 'teto compartilhado (DAILY_LIMIT=3): 4ª chamada barrada');
 // teto separado
-kv.clear(); env.DAILY_LIMIT_LOTE='100'; env.DAILY_LIMIT='1';
+kv.clear(); env.DAILY_LIMIT_LOTE='100'; env.DAILY_LIMIT='1'; env.LOTES_POR_PLANILHA='20';
 r = await run('/lote', {prompt:'x array JSON', arquivo:'planilha-bbbb2', ts:'TOK-OK'}); ok(r[0]===200, 'com DAILY_LIMIT_LOTE, lote usa contador próprio');
 let n=1, ultimo; for(;n<=25;n++){ ultimo = await run('/lote', {prompt:'x array JSON', arquivo:'planilha-bbbb2'}); if(ultimo[0]!==200) break; }
 ok(n===20 && /todos os lotes/.test(ultimo[1].erro), `planilha para no lote 21 (parou na chamada ${n+1}: ${ultimo[1].erro})`);

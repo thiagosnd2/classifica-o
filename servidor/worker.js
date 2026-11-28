@@ -1,7 +1,7 @@
 /* =====================================================================================
    ARQUIVO GERADO — NÃO EDITE AQUI.
    Edite servidor/worker-base.js e/ou prompt.js e rode:  node servidor/montar-worker.mjs
-   Versão do Worker: 2026.11.28-5
+   Versão do Worker: 2026.11.28-6
    Parte 1: prompt.js (montagem do pedido à IA, igual à da página)
    Parte 2: servidor/worker-base.js (rotas, limites, cache e chamada à IA)
    ===================================================================================== */
@@ -321,7 +321,7 @@ ${es?'[{"n":1,"codigo":"x.x.90.xx.xx","conta":"x.x.x.x.x.xx.xx","titulo_sugerido
  *                               DAILY_LIMIT_LOTE, vale para consulta e importação juntas (como antes)
  *   Variável DAILY_LIMIT_LOTE   opcional; teto próprio da importação (chave "usol:"); com ele, DAILY_LIMIT
  *                               passa a valer só para a consulta individual
- *   Variável LOTES_POR_PLANILHA opcional; máximo de lotes por planilha (padrão 20 = 17 para 500 itens + folga)
+ *   Variável LOTES_POR_PLANILHA opcional; máximo de lotes por planilha (padrão 60: 17 para 500 itens + folga para divisões)
  *   Variável KB_URL             opcional; endereço do kb.json (padrão https://classificabr.com/kb.json)
  *   Variável ACEITAR_PROMPT_LIVRE  "false" = recusa pedidos no formato antigo { prompt } (fim da transição)
  *   Variável PRO_OBRIGATORIO    "true" = importador só com chave Pro; ausente/"false" = Pro suspenso,
@@ -342,14 +342,16 @@ ${es?'[{"n":1,"codigo":"x.x.90.xx.xx","conta":"x.x.x.x.x.xx.xx","titulo_sugerido
  */
 
 /* Versão deste arquivo: atualizar a cada mudança (AAAA.MM.DD-n). GET /versao devolve este valor. */
-const WORKER_VERSAO = '2026.11.28-5';
+const WORKER_VERSAO = '2026.11.28-6';
 
 /* Prefixo do hash das chaves Pro (o mesmo usado na página e nos scripts). */
 const PREFIXO = 'qw-classificador:';
 /* Limites por rota: tamanho máximo do pedido (caracteres) e da resposta da IA (tokens). */
 const LIM = {
-  classificar: { chars: 120000, maxTokens: 4000 },
-  lote:        { chars: 300000, maxTokens: 12000 },
+  /* 28/11/2026: o claude-haiku-5-5 pensa antes de responder (raciocínio adaptativo) e esse raciocínio conta dentro do
+     max_tokens; com limites baixos a resposta era cortada. O modelo aceita até 128 mil tokens de saída. */
+  classificar: { chars: 120000, maxTokens: 16000 }, // era 4000
+  lote:        { chars: 300000, maxTokens: 32000 }, // 28/11/2026: era 12000 e cortava lotes de 30 itens com textos sugeridos
 };
 /* Instrução de sistema enviada à IA em toda chamada: resposta só em JSON. */
 const SISTEMA = 'Você é um classificador de natureza de despesa pública brasileira. Responda SOMENTE com JSON válido, sem texto antes ou depois e sem blocos de código.';
@@ -534,7 +536,7 @@ async function verificarTurnstile(env, token, ip) {
    Se o KV não puder ser lido ou gravado, a importação é recusada (antes seguia sem contar). */
 async function contarImportacao(env, arquivo, ip, ts) {
   const lim = Number(env.IMPORT_LIMIT || 5);
-  const maxLotes = Number(env.LOTES_POR_PLANILHA || 20);
+  const maxLotes = Number(env.LOTES_POR_PLANILHA || 60); // 60: folga para a página dividir lotes grandes (28/11/2026)
   if (!/^[\w.-]{8,64}$/.test(arquivo)) return { ok: false, erro: 'Importação sem identificação; recarregue a página e envie a planilha de novo' };
   if (!env.LICENCAS) return { ok: true, restantes: null };
   const kLote = 'lote:' + arquivo, kIp = 'imp:' + ip + ':' + diaBrasilia();

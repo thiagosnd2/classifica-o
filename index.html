@@ -662,7 +662,7 @@ const dicPronto = (ms=3000) => Promise.race([carregarDic(), new Promise(r=>setTi
 /** Estados atendidos. Só o ES tem tabela própria carregada; os demais usam a base federal. */
 /* Versão da página (item 5.3 do levantamento, 27/11/2026): AAAA.MM.DD-n. Atualizar a cada publicação
    (roteiro "Como trabalhamos"). Aparece no rodapé e no e-mail do "Reportar problema". */
-const APP_VERSAO = '2026.11.28-3';
+const APP_VERSAO = '2026.11.28-4';
 let UF = '';
 const isES = () => UF === 'ES';
 /** Troca o Estado ativo: atualiza textos, o quadro "Última atualização" e guarda a escolha (com aceite). */
@@ -1230,7 +1230,11 @@ function aceitarTexto(g){
 let PAUSA_ATE = 0;
 /** Classifica um lote: chama a IA (com novas tentativas e espera no limite), lê o JSON, marca TIPO
     sugerido e reenvia com o catálogo completo o que voltou fora_do_catalogo. */
-async function runBatch(gs, signal, full){
+/* Garantia de entrega (28/11/2026, pedido de Sanada: "todos os itens, sem exceção"):
+   • resposta cortada por tamanho ou fora do formato → o lote é dividido ao meio e cada metade vai de novo (até 1 item);
+   • item que não voltou na resposta → é reenviado sozinho num lote menor (até 2 rodadas).
+   nivel: profundidade da divisão/reenvio, para não entrar em laço. */
+async function runBatch(gs, signal, full, nivel = 0){
   /* Fase 3: campos do lote (o Worker novo monta o pedido com o mesmo prompt.js) */
   const campos = {uf: IMP.uf, full: !!full, itens: gs.map(g=>({tipo: g.tipo, tit: g.tit, des: g.des, u: g.u ? {c: g.u.c || '', n: g.u.n || ''} : null, un: g.un || '', finalidade: g.finalidade || ''}))};
   const call = () => sample.json(batchPrompt(gs, full), {modelTier:'default', signal, campos});
@@ -1239,22 +1243,35 @@ async function runBatch(gs, signal, full){
     const espera = PAUSA_ATE - Date.now(); if(espera > 0) await new Promise(r=>setTimeout(r, espera));
     try{ arr = await call(); break; }
     catch(e){
+      if(e && e.name==='AbortError') throw e;
       if(e && e.code==='rate_limited' && t < 3){ PAUSA_ATE = Date.now() + 20000 * (t + 1); continue; }
-      if(e && e.code==='server' && t < 1){ await new Promise(r=>setTimeout(r, 3000)); continue; }
+      const grande = /cortad|tamanho|formato/i.test(String(e && e.message || ''));
+      if(e && e.code==='server' && !grande && t < 1){ await new Promise(r=>setTimeout(r, 3000)); continue; }
+      /* Divide o lote ao meio quando a resposta não coube (ou falhou por outro motivo de servidor) */
+      if(gs.length > 1 && e && e.code !== 'rate_limited' && e.code !== 'not_granted'){
+        const meio = Math.ceil(gs.length / 2);
+        await runBatch(gs.slice(0, meio), signal, full, nivel + 1);
+        await runBatch(gs.slice(meio), signal, full, nivel + 1);
+        return;
+      }
       throw e;
     }
   }
   if(!Array.isArray(arr)) arr = arr && Array.isArray(arr.itens) ? arr.itens : [];
   const retry = [];
   gs.forEach((g,n) => {
-    const r = arr.find(x => Number(x.n)===n+1) || arr[n];
+    /* Resposta pelo número do item; a posição só vale se a IA não mandou números (senão um item faltando trocaria os resultados) */
+    const r = arr.find(x => Number(x.n)===n+1) || (arr.every(x => x == null || x.n == null) ? arr[n] : null);
     const tsx = r && /^(mat|serv)/i.test(String(r.tipo_sugerido||'')) ? (/^mat/i.test(r.tipo_sugerido) ? 'Material' : 'Serviço') : '';
     if(r && tsx && tsx !== g.tipo && !r.codigo){ g.res = {tipoPend:true, tipoSug:tsx, txt: txtDe(r, g)}; return; }
     if(r && r.fora_do_catalogo && !full){ retry.push(g); return; }
     const ts = r && /^(mat|serv)/i.test(String(r.tipo_sugerido||'')) ? (/^mat/i.test(r.tipo_sugerido) ? 'Material' : 'Serviço') : '';
     g.res = r && r.codigo ? {codigo:String(r.codigo).trim(), sub:r.subelemento||'', conta:String(r.conta||'').trim(), tipoSug: ts && ts !== g.tipo ? ts : '', txt: txtDe(r, g)} : {falha:true};
   });
-  if(retry.length) await runBatch(retry, signal, true);
+  if(retry.length) await runBatch(retry, signal, true, nivel + 1);
+  /* Itens que a IA não devolveu: reenvia só eles, até 2 rodadas */
+  const faltou = gs.filter(g => g.res && g.res.falha);
+  if(faltou.length && nivel < 2) await runBatch(faltou, signal, full, nivel + 1);
 }
 
 /* Saída: Título, Descrição, Classe (Elemento), Sub Elemento (Sugestão), Conta Contábil */
