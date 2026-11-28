@@ -431,7 +431,7 @@ footer .marca{flex-basis:100%;text-align:center;font-size:11px;letter-spacing:.1
   </div>
 </div>
 <!-- Rodapé: aviso de responsabilidade e botão Preferências de dados. -->
-<footer id="foot"><span class="foot-esq"><button class="ghost" type="button" id="prefs" style="padding:2px 8px;font-size:12px;margin-right:8px">Preferências de dados</button>Ferramenta de apoio. A classificação final é responsabilidade do setor de contabilidade/orçamento do ente. <span id="app-ver" class="app-ver"></span></span><span class="contatos"><button type="button" class="contato-btn" data-tipo="problema">⚠ Reportar problema</button><button type="button" class="contato-btn" data-tipo="contato">✉ Fale conosco</button></span><div class="marca" aria-label="Marca">Sanada Inc 2027</div></footer>
+<footer id="foot"><span class="foot-esq"><button class="ghost" type="button" id="prefs" style="padding:2px 8px;font-size:12px;margin-right:8px">Preferências de dados</button>Ferramenta de apoio. A classificação final é responsabilidade do setor de contabilidade/orçamento do ente.</span><span class="contatos"><button type="button" class="contato-btn" data-tipo="problema">⚠ Reportar problema</button><button type="button" class="contato-btn" data-tipo="contato">✉ Fale conosco</button></span><div class="marca" aria-label="Marca e versão">Sanada INC <span id="app-ver">Versão</span></div></footer>
 <!-- Janela de contato: e-mail para copiar e atalhos para Gmail, Outlook ou o app de e-mail (o mailto sozinho
      não abre nada quando o computador não tem app de e-mail configurado) -->
 <div id="contato-box" class="termo" role="dialog" aria-labelledby="contato-h" hidden>
@@ -662,7 +662,7 @@ const dicPronto = (ms=3000) => Promise.race([carregarDic(), new Promise(r=>setTi
 /** Estados atendidos. Só o ES tem tabela própria carregada; os demais usam a base federal. */
 /* Versão da página (item 5.3 do levantamento, 27/11/2026): AAAA.MM.DD-n. Atualizar a cada publicação
    (roteiro "Como trabalhamos"). Aparece no rodapé e no e-mail do "Reportar problema". */
-const APP_VERSAO = '2026.11.28-4';
+const APP_VERSAO = '2026.11.28-5';
 let UF = '';
 const isES = () => UF === 'ES';
 /** Troca o Estado ativo: atualiza textos, o quadro "Última atualização" e guarda a escolha (com aceite). */
@@ -1605,6 +1605,7 @@ const EMAIL_CONTATO = 'mversobr@gmail.com';
     nada que identifique a pessoa. Usa userAgentData (Edge, Chrome, Opera) e, sem ele, lê o userAgent
     (Firefox, Safari). Se não reconhecer, devolve "não identificado". */
 /* Mostra a versão no rodapé assim que a página carrega */
+/* A versão aparece na marca d'água do rodapé: "Sanada INC Versão AAAA.MM.DD-n" (pedido de Sanada, 28/11/2026) */
 document.addEventListener('DOMContentLoaded', ()=>{ const v = document.getElementById('app-ver'); if(v) v.textContent = 'Versão ' + APP_VERSAO;
   /* Termo de aceite: itens que só valem no site (servidor próprio) e só em classificabr.com (Web Analytics) */
   if(window.claude) document.querySelectorAll('.termo-box .so-site').forEach(li=>li.hidden = true);
