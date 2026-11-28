@@ -7,7 +7,7 @@ Sistema que classifica materiais e serviços de compras públicas municipais na 
 | Estado | Natureza da despesa | Unidades de medida |
 |---|---|---|
 | Espírito Santo | Tabela de Natureza da Despesa TCE-ES 2027 (2ª consulta pública, PCM/2027), até o subelemento | Tabela Auxiliar 22 – IN 68/2020, Anexo VI (alterada pela Portaria 92/2025). Unidade fora da tabela retorna **ERRO** |
-| Demais estados | Base federal de referência (Portaria STN 448/2002 e MCASP 11ª ed.), até o elemento; subelemento indicado só pelo nome | Livres; a Tabela Auxiliar 22 aparece só como referência opcional |
+| Demais estados | Base federal de referência (Lei 4.320/64, Portaria Interministerial STN/SOF 163/2001 e MCASP 11ª ed.), até o elemento; subelemento indicado só pelo nome | Livres; a Tabela Auxiliar 22 aparece só como referência opcional |
 
 Contas contábeis: PCASP 2027 (Portaria STN/MF nº 2.520, de 21/08/2026).
 - Material de consumo: contas de almoxarifado (1.1.5.6.1.xx e 1.1.5.8.1.00).
@@ -23,7 +23,7 @@ Contas contábeis: PCASP 2027 (Portaria STN/MF nº 2.520, de 21/08/2026).
 | `modelo_importacao.xlsx` | Modelo padrão de importação: TITULO, DESCRIÇÃO (até 400 caracteres), UNIDADE DE MEDIDA (lista da TA 22) e TIPO (Material ou Serviço) |
 | `favicon.svg`, `favicon.ico`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `site.webmanifest` | Ícone do site (aba, favoritos, barra lateral do navegador, atalho no celular): quadrado verde-petróleo com um "C" e linhas de classificação |
 | `vendor/palavras.txt` | Dicionário de português (~178 mil palavras, licença MIT) da correção ortográfica local; origem em `vendor/palavras-LEIAME.txt` |
-| `dados/` | Dados intermediários extraídos dos documentos oficiais (Portaria 448, PCASP 2027, MCASP e tabela TCE-ES) |
+| `dados/` | Dados intermediários extraídos dos documentos oficiais (PCASP 2027, MCASP, tabela TCE-ES e, como texto de apoio, as ementas e exemplos herdados do detalhamento federal de 2002) |
 | `scripts/` | Scripts Python que montaram a base. Usar para reprocessar quando sair uma nova versão da tabela do TCE-ES ou do PCASP |
 
 ## Plano Pro (chave de licença)
@@ -70,7 +70,7 @@ Princípio de projeto: **a IA só sugere; o código valida antes e confere depoi
 
 **Consulta individual**
 - Botão Classificar habilitado só com Estado selecionado, ao menos 3 letras ou números no item (ex.: "WD40") e unidade de medida escolhida na lista. Para nova classificação é preciso apagar ao menos 3 letras ou usar Limpar.
-- Resultado com código, justificativa, critérios de consumo × permanente (Portaria 448, art. 3º), regras aplicadas e alternativas.
+- Resultado com código, justificativa, critérios de consumo × permanente (MCASP), regras aplicadas e alternativas.
 - Quiz quando a confiança é média ou baixa: as opções já vêm ligadas a um código e o clique resolve sem nova chamada à IA.
 - Correção ortográfica local, sem IA: palavra do título que não existe na base nem no dicionário e está a 1 letra (2 se tiver 10+) de uma conhecida → "Você quis dizer…?" com Usar sugestão / Manter como escrevi. Palavras com acento, siglas curtas, flexões e termos técnicos ficam de fora; palavra desconhecida sem parecida (ex.: "HD") segue direto para a IA.
 - Unidade fora da Tabela Auxiliar 22: ao sair do campo, aparece "Você quis dizer" com as unidades mais próximas como botões (sinônimos como "mensal" → 073 – Mês e erros de digitação como "unidde" → 131 – Unidade); sem parecida, explica como escolher na lista.
@@ -152,7 +152,8 @@ Documento completo: [Classificador de Natureza de Despesa — Custos, Escala e M
 
 - Tabela de Natureza da Despesa TCE-ES 2027 – 2ª consulta pública (PCM/2027)
 - IN TC 68/2020, Anexo VI – Tabela Auxiliar 22 (alterada pela Portaria 92/2025)
-- Portaria STN nº 448, de 13/09/2002
+- Lei nº 4.320/1964 (art. 15, § 2º) e Portaria Interministerial STN/SOF nº 163/2001
+- Observação (27/11/2026): a Portaria STN nº 448/2002 foi revogada e deixou de ser citada no sistema. Não houve portaria com lista fechada no lugar dela: os critérios de consumo × permanente (durabilidade, fragilidade, perecibilidade, incorporabilidade e transformabilidade) seguem no MCASP, e o detalhamento em subelementos é definido por cada ente (no ES, pela tabela do TCE-ES). Os scripts de `scripts/` e os arquivos de `dados/` ainda usam nomes internos como `ex448`, que indicam só a origem do texto.
 - MCASP – 11ª edição
 - PCASP 2027 – Portaria STN/MF nº 2.520, de 21/08/2026
 

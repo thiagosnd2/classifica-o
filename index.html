@@ -328,7 +328,7 @@ footer .marca{flex-basis:100%;text-align:center;font-size:11px;letter-spacing:.1
   <section class="panel" aria-live="polite" id="out">
     <div class="result" id="res">
       <h2>Resultado</h2>
-      <p class="empty">Digite a descrição de um item e clique em “Classificar”. O classificador analisará a tabela de acordo com o Estado selecionado, aplicará os critérios estabelecidos pela Portaria nº 448/2002 e pelo MCASP e apresentará o código de classificação correspondente, acompanhado da respectiva justificativa, do nível de confiança e de possíveis classificações alternativas.</p>
+      <p class="empty">Digite a descrição de um item e clique em “Classificar”. O classificador analisará a tabela de acordo com o Estado selecionado, aplicará os critérios do MCASP, da Lei nº 4.320/1964 e da Portaria Interministerial STN/SOF nº 163/2001 e apresentará o código de classificação correspondente, acompanhado da respectiva justificativa, do nível de confiança e de possíveis classificações alternativas.</p>
       <p class="empty">Exemplo de resposta para <b>toner HP 85A</b>: <span style="font-family:var(--mono);color:var(--code)">3.3.90.30.17</span> · Material de processamento de dados.</p>
     </div>
   </section>
@@ -663,11 +663,11 @@ function setUF(v){
       ['Natureza da despesa','Tabela de Natureza da Despesa TCE-ES 2027 – 2ª consulta pública (PCM/2027), arquivo de 24/08/2026'],
       ['Unidades de medida','Tabela Auxiliar 22 – IN 68/2020, Anexo VI, alterado pela Portaria 92/2025'],
       ['Contas contábeis','PCASP 2027 – Portaria STN/MF nº 2.520, de 21/08/2026'],
-      ['Portaria STN 448','Portaria nº 448, de 13/09/2002 (DOU de 17/09/2002) – detalhamento de 339030, 339036, 339039 e 449052'],
+      ['Classificação','Lei nº 4.320/1964 (art. 15, § 2º) e Portaria Interministerial STN/SOF nº 163/2001'],
       ['Critérios','MCASP 11ª edição']
     ] : [
       ['Natureza da despesa',`Tabela do tribunal de contas de ${UFS[v]} ainda não carregada – base federal de referência, até o elemento`],
-      ['Portaria STN 448','Portaria nº 448, de 13/09/2002 (DOU de 17/09/2002) – detalhamento de 339030, 339036, 339039 e 449052'],
+      ['Classificação','Lei nº 4.320/1964 (art. 15, § 2º) e Portaria Interministerial STN/SOF nº 163/2001'],
       ['Base federal','MCASP 11ª edição'],
       ['Contas contábeis','PCASP 2027 – Portaria STN/MF nº 2.520, de 21/08/2026']
     ];
@@ -680,8 +680,9 @@ function setUF(v){
     característica. Entra no pedido da consulta e do lote. */
 const TEXT_RULE = `REVISÃO DO TEXTO (para o usuário melhorar a descrição; não altera a classificação):
 (a) corrija ortografia e acentuação; (b) padronize: primeira letra maiúscula, abreviações por extenso (cx→caixa, un→unidade, pct→pacote, c/→com), ordem item, especificação, medida; (c) NUNCA invente característica que não esteja no texto informado; (d) se a descrição for vaga (repete o título ou é genérica demais para uma compra pública), liste em "falta" até 4 especificações que deveriam ser informadas (ex.: material, dimensões, cor, capacidade, modelo). Só preencha os campos de texto quando houver mudança; senão use null.`;
-/** Regras de classificação (Lei 4.320/64, Portaria 448/2002, MCASP) enviadas à IA em todo pedido. */
-const RULES = `REGRAS DE CLASSIFICAÇÃO (Lei 4.320/64; Portaria STN 448/2002; MCASP 11ª ed., Parte I, item 4.6):
+/** Regras de classificação (Lei 4.320/64, Portaria Interministerial STN/SOF 163/2001, MCASP) enviadas à IA em todo pedido.
+    Desde 27/11/2026 não citamos a Portaria STN 448/2002 (revogada); o conceito dela continua no MCASP. */
+const RULES = `REGRAS DE CLASSIFICAÇÃO (Lei 4.320/64, art. 15, § 2º; Portaria Interministerial STN/SOF 163/2001; MCASP 11ª ed., Parte I, item 4.6):
 1. Consumo × permanente: material é de CONSUMO se atender a PELO MENOS UM critério — durabilidade (perde condições de uso em até 2 anos), fragilidade (quebradiço, deformável ou danificável), perecibilidade (modificações químicas/físicas), incorporabilidade (incorporado a outro bem sem poder ser retirado sem prejuízo), transformabilidade (adquirido para transformação). Só é PERMANENTE (4.4.90.52) se não atender a nenhum.
 2. Peça de reposição com a mesma configuração → 3.3.90.30; peça para bem novo, melhoria ou adição complementar → 4.4.90.30.
 3. Melhoria (aumenta capacidade/vida útil) → capital (4.4.90.xx); manutenção → corrente (3.3.90.xx).
@@ -825,7 +826,7 @@ Responda SOMENTE com JSON:
 {"item_interpretado":"...","codigo":"x.x.90.xx.xx","justificativa":"...","regras":["..."],"criterios":{"durabilidade":null,"fragilidade":null,"perecibilidade":null,"incorporabilidade":null,"transformabilidade":null},"confianca":"alta|média|baixa","alternativas":[{"codigo":"...","quando":"..."}],"quiz":{"pergunta":"...","opcoes":[{"texto":"...","codigo":"..."}]},"alerta_unidade":null,"texto_sugerido":null,"falta":[]}`;
   }
   const cand = scoreFed([item,ctx,extra].join(' ')).map(f=>`${f.e} | ${f.n}\n  Descrição: ${f.d||'—'}\n  Exemplos: ${(f.x||'—').slice(0,500)}`).join('\n');
-  return `Você classifica itens de compras públicas municipais (estado: ${UFS[UF]}) na natureza de despesa pela base FEDERAL de referência (Portaria STN 448/2002, MCASP 11ª ed.). Não há tabela estadual carregada para este estado: classifique até o ELEMENTO (código x.x.90.ee) e indique o subelemento apenas pelo NOME de referência, sem código.
+  return `Você classifica itens de compras públicas municipais (estado: ${UFS[UF]}) na natureza de despesa pela base FEDERAL de referência (Lei 4.320/64; Portaria Interministerial STN/SOF 163/2001; MCASP 11ª ed.). Não há tabela estadual carregada para este estado: classifique até o ELEMENTO (código x.x.90.ee) e indique o subelemento apenas pelo NOME de referência, sem código.
 
 ${RULES}
 
@@ -921,7 +922,7 @@ function renderResult(r, q, st){
     <div class="reg-pat"><div class="reg-col"><span class="reg-ico reg-ent" title="Entrada do bem no patrimônio">${ICO_ENTRADA}</span><div><span class="reg-l">Registrado em</span><span class="reg-c">${esc(cb)}</span><span class="reg-n">${esc(nb)}</span></div></div>
     <div class="reg-div" aria-hidden="true"></div>
     <div class="reg-col"><span class="reg-ico reg-dep" title="Depreciação do bem ao longo do tempo">${ICO_DEPREC}</span><div><span class="reg-l">Depreciado em</span><span class="reg-c">${esc(cd)}</span><span class="reg-n">${esc(nd)}</span></div></div></div></div>`; }
-  if(hasCr) h += `<div><h2>Critérios de consumo (Portaria 448, art. 3º)</h2><div class="tests">${keys.map(k=>`<div class="test"><b>${k[0].toUpperCase()+k.slice(1)}</b><span class="${cr[k]?'y':'n'}">${cr[k]===true?'atende':cr[k]===false?'não atende':'—'}</span></div>`).join('')}</div></div>`;
+  if(hasCr) h += `<div><h2>Critérios de consumo (MCASP)</h2><div class="tests">${keys.map(k=>`<div class="test"><b>${k[0].toUpperCase()+k.slice(1)}</b><span class="${cr[k]?'y':'n'}">${cr[k]===true?'atende':cr[k]===false?'não atende':'—'}</span></div>`).join('')}</div></div>`;
   if((r.regras||[]).length) h += `<div><h2>Regras aplicadas</h2><ul class="rules">${r.regras.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`;
   if(alts.length) h += `<div><h2>Alternativas</h2><div style="display:grid;gap:8px">${alts.map(a=>{const ai=es?byCode(a.codigo):null;const nm=es?(ai?ai.t:'(código não encontrado)'):elName(a.codigo);return `<div class="alt"><span class="cd">${esc(a.codigo)}</span><span>${esc(nm)}</span><small class="empty">${esc(a.quando)}</small></div>`}).join('')}</div></div>`;
   if(it && (it.d||it.x)) h += `<details><summary style="cursor:pointer;font-weight:600">Ementa do subelemento</summary><p class="just">${esc(it.d)}</p>${it.x?`<p class="just"><b>Exemplos:</b> ${esc(it.x)}</p>`:''}</details>`;
