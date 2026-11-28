@@ -148,6 +148,23 @@ const NORMA_FED = `
 NORMA GERAL DESTE ESTADO: aplique o MCASP atualizado (edição vigente) em tudo: conceito dos elementos, critérios de consumo × permanente, ativo imobilizado e depreciação. (Exceção: o Espírito Santo segue normativa e regulamento próprios; não é o caso deste pedido.)
 TERRENOS: não sofrem depreciação (vida útil ilimitada), mesmo quando adquiridos junto com edificações; nesse caso o valor do terreno é registrado separado do valor da edificação, e só a edificação deprecia. Para terreno, use sempre a conta de terrenos do grupo.`;
 
+/* ---------- Dicionário de erros (28/11/2026, pedido de Sanada) ----------
+   erros.json guarda erros já cometidos e a correção, com fonte normativa. Só entradas com status "aprovado" vão para a
+   IA, e só as que têm algum gatilho no texto do item (máximo 6 por pedido). Sem gatilho, o pedido não muda (o cache
+   continua valendo). Variável global ERROS: carregada pela página (erros.json) e pelo Worker. */
+function errosRelevantes(texto, uf, max = 6){
+  const lista = (typeof ERROS !== 'undefined' && ERROS && ERROS.entradas) || [];
+  const t = ' ' + norm(texto).replace(/[^a-z0-9]+/g, ' ') + ' ';
+  return lista.filter(e => e.status === 'aprovado' && (e.uf === '*' || [].concat(e.uf).includes(uf))
+    && (e.gatilhos || []).some(g => t.includes(' ' + norm(g).replace(/[^a-z0-9]+/g, ' ').trim() + ' '))).slice(0, max);
+}
+/** Bloco do pedido com os erros relevantes ('' quando não há nenhum). */
+function blocoErros(texto, uf){
+  const es = errosRelevantes(texto, uf);
+  return !es.length ? '' : '\n\nERROS JÁ CORRIGIDOS (dicionário do sistema; consulte e NÃO repita):\n'
+    + es.map(e => `- ${e.id}: ERRO: ${e.erro} | CORRETO: ${e.correcao} | REGRA: ${e.regra}`).join('\n');
+}
+
 /* ---------- Pedido da consulta individual ---------- */
 /** Monta o pedido da consulta individual: regras + catálogo (restrito ou federal) + dados do item
     + formato JSON exigido (código, confiança, quiz, texto sugerido...). */
@@ -160,7 +177,7 @@ function buildPrompt(st, uf = UFATUAL()){
     return `Você classifica itens de compras públicas municipais do Espírito Santo na natureza de despesa (até o subelemento), usando EXCLUSIVAMENTE códigos da Tabela de Natureza da Despesa TCE-ES 2027.
 
 ${RULES}
-${RULES_ES}
+${RULES_ES}${blocoErros([item, ctx, extra].join(' '), uf)}
 
 CONCEITO DOS ELEMENTOS (MCASP):
 ${el}
@@ -182,7 +199,7 @@ Responda SOMENTE com JSON:
   const cand = scoreFed([item,ctx,extra].join(' ')).map(f=>`${f.e} | ${f.n}\n  Descrição: ${f.d||'—'}\n  Exemplos: ${(f.x||'—').slice(0,500)}`).join('\n');
   return `Você classifica itens de compras públicas municipais (estado: ${UFS[uf]}) na natureza de despesa pela base FEDERAL de referência (Portaria STN 448/2002, MCASP 11ª ed.). Não há tabela estadual carregada para este estado: classifique até o ELEMENTO (código x.x.90.ee) e indique o subelemento apenas pelo NOME de referência, sem código.
 
-${RULES}${RULES_UF[uf]||''}${NORMA_FED}
+${RULES}${RULES_UF[uf]||''}${NORMA_FED}${blocoErros([item, ctx, extra].join(' '), uf)}
 
 CONCEITO DOS ELEMENTOS (MCASP):
 ${el}
@@ -240,7 +257,7 @@ function batchPrompt(gs, full, uf = (typeof IMP !== 'undefined' && IMP ? IMP.uf 
   const contasObra = comObra ? 'CONTAS CONTÁBEIS (PCASP 2027) – bens imóveis e obras:\n' + contasImoveisTxt() : '';
   return `Você classifica itens de compras públicas municipais (${es?'Espírito Santo, Tabela de Natureza da Despesa TCE-ES 2027, até o subelemento':`${UFS[uf]}, base federal de referência, até o ELEMENTO`}).
 
-${RULES}${es?RULES_ES:(RULES_UF[uf]||'')+NORMA_FED}
+${RULES}${es?RULES_ES:(RULES_UF[uf]||'')+NORMA_FED}${blocoErros(gs.map(g=>g.tit+' '+g.des).join(' '), uf)}
 
 ELEMENTOS (MCASP):
 ${elTxt}

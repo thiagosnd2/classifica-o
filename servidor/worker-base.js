@@ -51,7 +51,7 @@
  */
 
 /* Versão deste arquivo: atualizar a cada mudança (AAAA.MM.DD-n). GET /versao devolve este valor. */
-const WORKER_VERSAO = '2026.11.28-4';
+const WORKER_VERSAO = '2026.11.28-5';
 
 /* Prefixo do hash das chaves Pro (o mesmo usado na página e nos scripts). */
 const PREFIXO = 'qw-classificador:';
@@ -168,12 +168,14 @@ export default {
 /* ---------- Fase 3: base, campos e conferência do código ---------- */
 
 /* Base kb.json (a mesma da página), guardada na memória do Worker e relida a cada 10 minutos. */
-let KB = null, KB_EM = 0;
+let KB = null, KB_EM = 0, ERROS = null; // ERROS: dicionário de erros (erros.json), usado pelo prompt.js
 async function carregarKB(env) {
   if (KB && Date.now() - KB_EM < 10 * 60e3) return KB;
   const r = await fetch(env.KB_URL || 'https://classificabr.com/kb.json', { cf: { cacheTtl: 300 } });
   if (!r.ok) { if (KB) return KB; throw new Error('kb ' + r.status); }
   KB = prepararKB(await r.json()); KB_EM = Date.now();
+  /* Dicionário de erros (mesmo endereço do kb.json, arquivo erros.json); se falhar, segue sem ele */
+  try { const e = await fetch((env.KB_URL || 'https://classificabr.com/kb.json').replace(/kb\.json$/, 'erros.json'), { cf: { cacheTtl: 300 } }); ERROS = e.ok ? await e.json() : ERROS; } catch {}
   return KB;
 }
 

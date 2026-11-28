@@ -478,6 +478,8 @@ footer .marca{flex-basis:100%;text-align:center;font-size:11px;letter-spacing:.1
    ===================================================================== */
 
 /* ===================== 1. INFRAESTRUTURA ===================== */
+/* ERROS: dicionário de erros já corrigidos (erros.json; usado pelo prompt.js). */
+let ERROS = null;
 /* KB: base de conhecimento (kb.json). sample/downloads: capacidades de IA e
    de download — vêm do Claude (claude.use) ou do servidor próprio. */
 let KB = null, sample = null, downloads = null;
@@ -660,7 +662,7 @@ const dicPronto = (ms=3000) => Promise.race([carregarDic(), new Promise(r=>setTi
 /** Estados atendidos. Só o ES tem tabela própria carregada; os demais usam a base federal. */
 /* Versão da página (item 5.3 do levantamento, 27/11/2026): AAAA.MM.DD-n. Atualizar a cada publicação
    (roteiro "Como trabalhamos"). Aparece no rodapé e no e-mail do "Reportar problema". */
-const APP_VERSAO = '2026.11.28-2';
+const APP_VERSAO = '2026.11.28-3';
 let UF = '';
 const isES = () => UF === 'ES';
 /** Troca o Estado ativo: atualiza textos, o quadro "Última atualização" e guarda a escolha (com aceite). */
@@ -1748,6 +1750,8 @@ $('#pro-form').addEventListener('submit', async e=>{
   try{
     KB = await (await fetch('kb.json')).json();
     prepararKB(KB); /* radicais para a busca (prompt.js) */
+    /* Dicionário de erros (erros.json): se falhar, segue sem ele (o pedido só não leva os erros já corrigidos) */
+    try{ ERROS = await (await fetch('erros.json')).json(); }catch{ ERROS = null; }
     montarVocab(KB); /* vocabulário da correção ortográfica */
   }catch{ $('#res').innerHTML='<div class="warnbox">Não foi possível carregar a base. Recarregue a página.</div>'; }
   if(consent() === 'sim'){

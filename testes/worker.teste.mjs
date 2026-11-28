@@ -10,10 +10,15 @@ const { default: W } = await import(tmp);
 const kv = new Map(); let falharPut = false, falhasTransit = 0, falharGet = false, chamadasIA = 0, ultimoCorpoIA = null;
 const KV = { get: async k => { if(falharGet) throw new Error('x'); return kv.has(k) ? kv.get(k) : null; },
              put: async (k,v) => { if(falharPut) throw new Error('x'); if(falhasTransit>0){ falhasTransit--; throw new Error('429 same key'); } kv.set(k,v); } };
+/* Dicionário de erros de teste: uma entrada aprovada (gatilho "ssd") e uma pendente (não pode entrar no pedido) */
+const ERROS_TESTE = { entradas: [
+  { id: 'T1', status: 'aprovado', uf: '*', gatilhos: ['ssd'], erro: 'erro de teste', correcao: 'correção de teste', regra: 'regra de teste' },
+  { id: 'T2', status: 'pendente', uf: '*', gatilhos: ['ssd'], erro: 'pendente', correcao: 'x', regra: 'x' } ] };
 const KBJSON = readFileSync(new URL('../kb.json', import.meta.url), 'utf8');
 let respostaIA = '[{"n":1,"codigo":"3.3.90.30"}]';
 globalThis.fetch = async (url, op) => {
   if (String(url).endsWith('/kb.json')) return { ok: true, json: async () => JSON.parse(KBJSON) };
+  if (String(url).endsWith('/erros.json')) return { ok: true, json: async () => ERROS_TESTE };
   if (String(url).includes('turnstile')) { const tok = op.body.get('response'); return { json: async () => ({ success: tok === 'TOK-OK' }) }; }
   chamadasIA++; ultimoCorpoIA = JSON.parse(op.body);
   return { ok: true, json: async () => ({ content: [{ type:'text', text: respostaIA }], stop_reason:'end_turn' }) };
@@ -88,3 +93,13 @@ r = await run('/lote', {campos:{uf:'AC', itens:[gs[0], {...gs[0], tipo:'Material
 r = await run('/classificar', {prompt:'formato antigo'}); ok(r[0]===200, 'formato antigo ainda aceito na transição');
 env.ACEITAR_PROMPT_LIVRE = 'false';
 r = await run('/classificar', {prompt:'formato antigo'}); ok(r[0]===400 && /Ctrl/.test(r[1].erro), 'com ACEITAR_PROMPT_LIVRE=false, formato antigo é recusado');
+
+// ---------- Dicionário de erros ----------
+env.ACEITAR_PROMPT_LIVRE = 'true';
+respostaIA = '{"codigo":"3.3.90.30.17","confianca":"alta"}';
+r = await run('/classificar', {campos:{uf:'ES', item:'Unidade SSD 480GB', un:'131 - Unidade'}});
+ok(r[0]===200 && /ERROS JÁ CORRIGIDOS/.test(promptEnviado()) && /T1: ERRO/.test(promptEnviado()) && !/T2:/.test(promptEnviado()), 'item com gatilho leva só a entrada aprovada do dicionário');
+kv.clear(); // sem cache, para a IA ser chamada de novo
+r = await run('/classificar', {campos:{uf:'ES', item:'Grampeador de mesa', ctx:'uso no setor', forn:'PJ', desp:'', extra:'', un:'131 - Unidade'}});
+ok(!/ERROS JÁ CORRIGIDOS/.test(promptEnviado()), 'item sem gatilho: pedido sem o bloco do dicionário');
+if (base) ok(promptEnviado() === base.c_ES, 'sem gatilho, o pedido continua idêntico ao da página (cache preservado)');

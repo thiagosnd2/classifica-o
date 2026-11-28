@@ -1,0 +1,18 @@
+{
+  "sobre": "Dicionário de erros e correções da classificação. Só entram no pedido à IA as entradas com status \"aprovado\" (aprovadas por Sanada). Cada entrada precisa de fonte normativa. A seleção é por palavras do item (gatilhos), no máximo 6 por pedido. Para incluir: copie uma entrada, mude o id e preencha todos os campos. Explicação completa no README (seção Dicionário de erros).",
+  "versao": "2026.11.28-1",
+  "entradas": [
+    {
+      "id": "E001",
+      "data": "2026-11-28",
+      "status": "pendente",
+      "uf": "*",
+      "gatilhos": ["ssd", "hd", "disco rigido", "memoria ram", "pente de memoria", "fonte de alimentacao", "placa de video", "processador"],
+      "erro": "Unidade de armazenamento SSD 480GB SATA classificada em 4.4.90.30.08 (despesa de capital) com conta de almoxarifado.",
+      "correcao": "PENDENTE DE DECISÃO: peça de informática para REPOSIÇÃO com a mesma configuração → 3.3.90.30.17 (ES) / 3.3.90.30 (demais estados), almoxarifado 1.1.5.6.1.01.00. Para MELHORIA ou adição complementar que aumente a capacidade ou a vida útil do bem, a regra 2 e a Tabela TCE-ES (4.4.90.30.08) indicam 4.4.90.30.",
+      "regra": "Componente de informática: reposição = consumo corrente; melhoria que aumenta capacidade ou vida útil = capital (4.4.90.30), incorporado ao bem.",
+      "fonte": "MCASP (vigente), Parte I, despesa orçamentária; Tabela TCE-ES 2027 (4.4.90.30.08); regra 2 do sistema",
+      "origem": "Revisão feita por Sanada com o Gemini sobre a importação (linha 69)"
+    }
+  ]
+}
