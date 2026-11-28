@@ -103,7 +103,7 @@ No artefato compartilhado, o uso da IA conta nos limites do plano de cada pessoa
 | Consulta individual otimizada (catálogo restrito) | ~3.400 | ~500 |
 | Importação, por item (lote de 30) | ~170 | ~25 |
 
-A consulta individual ainda envia o catálogo inteiro (412 subelementos). Aplicar a restrição de catálogo do importador reduz o custo cerca de 3 vezes.
+A consulta individual ainda envia o catálogo inteiro (412 subelementos utilizáveis, dos 454 da tabela; os outros 42 não são despesas de compras, como diárias e estagiários). Aplicar a restrição de catálogo do importador reduz o custo cerca de 3 vezes.
 
 ### Custo em escala (backend próprio, API paga)
 Preços de referência ([Claude Platform – Pricing](https://platform.claude.com/docs/en/about-claude/pricing)): Haiku 5.5 a US$ 0,10/MTok de entrada e US$ 0,50/MTok de saída (prompts até 100 mil tokens); Sonnet 5.5 a US$ 2/MTok e US$ 10/MTok.
@@ -154,6 +154,7 @@ Documento completo: [Classificador de Natureza de Despesa — Custos, Escala e M
 - IN TC 68/2020, Anexo VI – Tabela Auxiliar 22 (alterada pela Portaria 92/2025)
 - Portaria STN nº 448, de 13/09/2002 — revogada, mas o conceito continua: segue nas regras enviadas à IA e na base; desde 27/11/2026 não aparece mais na tela.
 - **Regras por Estado (fora do ES), desde 27/11/2026:** `ELEM_UF`, `ELEM_UF_CONCEITO` e `RULES_UF` em `index.html` guardam os acréscimos de cada estado à base federal, sem afetar os demais. Hoje só o **Acre (AC)**: terceirização com mão de obra em dedicação exclusiva → 3.3.90.34 (prática do Estado nos extratos de contrato da CGE-AC de 2026; no AC prevalece sobre a regra 11) e orientação de tombamento no Registro patrimonial (IN CGE-AC nº 3/2026, art. 30). Casos de teste em `testes/casos-acre.md`.
+- **Versão da página:** constante `APP_VERSAO` (AAAA.MM.DD-n) no `index.html`, mostrada no rodapé e no e-mail do "Reportar problema". Atualizar a cada publicação.
 - Justificativa da IA sem citar normas (regra `JUST_RULE`, desde 27/11/2026); as regras que a IA segue não mudaram.
 - Na tela: MCASP e Lei nº 4.320/1964 (art. 15, § 2º) para todos os estados; a Portaria Interministerial STN/SOF nº 163/2001 aparece só para o Espírito Santo (cada estado tem o seu regulamento).
 - MCASP – 11ª edição

@@ -91,6 +91,8 @@ button{font:600 14px var(--body);cursor:pointer;border-radius:7px;border:1px sol
 .primary:disabled{background:var(--line);border-color:var(--line);color:var(--muted);cursor:not-allowed;pointer-events:none}
 #go-wrap{cursor:not-allowed}
 .reg-pat{display:grid;grid-template-columns:1fr auto 1fr;gap:18px;align-items:start;margin-top:8px}.reg-col{display:flex;gap:12px;align-items:flex-start}.reg-col>div{display:flex;flex-direction:column;gap:3px}.reg-ico{flex:none;display:grid;place-items:center;width:44px;height:44px;border-radius:10px}.reg-ent{color:var(--accent);background:var(--accent-soft)}.reg-dep{color:#e8892f;background:rgba(232,137,47,.14)}.reg-div{width:2px;align-self:stretch;background:var(--line);border-radius:2px}.reg-l{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}.reg-c{font-family:var(--mono);font-size:15px;font-weight:600;color:var(--accent)}.reg-n{font-size:13.5px}
+/* Versão da página no rodapé */
+.app-ver{opacity:.7;font-size:12px;margin-left:6px;white-space:nowrap}
 @media (max-width:640px){.reg-pat{grid-template-columns:1fr}.reg-div{width:auto;height:2px}}
 /* Orientação do Estado no Registro patrimonial (hoje só AC) */
 .reg-uf{max-width:none;margin:14px 0 0;padding-top:10px;border-top:1px solid var(--line);font-size:13.5px;color:var(--muted)}.reg-uf b{color:var(--ink)}
@@ -423,7 +425,7 @@ footer .marca{flex-basis:100%;text-align:center;font-size:11px;letter-spacing:.1
   </div>
 </div>
 <!-- Rodapé: aviso de responsabilidade e botão Preferências de dados. -->
-<footer id="foot"><span class="foot-esq"><button class="ghost" type="button" id="prefs" style="padding:2px 8px;font-size:12px;margin-right:8px">Preferências de dados</button>Ferramenta de apoio. A classificação final é responsabilidade do setor de contabilidade/orçamento do ente.</span><span class="contatos"><button type="button" class="contato-btn" data-tipo="problema">⚠ Reportar problema</button><button type="button" class="contato-btn" data-tipo="contato">✉ Fale conosco</button></span><div class="marca" aria-label="Marca">Sanada Inc 2027</div></footer>
+<footer id="foot"><span class="foot-esq"><button class="ghost" type="button" id="prefs" style="padding:2px 8px;font-size:12px;margin-right:8px">Preferências de dados</button>Ferramenta de apoio. A classificação final é responsabilidade do setor de contabilidade/orçamento do ente. <span id="app-ver" class="app-ver"></span></span><span class="contatos"><button type="button" class="contato-btn" data-tipo="problema">⚠ Reportar problema</button><button type="button" class="contato-btn" data-tipo="contato">✉ Fale conosco</button></span><div class="marca" aria-label="Marca">Sanada Inc 2027</div></footer>
 <!-- Janela de contato: e-mail para copiar e atalhos para Gmail, Outlook ou o app de e-mail (o mailto sozinho
      não abre nada quando o computador não tem app de e-mail configurado) -->
 <div id="contato-box" class="termo" role="dialog" aria-labelledby="contato-h" hidden>
@@ -638,6 +640,9 @@ const dicPronto = (ms=3000) => Promise.race([carregarDic(), new Promise(r=>setTi
 /* ---------- Estado (UF) ---------- */
 /* ===================== 3. ESTADO (UF) ===================== */
 /** Estados atendidos. Só o ES tem tabela própria carregada; os demais usam a base federal. */
+/* Versão da página (item 5.3 do levantamento, 27/11/2026): AAAA.MM.DD-n. Atualizar a cada publicação
+   (roteiro "Como trabalhamos"). Aparece no rodapé e no e-mail do "Reportar problema". */
+const APP_VERSAO = '2026.11.27-1';
 const UFS = {AC:'Acre',AL:'Alagoas',AP:'Amapá',AM:'Amazonas',BA:'Bahia',CE:'Ceará',DF:'Distrito Federal',ES:'Espírito Santo',GO:'Goiás',MA:'Maranhão',MT:'Mato Grosso',MS:'Mato Grosso do Sul',MG:'Minas Gerais',PA:'Pará',PB:'Paraíba',PR:'Paraná',PE:'Pernambuco',PI:'Piauí',RJ:'Rio de Janeiro',RN:'Rio Grande do Norte',RS:'Rio Grande do Sul',RO:'Rondônia',RR:'Roraima',SC:'Santa Catarina',SP:'São Paulo',SE:'Sergipe',TO:'Tocantins'};
 let UF = '';
 const isES = () => UF === 'ES';
@@ -963,7 +968,10 @@ function renderResult(r, q, st){
   $('#refine')?.addEventListener('click', ()=>{ const a=$('#ans').value.trim(); const q=(quiz&&quiz.pergunta)||r.pergunta||''; if(a && !REFINE_USED) classify({...st, refino:true, extra:[st.extra,q+' → '+a].filter(Boolean).join(' | ')}); });
   document.querySelectorAll('.quiz-op').forEach(b=>b.addEventListener('click', ()=>{
     const o = r._ops[Number(b.dataset.k)]; if(!o) return;
-    const novo = {...r, codigo:o.codigo, subelemento: es ? r.subelemento : '', confianca:'alta',
+    /* Item 2.2 do levantamento (27/11/2026): se o quiz troca o ELEMENTO (ex.: 3.3.90.30 → 4.4.90.52), a conta da
+       primeira resposta não vale mais e é descartada; no ES a conta sai da base, fora dele fica "a definir". */
+    const mudouEl = (o.codigo||'').split('.').slice(0,4).join('.') !== (r.codigo||'').split('.').slice(0,4).join('.');
+    const novo = {...r, codigo:o.codigo, conta: mudouEl ? null : r.conta, subelemento: es ? r.subelemento : '', confianca:'alta',
       justificativa: `${r.justificativa} Definido pelo quiz: "${quiz.pergunta}" → ${o.texto}.`,
       alternativas: (r.alternativas||[]).filter(a=>a.codigo!==o.codigo), quiz:null, pergunta:null, _quiz:true};
     renderResult(novo, q, st); saveHist(st.item, o.codigo);
@@ -1721,6 +1729,8 @@ const EMAIL_CONTATO = 'mversobr@gmail.com';
 /** Navegador, versão e sistema (ex.: "Edge 142 · Windows"), para reproduzir bugs. Só no Reportar problema;
     nada que identifique a pessoa. Usa userAgentData (Edge, Chrome, Opera) e, sem ele, lê o userAgent
     (Firefox, Safari). Se não reconhecer, devolve "não identificado". */
+/* Mostra a versão no rodapé assim que a página carrega */
+document.addEventListener('DOMContentLoaded', ()=>{ const v = document.getElementById('app-ver'); if(v) v.textContent = 'Versão ' + APP_VERSAO; });
 function infoNavegador(){
   try{
     const ua = navigator.userAgent || '', d = navigator.userAgentData;
@@ -1746,7 +1756,7 @@ function infoNavegador(){
 /** Assunto e corpo do e-mail conforme o botão clicado. */
 function mensagemContato(tipo){
   const info = ['— Informações para o suporte —', `Estado: ${UF ? UFS[UF] : 'não selecionado'}`,
-    `Versão: ${window.claude ? 'link do Claude' : location.host || 'site'}`,
+    `Versão: ${APP_VERSAO} (${window.claude ? 'link do Claude' : location.host || 'site'})`,
     `Aba: ${location.hash === '#importar' ? 'Importar planilha' : 'Consulta individual'}`];
   return tipo === 'problema'
     ? {assunto:'Classificador – problema', corpo:['O que aconteceu:', '', '', 'Item ou planilha usada:', '', '', ...info, `Navegador: ${infoNavegador()}`].join('\n')}
