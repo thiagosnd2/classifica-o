@@ -1,7 +1,7 @@
 /* =====================================================================================
    ARQUIVO GERADO — NÃO EDITE AQUI.
    Edite servidor/worker-base.js e/ou prompt.js e rode:  node servidor/montar-worker.mjs
-   Versão do Worker: 2026.11.28-2
+   Versão do Worker: 2026.11.28-3
    Parte 1: prompt.js (montagem do pedido à IA, igual à da página)
    Parte 2: servidor/worker-base.js (rotas, limites, cache e chamada à IA)
    ===================================================================================== */
@@ -145,7 +145,7 @@ function unitGroupElems(u){
    combina com o elemento (IMOVEL_GRUPO). No ES a conta sai do subelemento e esta lista não vai no pedido. */
 const IMOVEL_GRUPO = { '4.4.90.61': /^1\.2\.3\.2\.1\.01\./, '4.5.90.61': /^1\.2\.3\.2\.1\.04\./, '4.4.90.51': /^1\.2\.3\.2\.1\.0[678]\./ };
 const contasImoveisTxt = () => (KB.imoveis || []).map(c=>`${c.c} ${c.n}`).join('\n');
-const REGRA_CONTA_IMOVEL = 'Para obras e imóveis, "conta" é a da lista de BENS IMÓVEIS E OBRAS: elemento 4.4.90.61 (imóvel para uso do órgão) → bens de uso especial (1.2.3.2.1.01.xx); 4.5.90.61 (inversão financeira) → bens dominicais (1.2.3.2.1.04.xx); 4.4.90.51 → obras em andamento, estudos e projetos, instalações ou benfeitorias (1.2.3.2.1.06/07/08). Terreno → a conta de terrenos do grupo.';
+const REGRA_CONTA_IMOVEL = 'Para obras e imóveis, "conta" é a da lista de BENS IMÓVEIS E OBRAS: elemento 4.4.90.61 (imóvel para uso do órgão) → bens de uso especial (1.2.3.2.1.01.xx); 4.5.90.61 (inversão financeira) → bens dominicais (1.2.3.2.1.04.xx); 4.4.90.51 → obras em andamento, estudos e projetos, instalações ou benfeitorias (1.2.3.2.1.06/07/08). Terreno → a conta de terrenos do grupo. Para obras e imóveis a "conta" é OBRIGATÓRIA: nunca null.';
 
 /* ---------- Pedido da consulta individual ---------- */
 /** Monta o pedido da consulta individual: regras + catálogo (restrito ou federal) + dados do item
@@ -202,11 +202,11 @@ ${contasImoveisTxt()}
 
 ${head}
 
-Instruções: "codigo" deve ser um dos ELEMENTOS VÁLIDOS. "subelemento" é o nome de referência (ou null se não houver). "conta": para MATERIAL, a conta contábil do PCASP 2027 que corresponde ao item, escolhida nas listas acima (material de consumo → almoxarifado; material permanente → bens móveis); ${REGRA_CONTA_IMOVEL} Para os demais SERVIÇOS, null. Para material, avalie os cinco critérios. Se a confiança for "média" ou "baixa", monte um QUIZ em "quiz": uma pergunta objetiva sobre o fator que decide a classificação (finalidade, uso, forma de fornecimento etc.) e de 2 a 4 opções curtas, cada uma ligada ao elemento válido que vale se o usuário escolher aquela opção (códigos diferentes entre si). Se a confiança for "alta", "quiz" = null. Alternativas: até 3 elementos com a condição.
+Instruções: "codigo" deve ser um dos ELEMENTOS VÁLIDOS. "subelemento" é o nome de referência (ou null se não houver). "conta": para MATERIAL, a conta contábil do PCASP 2027 que corresponde ao item, escolhida nas listas acima (material de consumo → almoxarifado; material permanente → bens móveis); ${REGRA_CONTA_IMOVEL} Para os demais SERVIÇOS, null. Para material, avalie os cinco critérios. Se a confiança for "média" ou "baixa", monte um QUIZ em "quiz": uma pergunta objetiva sobre o fator que decide a classificação (finalidade, uso, forma de fornecimento etc.) e de 2 a 4 opções curtas, cada uma ligada ao elemento válido que vale se o usuário escolher aquela opção (códigos diferentes entre si) e à "conta" que vale com aquela opção, pelas mesmas regras acima (null para serviço que não seja obra). Se a confiança for "alta", "quiz" = null. Alternativas: até 3 elementos com a condição.
 ${TEXT_RULE} Na consulta, "texto_sugerido" é a versão revisada do "Nome ou descrição do item".
 ${JUST_RULE}
 Responda SOMENTE com JSON:
-{"item_interpretado":"...","codigo":"x.x.90.ee","subelemento":"...","conta":"x.x.x.x.x.xx.xx ou null","justificativa":"...","regras":["..."],"criterios":{"durabilidade":null,"fragilidade":null,"perecibilidade":null,"incorporabilidade":null,"transformabilidade":null},"confianca":"alta|média|baixa","alternativas":[{"codigo":"...","quando":"..."}],"quiz":{"pergunta":"...","opcoes":[{"texto":"...","codigo":"..."}]},"alerta_unidade":null,"texto_sugerido":null,"falta":[]}`;
+{"item_interpretado":"...","codigo":"x.x.90.ee","subelemento":"...","conta":"x.x.x.x.x.xx.xx ou null","justificativa":"...","regras":["..."],"criterios":{"durabilidade":null,"fragilidade":null,"perecibilidade":null,"incorporabilidade":null,"transformabilidade":null},"confianca":"alta|média|baixa","alternativas":[{"codigo":"...","quando":"..."}],"quiz":{"pergunta":"...","opcoes":[{"texto":"...","codigo":"...","conta":"x.x.x.x.x.xx.xx ou null"}]},"alerta_unidade":null,"texto_sugerido":null,"falta":[]}`;
 }
 
 
@@ -315,7 +315,7 @@ ${es?'[{"n":1,"codigo":"x.x.90.xx.xx","conta":"x.x.x.x.x.xx.xx","titulo_sugerido
  */
 
 /* Versão deste arquivo: atualizar a cada mudança (AAAA.MM.DD-n). GET /versao devolve este valor. */
-const WORKER_VERSAO = '2026.11.28-2';
+const WORKER_VERSAO = '2026.11.28-3';
 
 /* Prefixo do hash das chaves Pro (o mesmo usado na página e nos scripts). */
 const PREFIXO = 'qw-classificador:';

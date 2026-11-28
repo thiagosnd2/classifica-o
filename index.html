@@ -660,7 +660,7 @@ const dicPronto = (ms=3000) => Promise.race([carregarDic(), new Promise(r=>setTi
 /** Estados atendidos. Só o ES tem tabela própria carregada; os demais usam a base federal. */
 /* Versão da página (item 5.3 do levantamento, 27/11/2026): AAAA.MM.DD-n. Atualizar a cada publicação
    (roteiro "Como trabalhamos"). Aparece no rodapé e no e-mail do "Reportar problema". */
-const APP_VERSAO = '2026.11.27-6';
+const APP_VERSAO = '2026.11.28-1';
 let UF = '';
 const isES = () => UF === 'ES';
 /** Troca o Estado ativo: atualiza textos, o quadro "Última atualização" e guarda a escolha (com aceite). */
@@ -814,6 +814,7 @@ function renderResult(r, q, st){
   h += `<div><h2>Justificativa</h2><p class="just">${esc(r.justificativa)}</p></div>`;
   /* Registro patrimonial (em teste; selo "Beta" em itálico desde 27/11/2026): material permanente tem conta do bem e conta de depreciação acumulada.
      Reforça a decisão consumo × permanente; não aparece para consumo nem serviço. */
+  r._txt = [q, st && st.ctx].filter(Boolean).join(' '); /* texto digitado, para a regra de terreno */
   const contaBem = contaDe(it, r, 'Material'), contaDep = depreciacaoDe(contaBem);
   /* Layout em duas colunas (desde 27/11/2026): à esquerda a conta do bem, à direita a de depreciação, com divisória.
      Ícones: entrada (seta entrando na caixa = o bem entra no patrimônio) e depreciação (gráfico em queda). */
@@ -841,7 +842,8 @@ function renderResult(r, q, st){
     /* Item 2.2 do levantamento (27/11/2026): se o quiz troca o ELEMENTO (ex.: 3.3.90.30 → 4.4.90.52), a conta da
        primeira resposta não vale mais e é descartada; no ES a conta sai da base, fora dele fica "a definir". */
     const mudouEl = (o.codigo||'').split('.').slice(0,4).join('.') !== (r.codigo||'').split('.').slice(0,4).join('.');
-    const novo = {...r, codigo:o.codigo, conta: mudouEl ? null : r.conta, subelemento: es ? r.subelemento : '', confianca:'alta',
+    /* Fora do ES a opção do quiz traz a própria conta (2ª correção do terreno, 28/11/2026); sem ela, regra do item 2.2 */
+    const novo = {...r, codigo:o.codigo, conta: o.conta || (mudouEl ? null : r.conta), subelemento: es ? r.subelemento : '', confianca:'alta',
       justificativa: `${r.justificativa} Definido pelo quiz: "${quiz.pergunta}" → ${o.texto}.`,
       alternativas: (r.alternativas||[]).filter(a=>a.codigo!==o.codigo), quiz:null, pergunta:null, _quiz:true};
     renderResult(novo, q, st); saveHist(st.item, o.codigo);
@@ -1255,13 +1257,18 @@ const CONTA_NOME = c => { const x = (KB.almox.find(a=>a.c===c) || KB.bensmoveis.
 /** Item 2.3 do levantamento (aprovado em 27/11/2026): obras (4.4.90.51) e imóveis (4.4.90.61 e 4.5.90.61) têm conta de
     bem imóvel do PCASP 2027. No ES (e em Rio Branco, mesma tabela) a conta sai do subelemento (KB.imoveis_sub);
     fora do ES, do elemento (KB.imoveis_el). Devolve "código – nome" ou null se não for obra/imóvel. */
+const TERRENO_EL = { '4.4.90.61': '1.2.3.2.1.01.04', '4.5.90.61': '1.2.3.2.1.04.13' };
 function contaImovel(it, r){
   const el = elOf(r && r.codigo); if(!KB.imoveis_el || !KB.imoveis_el[el]) return null;
   /* Fora do ES (sem subelemento), vale a conta escolhida pela IA se estiver na lista aprovada e combinar com o elemento
      (ex.: terreno → 1.2.3.2.1.01.04); senão, a conta padrão do elemento. */
   const ia = r && r.conta ? (String(r.conta).match(/1\.2\.3\.2\.1\.\d{2}\.\d{2}/)||[])[0] : '';
   const daIA = ia && (KB.imoveis||[]).some(x=>x.c===ia) && IMOVEL_GRUPO[el] && IMOVEL_GRUPO[el].test(ia) ? ia : '';
-  const c = (it && KB.imoveis_sub[it.c]) || KB.imoveis_sub[r.codigo] || daIA || KB.imoveis_el[el];
+  /* Regra de segurança (28/11/2026): sem conta válida da IA, se o texto fala de terreno, lote ou gleba, usa a conta de
+     terrenos do grupo (4.4.90.61 → uso especial; 4.5.90.61 → dominicais), que não deprecia. */
+  const txt = norm([r.item_interpretado, r.titulo_sugerido, r.descricao_sugerida, r._txt].filter(Boolean).join(' '));
+  const terreno = !daIA && /\b(terreno|terrenos|lote|lotes|gleba|glebas)\b/.test(txt) && TERRENO_EL[el];
+  const c = (it && KB.imoveis_sub[it.c]) || KB.imoveis_sub[r.codigo] || daIA || terreno || KB.imoveis_el[el];
   return CONTA_NOME(c) || null;
 }
 /** Conta de depreciação acumulada de uma conta de bens móveis (em teste desde 23/11/2026): ligação por grupo
@@ -1303,7 +1310,7 @@ function saida(l){
     const conta = contaDe(it, r, g.tipo);
     return {classe:`${el} – ${elName(el)}`, sub: it ? `${it.c} – ${it.t}` : `${r.codigo} – código não encontrado na tabela`, conta, dep: depreciacaoDe(conta)};
   }
-  const conta = contaDe(null, r, g.tipo);
+  const conta = contaDe(null, {...r, _txt: [l.tit, l.des].join(' ')}, g.tipo);
   return {classe:`${r.codigo} – ${elName(r.codigo)}`, sub: r.sub || '', conta, dep: depreciacaoDe(conta)};
 }
 
