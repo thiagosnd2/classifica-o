@@ -27,6 +27,7 @@ Contas contábeis: PCASP 2027 (Portaria STN/MF nº 2.520, de 21/08/2026).
 | `vendor/palavras.txt` | Dicionário de português (~178 mil palavras, licença MIT) da correção ortográfica local; origem em `vendor/palavras-LEIAME.txt` |
 | `dados/` | Dados intermediários extraídos dos documentos oficiais (Portaria 448, PCASP 2027, MCASP e tabela TCE-ES) |
 | `scripts/` | Scripts Python que montaram a base. Usar para reprocessar quando sair uma nova versão da tabela do TCE-ES ou do PCASP |
+| `supabase/migrations/` | **Base de conhecimento no Supabase** (28/11/2026, projeto `classificabr`). `001`: estrutura (entes, fontes, mapa, termos, trechos, respostas, erros), RLS fechado ao público e funções `buscar_conhecimento`/`buscar_resposta` (só o servidor executa). `002`: dados iniciais (União, 26 estados e DF; 20 nós do mapa; 102 termos; 10 normas; 8 trechos). `003`: busca ordena pelo assunto exato no mapa, depois o regulamento do estado, depois o federal; termo genérico "unidade" removido |
 
 ## Plano Pro (chave de licença)
 
@@ -143,6 +144,16 @@ Projeção para os 5.570 municípios do Brasil, versão otimizada: ~US$ 2.800/m�
 | Tempo de resposta | Experiência do usuário |
 
 Documento completo: [Classificador de Natureza de Despesa — Custos, Escala e Métricas](https://claude.ai/artifact/2tUgnxqJUxQMDVFpXXPQ3Y) (Claude Doc).
+
+## Base de conhecimento (Supabase) – em construção
+
+Objetivo: a IA consultar normas e respostas já confirmadas sem gastar token procurando o caminho.
+
+- **Mapa de busca:** árvore de assuntos (`despesa.consumo.informatica`, `contabil.imobilizado.terreno`…). Cada **termo** (ex.: "toner", "terreno", "terceirização") aponta para um nó. O texto do item aciona os nós e só os trechos daquele assunto voltam (no máximo 4 por padrão, 8 no teto).
+- **Ordem do resultado:** 1º assunto exato no mapa; 2º assunto mais geral; 3º só busca textual. Dentro do mesmo assunto, o regulamento do estado vem antes do federal (regra geral MCASP atualizado + STN; o estado prevalece onde tem regulamento próprio, ex.: ES).
+- **Sem termo nem trecho:** a busca não devolve nada e a IA segue só as regras atuais (o pedido não muda).
+- **Segurança:** RLS ligado em todas as tabelas, sem política pública; as funções só rodam com a chave de serviço, que fica como segredo no Cloudflare (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`), nunca no código nem no chat.
+- **Próxima etapa:** ligar o Worker à base (trechos no pedido; respostas de confiança alta gravadas e reaproveitadas; dicionário de erros migrado para a tabela) e ingerir os regulamentos estaduais.
 
 ## Próximos passos
 
