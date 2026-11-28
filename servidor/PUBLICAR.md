@@ -88,6 +88,8 @@ No registrador do domínio (Wix), crie quatro registros A para `185.199.108.153`
 
 O Cloudflare não lê o GitHub: cada mudança no `servidor/worker.js` precisa ser colada à mão.
 
+Desde a fase 3 (27/11/2026), o `servidor/worker.js` é **gerado**: edite `servidor/worker-base.js` e/ou `prompt.js` (raiz) e rode `node servidor/montar-worker.mjs`. Rode também `node testes/worker.teste.mjs` antes de colar.
+
 1. Abra https://raw.githubusercontent.com/thiagosnd2/classifica-o/main/servidor/worker.js e copie tudo.
 2. No Cloudflare, abra **Workers & Pages → classificador-ap → Edit code**.
 3. Apague o código, cole o novo e clique em **Deploy**. Variáveis, segredos e KV não mudam.
@@ -100,3 +102,7 @@ O Cloudflare não lê o GitHub: cada mudança no `servidor/worker.js` precisa se
 - O importador (rota `/lote`): com chave Pro válida, sem limite. Sem chave, depende de `PRO_OBRIGATORIO`: `true` recusa (trava real do plano Pro); ausente, a importação é gratuita e limitada a `IMPORT_LIMIT` arquivos por dia por IP (padrão 5), contados no KV `LICENCAS`.
 - A consulta individual é gratuita; o Worker aceita só pedidos vindos de `ALLOWED_ORIGIN`, com tamanho limitado, e — com o Turnstile e o `DAILY_LIMIT` configurados — exige a verificação anti-robô e respeita o teto diário. Mantenha também o limite de gasto no console da Anthropic.
 - Custo de referência (estimativa do projeto): cerca de US$ 39/mês para o ES inteiro com Haiku 5.5 e prompt otimizado. O Worker e o GitHub Pages ficam no plano gratuito nesse volume.
+
+## 7. Fim da transição da fase 3 (pedido montado no servidor)
+
+Depois de alguns dias com o Worker 2026.11.28-1 ou mais novo no ar (tempo para os navegadores trocarem a página antiga), crie no Worker a variável `ACEITAR_PROMPT_LIVRE` = `false` (**Settings → Variables and Secrets → Add**). A partir daí o servidor recusa pedidos prontos e só aceita os campos; quem estiver com a página antiga vê "Página desatualizada. Recarregue com Ctrl + F5".

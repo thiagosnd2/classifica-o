@@ -19,6 +19,7 @@ Contas contábeis: PCASP 2027 (Portaria STN/MF nº 2.520, de 21/08/2026).
 | Arquivo | Conteúdo |
 |---|---|
 | `index.html` | Aplicação completa: consulta individual, quiz, importador de planilha e exportação |
+| `prompt.js` | Montagem do pedido à IA (regras, catálogos, busca por palavra-chave, pedido da consulta e do lote). Arquivo único usado pela página e pelo servidor, para o pedido sair idêntico nos dois (fase 3, 27/11/2026) |
 | `kb.json` | Base de conhecimento usada pela página: 454 subelementos TCE-ES 2027 com ementas e exemplos, conceitos dos elementos (MCASP), Tabela Auxiliar 22, siglas de unidade, base federal, contas de almoxarifado e de bens móveis |
 | `modelo_importacao.xlsx` | Modelo padrão de importação: TITULO, DESCRIÇÃO (até 400 caracteres), UNIDADE DE MEDIDA (lista da TA 22) e TIPO (Material ou Serviço) |
 | `favicon.svg`, `favicon.ico`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `site.webmanifest` | Ícone do site (aba, favoritos, barra lateral do navegador, atalho no celular): quadrado verde-petróleo com um "C" e linhas de classificação |
@@ -44,7 +45,9 @@ A página pode rodar no GitHub Pages, sem depender do claude.ai. A IA e a valida
 O código é comentado em português para leitura por pessoas e agentes:
 
 - `index.html` — aplicação inteira. O script principal começa com um **mapa do arquivo** e está dividido em seções numeradas (1. Infraestrutura · 2. Utilitários · 3. Estado · 4. Regras e busca local · 5. Consulta individual · 6. Importador · 7. Plano Pro · 8. Início). Cada função tem um comentário dizendo o que faz e por quê.
-- `servidor/worker.js` — servidor no Cloudflare: rotas `/classificar`, `/lote`, `/licenca`, anti-robô, teto diário e chamada à IA.
+- `servidor/worker-base.js` — fonte do servidor no Cloudflare: rotas `/classificar`, `/lote`, `/licenca`, `/versao`, anti-robô, tetos, cache e chamada à IA.
+- `servidor/worker.js` — **gerado** por `node servidor/montar-worker.mjs` (junta `prompt.js` + `worker-base.js`); é o arquivo colado no Cloudflare. Não editar à mão.
+- `testes/worker.teste.mjs` — testes do Worker com KV, Turnstile e IA simulados (`node testes/worker.teste.mjs`).
 - `servidor/chave_pro.mjs` e `servidor/lacrar_licenca.mjs` — geração de chaves Pro (KV do Cloudflare e banco do Claude).
 - `scripts/*.py` — montagem da base `kb.json` a partir das tabelas oficiais.
 
@@ -155,6 +158,7 @@ Documento completo: [Classificador de Natureza de Despesa — Custos, Escala e M
 - Portaria STN nº 448, de 13/09/2002 — revogada, mas o conceito continua: segue nas regras enviadas à IA e na base; desde 27/11/2026 não aparece mais na tela.
 - **Regras por Estado (fora do ES), desde 27/11/2026:** `ELEM_UF`, `ELEM_UF_CONCEITO` e `RULES_UF` em `index.html` guardam os acréscimos de cada estado à base federal, sem afetar os demais. Hoje só o **Acre (AC)**: terceirização com mão de obra em dedicação exclusiva → 3.3.90.34 (prática do Estado nos extratos de contrato da CGE-AC de 2026; no AC prevalece sobre a regra 11) e orientação de tombamento no Registro patrimonial (IN CGE-AC nº 3/2026, art. 30). Casos de teste em `testes/casos-acre.md`.
 - **Termo de aceite (revisto em 27/11/2026, aprovado por Sanada):** sem a menção a "estatística"; informa o cache de respostas no servidor (até 30 dias, só o resultado), o IP registrado por até 2 dias para o limite de importação (ambos escondidos no link do Claude) e o Cloudflare Web Analytics anônimo (só em classificabr.com).
+- **Pedido montado no servidor (fase 3, item 1.2, 27/11/2026):** a página manda os campos (Estado, item, unidade… ou os itens do lote) junto com o pedido pronto; o Worker 2026.11.28-1 monta o pedido com o mesmo `prompt.js` e a base `kb.json` do site, limita o tamanho de cada campo e marca `codigo_invalido` quando a IA devolve código fora da tabela (não vai para o cache). Transição: enquanto `ACEITAR_PROMPT_LIVRE` não for `false`, o formato antigo ainda é aceito.
 - **Proteção do servidor (fase 2 do levantamento, 27/11/2026):** até 20 lotes por planilha, presos ao IP; Turnstile na primeira chamada de cada planilha; recusa quando o KV falha; teto próprio opcional da importação (`DAILY_LIMIT_LOTE`); rota `GET /versao` (`WORKER_VERSAO`). Testes: `node testes/worker.teste.mjs`.
 - **Versão da página:** constante `APP_VERSAO` (AAAA.MM.DD-n) no `index.html`, mostrada no rodapé e no e-mail do "Reportar problema". Atualizar a cada publicação.
 - Justificativa da IA sem citar normas (regra `JUST_RULE`, desde 27/11/2026); as regras que a IA segue não mudaram.
