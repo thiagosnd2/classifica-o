@@ -408,7 +408,10 @@ footer .marca{flex-basis:100%;text-align:center;font-size:11px;letter-spacing:.1
 <div id="termo" class="termo" role="dialog" aria-labelledby="termo-h" hidden>
   <div class="termo-box">
     <h3 id="termo-h">Termo de aceite – dados guardados neste navegador</h3>
-    <p>Este sistema <b>não usa cookies</b> próprios, nem ferramentas de rastreamento, estatística ou publicidade. Para agilizar novas consultas, ele pode guardar <b>no armazenamento local do seu navegador</b> (localStorage):</p>
+    <!-- Texto revisto em 27/11/2026 (item 3.1 do levantamento, aprovado por Sanada): sai "estatística"; entram o cache
+         no servidor, o IP do limite de importação e o Web Analytics. Os itens "so-site" somem no link do Claude (lá não há
+         servidor próprio) e o "so-dominio" só aparece em classificabr.com (único lugar com o Web Analytics). -->
+    <p>Este sistema <b>não usa cookies</b> próprios nem ferramentas de publicidade. Para agilizar novas consultas, ele pode guardar <b>no armazenamento local do seu navegador</b> (localStorage):</p>
     <ul>
       <li>o Estado selecionado;</li>
       <li>as suas últimas 8 consultas (item, unidade e código classificado);</li>
@@ -416,7 +419,10 @@ footer .marca{flex-basis:100%;text-align:center;font-size:11px;letter-spacing:.1
     </ul>
     <ul>
       <li>Esses dados ficam só neste navegador e neste computador, até você apagá-los. Não são enviados a nós nem compartilhados com outros usuários.</li>
-      <li>Os itens que você classifica são enviados à inteligência artificial apenas para gerar a classificação.</li>
+      <li>Os itens que você classifica são enviados à inteligência artificial (Anthropic) apenas para gerar a classificação.</li>
+      <li class="so-site">Quando a resposta tem confiança alta, o resultado fica guardado no nosso servidor por até 30 dias, para responder mais rápido a quem consultar exatamente o mesmo item. Guardamos só o resultado, sem identificar quem consultou.</li>
+      <li class="so-site">Para aplicar o limite diário de importação, o servidor registra o endereço IP de quem importou por até 2 dias.</li>
+      <li class="so-dominio" hidden>Em classificabr.com, as visitas são contadas de forma anônima pelo Cloudflare Web Analytics, sem cookies e sem dados pessoais.</li>
       <li>Na versão publicada fora do Claude, uma verificação anti-robô do Cloudflare (Turnstile) protege o serviço contra uso automatizado. No claude.ai valem também as regras de privacidade da Anthropic.</li>
       <li>Você pode apagar os dados salvos a qualquer momento em “Preferências de dados”, no rodapé da página.</li>
     </ul>
@@ -642,7 +648,7 @@ const dicPronto = (ms=3000) => Promise.race([carregarDic(), new Promise(r=>setTi
 /** Estados atendidos. Só o ES tem tabela própria carregada; os demais usam a base federal. */
 /* Versão da página (item 5.3 do levantamento, 27/11/2026): AAAA.MM.DD-n. Atualizar a cada publicação
    (roteiro "Como trabalhamos"). Aparece no rodapé e no e-mail do "Reportar problema". */
-const APP_VERSAO = '2026.11.27-1';
+const APP_VERSAO = '2026.11.27-2';
 const UFS = {AC:'Acre',AL:'Alagoas',AP:'Amapá',AM:'Amazonas',BA:'Bahia',CE:'Ceará',DF:'Distrito Federal',ES:'Espírito Santo',GO:'Goiás',MA:'Maranhão',MT:'Mato Grosso',MS:'Mato Grosso do Sul',MG:'Minas Gerais',PA:'Pará',PB:'Paraíba',PR:'Paraná',PE:'Pernambuco',PI:'Piauí',RJ:'Rio de Janeiro',RN:'Rio Grande do Norte',RS:'Rio Grande do Sul',RO:'Rondônia',RR:'Roraima',SC:'Santa Catarina',SP:'São Paulo',SE:'Sergipe',TO:'Tocantins'};
 let UF = '';
 const isES = () => UF === 'ES';
@@ -1730,7 +1736,11 @@ const EMAIL_CONTATO = 'mversobr@gmail.com';
     nada que identifique a pessoa. Usa userAgentData (Edge, Chrome, Opera) e, sem ele, lê o userAgent
     (Firefox, Safari). Se não reconhecer, devolve "não identificado". */
 /* Mostra a versão no rodapé assim que a página carrega */
-document.addEventListener('DOMContentLoaded', ()=>{ const v = document.getElementById('app-ver'); if(v) v.textContent = 'Versão ' + APP_VERSAO; });
+document.addEventListener('DOMContentLoaded', ()=>{ const v = document.getElementById('app-ver'); if(v) v.textContent = 'Versão ' + APP_VERSAO;
+  /* Termo de aceite: itens que só valem no site (servidor próprio) e só em classificabr.com (Web Analytics) */
+  if(window.claude) document.querySelectorAll('.termo-box .so-site').forEach(li=>li.hidden = true);
+  if(/(^|\.)classificabr\.com$/.test(location.hostname)) document.querySelectorAll('.termo-box .so-dominio').forEach(li=>li.hidden = false);
+});
 function infoNavegador(){
   try{
     const ua = navigator.userAgent || '', d = navigator.userAgentData;
