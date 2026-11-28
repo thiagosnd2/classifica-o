@@ -56,7 +56,7 @@ Princípio de projeto: **a IA só sugere; o código valida antes e confere depoi
 - Chave da API só no servidor (Cloudflare), nunca na página ou no repositório.
 - Chaves Pro guardadas como hash; no Projeto 1 os dados da licença (município, validade) ficam cifrados com a própria chave (`servidor/lacrar_licenca.mjs`).
 - Visitas: Cloudflare Web Analytics (sem cookies, sem dados pessoais), só em classificabr.com; token em `window.CFG.CF_ANALYTICS_TOKEN` (vazio desliga). Painel: Cloudflare → Analytics & Logs → Web Analytics.
-- Estabilidade da IA: chamada com `temperature: 0` (o mesmo pedido tende a voltar com o mesmo código) e cache de respostas de confiança alta na consulta individual (Projeto 2).
+- Estabilidade da IA: cache de respostas de confiança alta na consulta individual (Projeto 2). O parâmetro `temperature` foi retirado do Worker em 27/11/2026: o modelo o recusa e a tentativa dobrava as chamadas.
 - Projeto 2: verificação anti-robô (Turnstile) na consulta individual, teto diário de consultas, limite de importações por IP (Pro suspenso), limite por IP opcional e chave Pro conferida no servidor para o importador.
 - Política de conteúdo (CSP) na hospedagem própria.
 - Sem cookies próprios nem rastreadores; texto em Figtree (desde 27/11/2026) e códigos em IBM Plex Mono, ambas servidas pelo próprio site (`vendor/fonts/`, licença SIL OFL), sem envio de dados ao Google. No claude.ai a página usa o Google Fonts.
@@ -155,6 +155,7 @@ Documento completo: [Classificador de Natureza de Despesa — Custos, Escala e M
 - Portaria STN nº 448, de 13/09/2002 — revogada, mas o conceito continua: segue nas regras enviadas à IA e na base; desde 27/11/2026 não aparece mais na tela.
 - **Regras por Estado (fora do ES), desde 27/11/2026:** `ELEM_UF`, `ELEM_UF_CONCEITO` e `RULES_UF` em `index.html` guardam os acréscimos de cada estado à base federal, sem afetar os demais. Hoje só o **Acre (AC)**: terceirização com mão de obra em dedicação exclusiva → 3.3.90.34 (prática do Estado nos extratos de contrato da CGE-AC de 2026; no AC prevalece sobre a regra 11) e orientação de tombamento no Registro patrimonial (IN CGE-AC nº 3/2026, art. 30). Casos de teste em `testes/casos-acre.md`.
 - **Termo de aceite (revisto em 27/11/2026, aprovado por Sanada):** sem a menção a "estatística"; informa o cache de respostas no servidor (até 30 dias, só o resultado), o IP registrado por até 2 dias para o limite de importação (ambos escondidos no link do Claude) e o Cloudflare Web Analytics anônimo (só em classificabr.com).
+- **Proteção do servidor (fase 2 do levantamento, 27/11/2026):** até 20 lotes por planilha, presos ao IP; Turnstile na primeira chamada de cada planilha; recusa quando o KV falha; teto próprio opcional da importação (`DAILY_LIMIT_LOTE`); rota `GET /versao` (`WORKER_VERSAO`). Testes: `node testes/worker.teste.mjs`.
 - **Versão da página:** constante `APP_VERSAO` (AAAA.MM.DD-n) no `index.html`, mostrada no rodapé e no e-mail do "Reportar problema". Atualizar a cada publicação.
 - Justificativa da IA sem citar normas (regra `JUST_RULE`, desde 27/11/2026); as regras que a IA segue não mudaram.
 - Na tela: MCASP e Lei nº 4.320/1964 (art. 15, § 2º) para todos os estados; a Portaria Interministerial STN/SOF nº 163/2001 aparece só para o Espírito Santo (cada estado tem o seu regulamento).

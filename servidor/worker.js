@@ -7,6 +7,7 @@
  *                                                 conta 1 importação por arquivo e IP (IMPORT_LIMIT/dia),
  *                                                 ou recusa se PRO_OBRIGATORIO=true; devolve "restantes"
  *   /licenca      { hash }            -> verifica uma chave Pro
+ *   GET /versao                       -> { versao } (confere se o Worker no ar é o do GitHub)
  *
  * Configuração no painel do Cloudflare:
  *   Segredo  ANTHROPIC_API_KEY  chave da API da Anthropic (obrigatório)
@@ -15,14 +16,30 @@
  *   KV       LICENCAS           chaves Pro: nome = hash da chave, valor = JSON
  *   Rate limit RL               opcional; limita consultas por IP
  *   Segredo  TURNSTILE_SECRET   opcional; exige a verificação anti-robô na consulta individual
- *   Variável DAILY_LIMIT        opcional; teto de consultas de IA por dia (todas as pessoas somadas)
+ *   Variável DAILY_LIMIT        opcional; teto de chamadas à IA por dia (todas as pessoas somadas). Sem
+ *                               DAILY_LIMIT_LOTE, vale para consulta e importação juntas (como antes)
+ *   Variável DAILY_LIMIT_LOTE   opcional; teto próprio da importação (chave "usol:"); com ele, DAILY_LIMIT
+ *                               passa a valer só para a consulta individual
+ *   Variável LOTES_POR_PLANILHA opcional; máximo de lotes por planilha (padrão 20 = 17 para 500 itens + folga)
  *   Variável PRO_OBRIGATORIO    "true" = importador só com chave Pro; ausente/"false" = Pro suspenso,
  *                               importação liberada com limite diário por IP
  *   Variável IMPORT_LIMIT       importações por dia por IP quando o Pro está suspenso (padrão 5)
  *
- * Estabilidade: a IA é chamada com temperature 0, e a consulta individual tem cache de 30 dias no KV
- * (respostas de confiança alta; veja chaveDoCache/CACHE_VERSAO).
+ * Estabilidade: a consulta individual tem cache de 30 dias no KV (respostas de confiança alta; veja
+ * chaveDoCache/CACHE_VERSAO). O parâmetro temperature foi retirado em 27/11/2026: o modelo claude-haiku-5-5
+ * o recusa, e a tentativa com ele dobrava as chamadas.
+ *
+ * Fase 2 do levantamento (27/11/2026):
+ *  1.1 cada planilha tem no máximo LOTES_POR_PLANILHA lotes, presos ao IP que a enviou, e a primeira chamada
+ *      de cada planilha passa pela verificação anti-robô (se TURNSTILE_SECRET estiver configurado);
+ *  1.3 se o contador do teto não puder ser lido ou gravado, o pedido é recusado (antes seguia sem contar);
+ *  1.4 teto separado para a importação (DAILY_LIMIT_LOTE);
+ *  1.5 sem temperature;
+ *  5.2 rota GET /versao com WORKER_VERSAO.
  */
+
+/* Versão deste arquivo: atualizar a cada mudança (AAAA.MM.DD-n). GET /versao devolve este valor. */
+const WORKER_VERSAO = '2026.11.27-1';
 
 /* Prefixo do hash das chaves Pro (o mesmo usado na página e nos scripts). */
 const PREFIXO = 'qw-classificador:';
@@ -49,6 +66,8 @@ export default {
     const resp = (status, obj) => new Response(JSON.stringify(obj), { status, headers: { ...cors, 'content-type': 'application/json; charset=utf-8' } });
 
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
+    // Versão do Worker (GET, sem dados sensíveis): para conferir se o que está no ar é o do GitHub
+    if (req.method === 'GET' && new URL(req.url).pathname.replace(/\/+$/, '') === '/versao') return resp(200, { versao: WORKER_VERSAO });
     if (req.method !== 'POST') return resp(405, { erro: 'Método não permitido' });
     if (!okOrigem) return resp(403, { erro: 'Origem não autorizada' });
 
@@ -83,7 +102,7 @@ export default {
           const lic = corpo.chave ? await licencaValida(env, corpo.chave) : null;
           if (!lic) {
             if (env.PRO_OBRIGATORIO === 'true') return resp(403, { erro: 'Chave Pro inválida, vencida ou cancelada' });
-            const r = await contarImportacao(env, String(corpo.arquivo || ''), req.headers.get('CF-Connecting-IP') || 'anon');
+            const r = await contarImportacao(env, String(corpo.arquivo || ''), req.headers.get('CF-Connecting-IP') || 'anon', corpo.ts);
             if (!r.ok) return resp(403, { erro: r.erro });
             restantes = r.restantes;
           }
@@ -101,7 +120,9 @@ export default {
           if (salvo) return resp(200, { resultado: salvo, cache: true });
         }
 
-        if (!(await dentroDoTeto(env))) return resp(429, { erro: 'Limite diário de consultas atingido' });
+        const teto = await dentroDoTeto(env, tipo);
+        if (teto === 'falha') return resp(503, { erro: 'Serviço temporariamente indisponível. Tente de novo em alguns minutos' });
+        if (!teto) return resp(429, { erro: 'Limite diário de consultas atingido' });
 
         const resultado = await chamarIA(env, prompt, LIM[tipo].maxTokens);
         if (chaveCache && resultado && resultado.codigo && /^alta$/i.test(String(resultado.confianca || '').trim())) {
@@ -134,34 +155,56 @@ async function verificarTurnstile(env, token, ip) {
   } catch { return false; }
 }
 
-// Limite de importações por dia por IP (Pro suspenso). Cada planilha enviada tem um id próprio;
-// os lotes da mesma planilha contam como uma importação só. Se o KV falhar, a importação segue.
-async function contarImportacao(env, arquivo, ip) {
+/* Limite de importações (Pro suspenso), em duas camadas:
+   (a) por IP e por dia: cada planilha enviada tem um id próprio; até IMPORT_LIMIT planilhas por dia;
+   (b) por planilha (item 1.1, 27/11/2026): registro "lote:<id>" com o IP que a enviou e quantos lotes já usou.
+       Até LOTES_POR_PLANILHA lotes; outro IP não pode usar o mesmo id. Na PRIMEIRA chamada de uma planilha,
+       exige o token anti-robô (se TURNSTILE_SECRET estiver configurado).
+   Se o KV não puder ser lido ou gravado, a importação é recusada (antes seguia sem contar). */
+async function contarImportacao(env, arquivo, ip, ts) {
   const lim = Number(env.IMPORT_LIMIT || 5);
+  const maxLotes = Number(env.LOTES_POR_PLANILHA || 20);
   if (!/^[\w.-]{8,64}$/.test(arquivo)) return { ok: false, erro: 'Importação sem identificação; recarregue a página e envie a planilha de novo' };
   if (!env.LICENCAS) return { ok: true, restantes: null };
-  const k = 'imp:' + ip + ':' + diaBrasilia();
-  let ids = [];
-  try { ids = JSON.parse((await env.LICENCAS.get(k)) || '[]'); } catch { ids = []; }
-  if (ids.includes(arquivo)) return { ok: true, restantes: Math.max(0, lim - ids.length) };
-  if (ids.length >= lim) return { ok: false, erro: `Limite de ${lim} importações por dia atingido. Tente novamente amanhã` };
-  ids.push(arquivo);
-  try { await env.LICENCAS.put(k, JSON.stringify(ids), { expirationTtl: 2 * 86400 }); } catch {}
+  const kLote = 'lote:' + arquivo, kIp = 'imp:' + ip + ':' + diaBrasilia();
+  let rec, ids;
+  try {
+    rec = JSON.parse((await env.LICENCAS.get(kLote)) || 'null');
+    ids = JSON.parse((await env.LICENCAS.get(kIp)) || '[]');
+  } catch { return { ok: false, erro: 'Serviço temporariamente indisponível. Tente de novo em alguns minutos' }; }
+  if (!rec) {
+    // Planilha nova: verificação anti-robô e limite de planilhas por IP no dia
+    if (env.TURNSTILE_SECRET && !(await verificarTurnstile(env, ts, ip))) return { ok: false, erro: 'Verificação anti-robô falhou. Envie a planilha de novo' };
+    if (ids.length >= lim) return { ok: false, erro: `Limite de ${lim} importações por dia atingido. Tente novamente amanhã` };
+    ids.push(arquivo);
+    rec = { ip, n: 0 };
+    try { await env.LICENCAS.put(kIp, JSON.stringify(ids), { expirationTtl: 2 * 86400 }); }
+    catch { return { ok: false, erro: 'Serviço temporariamente indisponível. Tente de novo em alguns minutos' }; }
+  }
+  if (rec.ip !== ip) return { ok: false, erro: 'Esta importação começou em outra conexão. Envie a planilha de novo' };
+  if (rec.n >= maxLotes) return { ok: false, erro: 'Esta planilha já usou todos os lotes permitidos. Envie a planilha de novo' };
+  rec.n++;
+  try { await env.LICENCAS.put(kLote, JSON.stringify(rec), { expirationTtl: 2 * 86400 }); }
+  catch { return { ok: false, erro: 'Serviço temporariamente indisponível. Tente de novo em alguns minutos' }; }
   return { ok: true, restantes: Math.max(0, lim - ids.length) };
 }
 
 function diaBrasilia() { return new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10); }
 
-// Teto diário aproximado (contador no KV; a contagem pode escapar em poucas unidades
-// com muitos acessos simultâneos). No plano gratuito o KV aceita 1.000 gravações por dia.
-async function dentroDoTeto(env) {
-  const lim = Number(env.DAILY_LIMIT || 0);
+/* Teto diário aproximado (contador no KV; a contagem pode escapar em poucas unidades com muitos acessos
+   simultâneos). No plano gratuito o KV aceita 1.000 gravações por dia.
+   Devolve true (pode seguir), false (teto atingido) ou 'falha' (KV sem leitura/gravação: recusa, item 1.3).
+   Com DAILY_LIMIT_LOTE, a importação tem contador próprio ("usol:"); sem ele, tudo conta em "uso:" (como antes). */
+async function dentroDoTeto(env, tipo) {
+  const separado = tipo === 'lote' && Number(env.DAILY_LIMIT_LOTE || 0) > 0;
+  const lim = separado ? Number(env.DAILY_LIMIT_LOTE) : Number(env.DAILY_LIMIT || 0);
   if (!lim || !env.LICENCAS) return true;
-  const k = 'uso:' + diaBrasilia();
-  let n = 0;
-  try { n = Number((await env.LICENCAS.get(k)) || 0); } catch {}
+  const k = (separado ? 'usol:' : 'uso:') + diaBrasilia();
+  let n;
+  try { n = Number((await env.LICENCAS.get(k)) || 0); } catch { console.error('teto: KV sem leitura'); return 'falha'; }
   if (n >= lim) return false;
-  try { await env.LICENCAS.put(k, String(n + 1), { expirationTtl: 3 * 86400 }); } catch {} // KV cheio: não derruba a consulta
+  try { await env.LICENCAS.put(k, String(n + 1), { expirationTtl: 3 * 86400 }); }
+  catch { console.error('teto: KV sem gravação'); return 'falha'; }
   return true;
 }
 
@@ -210,11 +253,10 @@ async function gravarCache(env, chave, resultado) {
 }
 
 /* Chama a API da Anthropic com a chave secreta, detecta resposta cortada e extrai o JSON.
-   temperature 0 deixa a IA mais estável (o mesmo pedido tende a voltar com o mesmo código). Se o modelo
-   recusar o parâmetro (erro 400 que cita "temperature"), repete uma vez sem ele, para nunca quebrar a consulta.
+   Sem temperature desde 27/11/2026 (o claude-haiku-5-5 recusa o parâmetro; a estabilidade vem do cache).
    Em erro, o motivo leva o status e o tipo/mensagem curta da Anthropic (sem dados do pedido). */
 async function chamarIA(env, prompt, maxTokens) {
-  const pedir = (comTemperatura) => fetch('https://api.anthropic.com/v1/messages', {
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'x-api-key': env.ANTHROPIC_API_KEY,
@@ -224,18 +266,15 @@ async function chamarIA(env, prompt, maxTokens) {
     body: JSON.stringify({
       model: env.MODEL || 'claude-haiku-5-5',
       max_tokens: maxTokens,
-      ...(comTemperatura ? { temperature: 0 } : {}),
       system: SISTEMA,
       messages: [{ role: 'user', content: prompt }],
     }),
   });
-  let r = await pedir(true);
-  let erro = '';
   if (!r.ok) {
+    let erro = '';
     try { const e = await r.json(); erro = String((e.error && (e.error.message || e.error.type)) || '').slice(0, 160); } catch {}
-    if (r.status === 400 && /temperature/i.test(erro)) { r = await pedir(false); erro = ''; if (!r.ok) { try { const e = await r.json(); erro = String((e.error && (e.error.message || e.error.type)) || '').slice(0, 160); } catch {} } }
+    throw { status: r.status, motivo: r.status === 529 ? 'IA sobrecarregada, tente de novo' : `a IA respondeu ${r.status}${erro ? ': ' + erro : ''}` };
   }
-  if (!r.ok) throw { status: r.status, motivo: r.status === 529 ? 'IA sobrecarregada, tente de novo' : `a IA respondeu ${r.status}${erro ? ': ' + erro : ''}` };
   const j = await r.json();
   const texto = (j.content || []).filter(c => c.type === 'text').map(c => c.text).join('');
   if (j.stop_reason === 'max_tokens') throw { status: 502, motivo: 'resposta da IA cortada por tamanho' };

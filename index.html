@@ -541,7 +541,21 @@ function servidorProprio(){
   return {
     sample: { json: (prompt, opts={}) => {
       const lote = /array JSON/.test(prompt);
-      if(lote) return apiPost('/lote', {prompt, chave: CHAVE_ATUAL, arquivo: IMP && IMP.id}, opts.signal).then(j => { if(j && j.restantes != null) IMP_RESTANTES = j.restantes; return j && j.resultado; });
+      if(lote){
+        /* Item 1.1 (27/11/2026): a PRIMEIRA chamada de cada planilha leva o token anti-robô (Turnstile) e registra a
+           planilha no servidor; as demais esperam essa primeira terminar (há dois lotes em paralelo). Se a primeira
+           falhar, a próxima tentativa começa de novo, com outro token. */
+        const fim = j => { if(j && j.restantes != null) IMP_RESTANTES = j.restantes; return j && j.resultado; };
+        const corpo = {prompt, chave: CHAVE_ATUAL, arquivo: IMP && IMP.id};
+        if(IMP && !IMP._inicio){
+          IMP._inicio = (CHAVE_ATUAL ? Promise.resolve('') : tokenTurnstile().catch(()=>''))
+            .then(ts => apiPost('/lote', {...corpo, ts}, opts.signal));
+          IMP._inicio.catch(()=>{ if(IMP) IMP._inicio = null; });
+          return IMP._inicio.then(fim);
+        }
+        const espera = IMP && IMP._inicio ? IMP._inicio.catch(()=>{}) : Promise.resolve();
+        return espera.then(() => apiPost('/lote', corpo, opts.signal)).then(fim);
+      }
       /* cache:true = resposta repetida do cache do servidor (mesmo pedido já classificado com confiança alta) */
       return tokenTurnstile().then(ts => apiPost('/classificar', {prompt, ts}, opts.signal)).then(j => j && j.resultado && (j.cache ? {...j.resultado, _cache:true} : j.resultado));
     }},
@@ -648,7 +662,7 @@ const dicPronto = (ms=3000) => Promise.race([carregarDic(), new Promise(r=>setTi
 /** Estados atendidos. Só o ES tem tabela própria carregada; os demais usam a base federal. */
 /* Versão da página (item 5.3 do levantamento, 27/11/2026): AAAA.MM.DD-n. Atualizar a cada publicação
    (roteiro "Como trabalhamos"). Aparece no rodapé e no e-mail do "Reportar problema". */
-const APP_VERSAO = '2026.11.27-2';
+const APP_VERSAO = '2026.11.27-3';
 const UFS = {AC:'Acre',AL:'Alagoas',AP:'Amapá',AM:'Amazonas',BA:'Bahia',CE:'Ceará',DF:'Distrito Federal',ES:'Espírito Santo',GO:'Goiás',MA:'Maranhão',MT:'Mato Grosso',MS:'Mato Grosso do Sul',MG:'Minas Gerais',PA:'Pará',PB:'Paraíba',PR:'Paraná',PE:'Pernambuco',PI:'Piauí',RJ:'Rio de Janeiro',RN:'Rio Grande do Norte',RS:'Rio Grande do Sul',RO:'Rondônia',RR:'Roraima',SC:'Santa Catarina',SP:'São Paulo',SE:'Sergipe',TO:'Tocantins'};
 let UF = '';
 const isES = () => UF === 'ES';

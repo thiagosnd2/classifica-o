@@ -39,7 +39,9 @@ A mesma `index.html` funciona nos dois lugares: dentro do claude.ai usa a plataf
   - a **chave secreta** vai no Worker como segredo `TURNSTILE_SECRET`;
   - a **chave pública (site key)** vai no `index.html`, em `window.CFG.TURNSTILE_SITEKEY`.
   Com isso, a consulta individual só é aceita depois da verificação. O importador já é protegido pela chave Pro.
-- **Teto diário.** Variável `DAILY_LIMIT` no Worker (ex.: `800`): ao atingir o número de consultas de IA no dia, o servidor recusa as seguintes até a meia-noite (horário de Brasília). Usa o KV `LICENCAS`; no plano gratuito do Cloudflare o KV aceita 1.000 gravações por dia (somando teto diário, contador de importações e cache de respostas, que grava uma vez por resposta nova de confiança alta), então mantenha o teto abaixo disso ou use o plano pago (US$ 5/mês).
+- **Teto diário.** Variável `DAILY_LIMIT` no Worker (ex.: `800`): ao atingir o número de consultas de IA no dia, o servidor recusa as seguintes até a meia-noite (horário de Brasília). Usa o KV `LICENCAS`; no plano gratuito do Cloudflare o KV aceita 1.000 gravações por dia (somando teto diário, contador de importações e cache de respostas, que grava uma vez por resposta nova de confiança alta), então mantenha o teto abaixo disso ou use o plano pago (US$ 5/mês). Desde 27/11/2026, se o KV não puder ser lido ou gravado (por exemplo, quando acabam as 1.000 gravações do dia), o servidor **recusa** o pedido com "Serviço temporariamente indisponível" em vez de seguir sem contar. Cada lote da importação grava 2 vezes (planilha e teto).
+- **Teto próprio da importação (opcional).** Variável `DAILY_LIMIT_LOTE` (ex.: `300`): a importação passa a ter contador próprio e o `DAILY_LIMIT` vale só para a consulta individual. Sem ela, tudo conta junto, como antes.
+- **Lotes por planilha.** Cada planilha pode usar até `LOTES_POR_PLANILHA` lotes (padrão `20`: 17 para 500 itens + folga), sempre do mesmo IP, e a primeira chamada de cada planilha passa pelo Turnstile (se `TURNSTILE_SECRET` estiver configurado).
 - **Plano Pro suspenso / importação gratuita.** Sem a variável `PRO_OBRIGATORIO` (ou com `false`), o importador funciona sem chave, limitado a `IMPORT_LIMIT` importações por dia por IP (padrão 5); quem tiver chave Pro válida não tem limite. Para voltar a exigir chave, crie `PRO_OBRIGATORIO` = `true` no Worker e mude `PLANO_PRO` para `true` em `window.CFG` no `index.html`.
 - **Limite por IP.** Opcional: binding de *Rate Limiting* chamado `RL` (veja o `wrangler.toml`).
 - **Política de conteúdo (CSP).** Já vem na página: no GitHub Pages ela só carrega scripts de origens conhecidas e só envia dados ao endereço em `API_URL`.
@@ -89,7 +91,8 @@ O Cloudflare não lê o GitHub: cada mudança no `servidor/worker.js` precisa se
 1. Abra https://raw.githubusercontent.com/thiagosnd2/classifica-o/main/servidor/worker.js e copie tudo.
 2. No Cloudflare, abra **Workers & Pages → classificador-ap → Edit code**.
 3. Apague o código, cole o novo e clique em **Deploy**. Variáveis, segredos e KV não mudam.
-4. Confira: no editor, procure (Ctrl+F) um trecho da mudança; na página, faça uma consulta de teste.
+4. Confira: abra `https://<endereço do Worker>/versao` no navegador; deve aparecer a mesma `WORKER_VERSAO` do topo do `worker.js` no GitHub. Depois faça uma consulta de teste na página.
+5. **Ordem:** publique primeiro a página (GitHub) e só depois o Worker, quando a mudança envolver os dois.
 
 ## Segurança e custos
 
