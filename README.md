@@ -70,7 +70,7 @@ Princípio de projeto: **a IA só sugere; o código valida antes e confere depoi
 ## Funcionalidades
 
 **Rodapé**
-- No centro, abaixo de tudo, a marca d'água discreta "Versão AAAA.MM.DD-n" (desde 28/11/2026 a versão da página, `APP_VERSAO`, fica na marca; antes era "Sanada Inc 2027"). Logo abaixo, "© AAAA Sanada INC. Todos os direitos reservados." (ano corrente). Desde a 2026.11.28-8 o nome "Sanada INC" aparece só nos direitos reservados.
+- No centro, abaixo de tudo, a marca d'água discreta "Versão AAAA.MM.DD-n" (desde 28/11/2026 a versão da página, `APP_VERSAO`, fica na marca; antes era "Sanada Inc 2027"). Logo abaixo, "© AAAA Sanada INC – Inteligência Normativa e Contábil. Todos os direitos reservados." (ano corrente; INC = Inteligência Normativa e Contábil, escolhido por Sanada em 28/11/2026). Desde a 2026.11.28-8 o nome "Sanada INC" aparece só nos direitos reservados.
 - À direita, os botões "Reportar problema" e "Fale conosco" abrem uma janela com o e-mail (mversobr@gmail.com) para copiar e atalhos para Gmail, Outlook ou o app de e-mail, já com assunto e roteiro (o problema inclui estado, versão, aba e navegador, ex.: "Edge 142 · Windows").
 
 **Consulta individual**
