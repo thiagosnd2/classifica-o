@@ -1,7 +1,7 @@
 /* =====================================================================================
    ARQUIVO GERADO — NÃO EDITE AQUI.
    Edite servidor/worker-base.js e/ou prompt.js e rode:  node servidor/montar-worker.mjs
-   Versão do Worker: 2026.11.28-1
+   Versão do Worker: 2026.11.28-2
    Parte 1: prompt.js (montagem do pedido à IA, igual à da página)
    Parte 2: servidor/worker-base.js (rotas, limites, cache e chamada à IA)
    ===================================================================================== */
@@ -140,6 +140,13 @@ function unitGroupElems(u){
 }
 
 
+/* ---------- Contas de bens imóveis e obras (item 2.3; na IA fora do ES desde 27/11/2026) ----------
+   Fora do ES não há subelemento: a IA escolhe a conta na lista aprovada (KB.imoveis) e a página confere se ela
+   combina com o elemento (IMOVEL_GRUPO). No ES a conta sai do subelemento e esta lista não vai no pedido. */
+const IMOVEL_GRUPO = { '4.4.90.61': /^1\.2\.3\.2\.1\.01\./, '4.5.90.61': /^1\.2\.3\.2\.1\.04\./, '4.4.90.51': /^1\.2\.3\.2\.1\.0[678]\./ };
+const contasImoveisTxt = () => (KB.imoveis || []).map(c=>`${c.c} ${c.n}`).join('\n');
+const REGRA_CONTA_IMOVEL = 'Para obras e imóveis, "conta" é a da lista de BENS IMÓVEIS E OBRAS: elemento 4.4.90.61 (imóvel para uso do órgão) → bens de uso especial (1.2.3.2.1.01.xx); 4.5.90.61 (inversão financeira) → bens dominicais (1.2.3.2.1.04.xx); 4.4.90.51 → obras em andamento, estudos e projetos, instalações ou benfeitorias (1.2.3.2.1.06/07/08). Terreno → a conta de terrenos do grupo.';
+
 /* ---------- Pedido da consulta individual ---------- */
 /** Monta o pedido da consulta individual: regras + catálogo (restrito ou federal) + dados do item
     + formato JSON exigido (código, confiança, quiz, texto sugerido...). */
@@ -190,9 +197,12 @@ ${KB.almox.map(c=>`${c.c} ${c.n}`).join('\n')}
 CONTAS CONTÁBEIS (PCASP 2027) – material permanente (bens móveis):
 ${KB.bensmoveis.map(c=>`${c.c} ${c.n}`).join('\n')}
 
+CONTAS CONTÁBEIS (PCASP 2027) – bens imóveis e obras:
+${contasImoveisTxt()}
+
 ${head}
 
-Instruções: "codigo" deve ser um dos ELEMENTOS VÁLIDOS. "subelemento" é o nome de referência (ou null se não houver). "conta": para MATERIAL, a conta contábil do PCASP 2027 que corresponde ao item, escolhida nas listas acima (material de consumo → almoxarifado; material permanente → bens móveis); para SERVIÇO, null. Para material, avalie os cinco critérios. Se a confiança for "média" ou "baixa", monte um QUIZ em "quiz": uma pergunta objetiva sobre o fator que decide a classificação (finalidade, uso, forma de fornecimento etc.) e de 2 a 4 opções curtas, cada uma ligada ao elemento válido que vale se o usuário escolher aquela opção (códigos diferentes entre si). Se a confiança for "alta", "quiz" = null. Alternativas: até 3 elementos com a condição.
+Instruções: "codigo" deve ser um dos ELEMENTOS VÁLIDOS. "subelemento" é o nome de referência (ou null se não houver). "conta": para MATERIAL, a conta contábil do PCASP 2027 que corresponde ao item, escolhida nas listas acima (material de consumo → almoxarifado; material permanente → bens móveis); ${REGRA_CONTA_IMOVEL} Para os demais SERVIÇOS, null. Para material, avalie os cinco critérios. Se a confiança for "média" ou "baixa", monte um QUIZ em "quiz": uma pergunta objetiva sobre o fator que decide a classificação (finalidade, uso, forma de fornecimento etc.) e de 2 a 4 opções curtas, cada uma ligada ao elemento válido que vale se o usuário escolher aquela opção (códigos diferentes entre si). Se a confiança for "alta", "quiz" = null. Alternativas: até 3 elementos com a condição.
 ${TEXT_RULE} Na consulta, "texto_sugerido" é a versão revisada do "Nome ou descrição do item".
 ${JUST_RULE}
 Responda SOMENTE com JSON:
@@ -224,6 +234,9 @@ function batchPrompt(gs, full, uf = (typeof IMP !== 'undefined' && IMP ? IMP.uf 
   const comPerm = elems.has('4.4.90.52');
   const contas = tipo !== 'Material' ? '' : 'CONTAS CONTÁBEIS (PCASP 2027) – material de consumo (estoque/almoxarifado):\n' + KB.almox.map(c=>`${c.c} ${c.n}`).join('\n')
     + (comPerm ? '\n\nCONTAS CONTÁBEIS (PCASP 2027) – material permanente (bens móveis):\n' + KB.bensmoveis.map(c=>`${c.c} ${c.n}`).join('\n') : '');
+  /* Fora do ES, lote de SERVIÇO que pode ter obras (4.4.90.51): vai a lista de bens imóveis e obras */
+  const comObra = !es && tipo === 'Serviço' && elems.has('4.4.90.51');
+  const contasObra = comObra ? 'CONTAS CONTÁBEIS (PCASP 2027) – bens imóveis e obras:\n' + contasImoveisTxt() : '';
   return `Você classifica itens de compras públicas municipais (${es?'Espírito Santo, Tabela de Natureza da Despesa TCE-ES 2027, até o subelemento':`${UFS[uf]}, base federal de referência, até o ELEMENTO`}).
 
 ${RULES}${es?RULES_ES:(RULES_UF[uf]||'')}
@@ -238,9 +251,9 @@ ${es?`CATÁLOGO DE ${tipo.toUpperCase()} (código | título)${restrito?' – res
 ITENS (nº | título | descrição | unidade):
 ${itens}
 
-${contas}
+${contas}${contasObra}
 
-Para cada item, escolha ${es?'um código do catálogo':'um elemento válido'}; nunca invente código.${temFin?' Quando a finalidade vier informada pelo usuário, ela é obrigatória: DISTRIBUIÇÃO GRATUITA → elemento 3.3.90.32; USO INTERNO → não use 3.3.90.32.':''}${es&&restrito?' Se nenhum código do catálogo servir, responda "fora_do_catalogo": true.':''}${tipo==='Material'?' Identifique pelo título se o item é material de consumo ou permanente e escolha a conta contábil na lista correspondente (prefira a conta analítica mais específica).':' Itens de serviço: "conta" vazia.'}
+Para cada item, escolha ${es?'um código do catálogo':'um elemento válido'}; nunca invente código.${temFin?' Quando a finalidade vier informada pelo usuário, ela é obrigatória: DISTRIBUIÇÃO GRATUITA → elemento 3.3.90.32; USO INTERNO → não use 3.3.90.32.':''}${es&&restrito?' Se nenhum código do catálogo servir, responda "fora_do_catalogo": true.':''}${tipo==='Material'?' Identifique pelo título se o item é material de consumo ou permanente e escolha a conta contábil na lista correspondente (prefira a conta analítica mais específica).':(comObra ? ' Obras (4.4.90.51): "conta" da lista de bens imóveis e obras (em andamento, estudos e projetos, instalações ou benfeitorias); demais itens de serviço: "conta" vazia.' : ' Itens de serviço: "conta" vazia.')}
 ${TEXT_RULE} No lote, use "titulo_sugerido" e "descricao_sugerida" (até 400 caracteres) para o título e a descrição de cada item.
 Se um item claramente for ${tipo==='Material'?'SERVIÇO':'MATERIAL'} e não ${tipo.toUpperCase()} (o TIPO informado está errado), NÃO o classifique: responda "codigo": null e "tipo_sugerido": "${tipo==='Material'?'Serviço':'Material'}" (mantenha os campos de texto). Na dúvida, classifique normalmente.
 Responda SOMENTE com um array JSON, um objeto por item, na mesma ordem:
@@ -302,7 +315,7 @@ ${es?'[{"n":1,"codigo":"x.x.90.xx.xx","conta":"x.x.x.x.x.xx.xx","titulo_sugerido
  */
 
 /* Versão deste arquivo: atualizar a cada mudança (AAAA.MM.DD-n). GET /versao devolve este valor. */
-const WORKER_VERSAO = '2026.11.28-1';
+const WORKER_VERSAO = '2026.11.28-2';
 
 /* Prefixo do hash das chaves Pro (o mesmo usado na página e nos scripts). */
 const PREFIXO = 'qw-classificador:';

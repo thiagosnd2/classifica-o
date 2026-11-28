@@ -660,7 +660,7 @@ const dicPronto = (ms=3000) => Promise.race([carregarDic(), new Promise(r=>setTi
 /** Estados atendidos. Só o ES tem tabela própria carregada; os demais usam a base federal. */
 /* Versão da página (item 5.3 do levantamento, 27/11/2026): AAAA.MM.DD-n. Atualizar a cada publicação
    (roteiro "Como trabalhamos"). Aparece no rodapé e no e-mail do "Reportar problema". */
-const APP_VERSAO = '2026.11.27-5';
+const APP_VERSAO = '2026.11.27-6';
 let UF = '';
 const isES = () => UF === 'ES';
 /** Troca o Estado ativo: atualiza textos, o quadro "Última atualização" e guarda a escolha (com aceite). */
@@ -1257,7 +1257,11 @@ const CONTA_NOME = c => { const x = (KB.almox.find(a=>a.c===c) || KB.bensmoveis.
     fora do ES, do elemento (KB.imoveis_el). Devolve "código – nome" ou null se não for obra/imóvel. */
 function contaImovel(it, r){
   const el = elOf(r && r.codigo); if(!KB.imoveis_el || !KB.imoveis_el[el]) return null;
-  const c = (it && KB.imoveis_sub[it.c]) || KB.imoveis_sub[r.codigo] || KB.imoveis_el[el];
+  /* Fora do ES (sem subelemento), vale a conta escolhida pela IA se estiver na lista aprovada e combinar com o elemento
+     (ex.: terreno → 1.2.3.2.1.01.04); senão, a conta padrão do elemento. */
+  const ia = r && r.conta ? (String(r.conta).match(/1\.2\.3\.2\.1\.\d{2}\.\d{2}/)||[])[0] : '';
+  const daIA = ia && (KB.imoveis||[]).some(x=>x.c===ia) && IMOVEL_GRUPO[el] && IMOVEL_GRUPO[el].test(ia) ? ia : '';
+  const c = (it && KB.imoveis_sub[it.c]) || KB.imoveis_sub[r.codigo] || daIA || KB.imoveis_el[el];
   return CONTA_NOME(c) || null;
 }
 /** Conta de depreciação acumulada de uma conta de bens móveis (em teste desde 23/11/2026): ligação por grupo
